@@ -1,0 +1,16 @@
+node_modules
+.output
+.nitro
+.vinxi
+dist
+.DS_Store
+*.log
+.cache
+.env
+.env.*
+/tmp
+screenshots
+artifacts
+.vercel
+.grok
+src/routeTree.gen.ts
