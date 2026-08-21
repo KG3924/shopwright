@@ -6,6 +6,45 @@ Shopwright is a woodworking studio that treats a photograph as a *reading*, not 
 
 This is an interpretation a competent shop would build. Factory cam-locks and hidden construction stay labeled as inference.
 
+## Run it
+
+You need **Node 22** and npm.
+
+```bash
+git clone https://github.com/KG3924/shopwright.git
+cd shopwright
+npm install
+npm run dev
+```
+
+Then open [http://localhost:8080](http://localhost:8080). Always start with `npm run dev` — not `vite` directly. The npm script loads app env the rest of the toolchain expects.
+
+The six **studio pieces** (bench, console, bookcase, coffee table, wall cabinet, Adirondack) work with no extra setup. Click one, change size / rank / species, and read the packet.
+
+### Photo, links, and the Master Woodworker
+
+Those paths call the xAI API. Export a key in the same shell before `npm run dev`:
+
+```bash
+export XAI_API_KEY="xai-..."
+npm run dev
+```
+
+Without the key, the catalog still runs. Upload / paste-a-link / Ask the Master will say AI is unavailable instead of crashing.
+
+Do not commit the key. Do not put it in a tracked `.env`.
+
+### Other commands
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server at `0.0.0.0:8080` |
+| `npm run build` | Production build |
+| `npm run preview` | Serve the production build at `127.0.0.1:8081` (run `build` first) |
+| `npm run typecheck` | TypeScript, no emit |
+
+`src/routeTree.gen.ts` is generated on first `npm run dev` / `npm run build`. It is not in git.
+
 ## What v0.1 does
 
 - **Photo / plan upload** — vision model reads the piece, returns a structured project graph
@@ -22,10 +61,8 @@ This is an interpretation a competent shop would build. Factory cam-locks and hi
 
 It will not reverse-engineer a factory SKU into CNC-ready clones. Scale without a labeled dimension is estimated. Joinery you cannot see is a *route*, not a fact. Confirm the four overall numbers before you cut.
 
-## Repo
+## Docs
 
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — product intent
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the project graph and compiler
 - [`docs/V01_SCOPE.md`](docs/V01_SCOPE.md) — what shipped in 0.1 and what’s next
-
-Built as a TanStack Start app. Local preview is handled by the host environment.
