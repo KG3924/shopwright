@@ -61,6 +61,8 @@ export function hasImageMagicBytes(bytes: Uint8Array): boolean {
   return false;
 }
 
+const MAX_FILENAME_HINT = 200;
+
 export function filenameHintFromUrl(url: string): string {
   let last = "";
   try {
@@ -68,11 +70,13 @@ export function filenameHintFromUrl(url: string): string {
   } catch {
     last = url.split("/").filter(Boolean).at(-1) ?? "";
   }
+  let hint: string;
   try {
-    return decodeURIComponent(last.replace(/\+/g, " ")).trim();
+    hint = decodeURIComponent(last.replace(/\+/g, " ")).trim();
   } catch {
-    return last.replace(/\+/g, " ").trim();
+    hint = last.replace(/\+/g, " ").trim();
   }
+  return hint.slice(0, MAX_FILENAME_HINT);
 }
 
 function imagePageNote(url: string): string {
@@ -148,8 +152,20 @@ export async function resolveUrlSource(
   return classifyFetchedUrl({ url, contentType, body: raw });
 }
 
+function errorName(err: unknown): string | undefined {
+  if (err && typeof err === "object" && "name" in err && typeof err.name === "string") {
+    return err.name;
+  }
+  return undefined;
+}
+
+/** Client disconnect is AbortError; AbortSignal.timeout() is TimeoutError on Node 22. */
 export function isAbortError(err: unknown): boolean {
-  return Boolean(err && typeof err === "object" && "name" in err && err.name === "AbortError");
+  const names = [errorName(err)];
+  if (err && typeof err === "object" && "cause" in err) {
+    names.push(errorName(err.cause));
+  }
+  return names.some((name) => name === "AbortError" || name === "TimeoutError");
 }
 
 export function mapInterpretHandlerError(

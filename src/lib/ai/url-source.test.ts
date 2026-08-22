@@ -116,15 +116,21 @@ describe("parseHtmlExcerpt", () => {
 describe("resolveUrlSource", () => {
   it("uses the request URL as the photo and skips HTML scrape for image/*", async () => {
     let textReads = 0;
+    let bufferReads = 0;
     const fetchImpl: typeof fetch = async () => {
       const res = new Response(JPEG_MAGIC, {
         status: 200,
         headers: { "Content-Type": "image/jpeg" },
       });
-      const original = res.text.bind(res);
+      const originalText = res.text.bind(res);
+      const originalBuffer = res.arrayBuffer.bind(res);
       res.text = async () => {
         textReads += 1;
-        return original();
+        return originalText();
+      };
+      res.arrayBuffer = async () => {
+        bufferReads += 1;
+        return originalBuffer();
       };
       return res;
     };
@@ -132,6 +138,7 @@ describe("resolveUrlSource", () => {
     assert.equal(source.kind, "image");
     assert.equal(source.photoUrl, WAYFAIR_JPG);
     assert.equal(textReads, 0);
+    assert.equal(bufferReads, 0);
     assert.doesNotMatch(source.pageNote, /Excerpt:/);
   });
 
@@ -160,6 +167,20 @@ describe("mapInterpretHandlerError", () => {
     const dom = new DOMException("The operation was aborted.", "AbortError");
     assert.equal(isAbortError(dom), true);
     assert.equal(mapInterpretHandlerError(dom).error, INTERPRET_ABORT_MESSAGE);
+  });
+
+  it("maps Node AbortSignal.timeout TimeoutError the same way", () => {
+    const timeout = new DOMException(
+      "The operation was aborted due to timeout",
+      "TimeoutError",
+    );
+    assert.equal(isAbortError(timeout), true);
+    assert.equal(mapInterpretHandlerError(timeout).error, INTERPRET_ABORT_MESSAGE);
+
+    const wrapped = new Error("fetch failed");
+    wrapped.cause = timeout;
+    assert.equal(isAbortError(wrapped), true);
+    assert.equal(mapInterpretHandlerError(wrapped).error, INTERPRET_ABORT_MESSAGE);
   });
 
   it("keeps incomplete_parts honesty instead of swallowing Cut A", () => {
