@@ -308,7 +308,7 @@ export type ShopPacket = {
   stillBuy: string[];
   doNotBuy: string[];
   stack: string[];
-  /** True when scale is weak/conflict or tickets still have unknown axes. */
+  /** True when scale is weak/conflict, tickets have unknown axes, or no route compiled. */
   doNotCut?: boolean;
 };
 

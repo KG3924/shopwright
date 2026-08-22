@@ -49,6 +49,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
     project.partsFromPhotos;
   const cutHold = formatDoNotCut({
     doNotCut: packet.doNotCut,
+    routeRunnable: packet.routeRunnable,
     scaleConfidence: project.scaleConfidence,
     scaleNotes: project.scaleNotes,
   });

@@ -148,20 +148,27 @@ export type CutHold = {
  */
 export function formatDoNotCut(flags: {
   doNotCut?: boolean;
+  routeRunnable?: boolean;
   scaleConfidence?: ScaleConfidence;
   scaleNotes?: string[];
 }): CutHold | null {
-  if (!flags.doNotCut) return null;
+  const routeHold = flags.routeRunnable === false;
+  if (!flags.doNotCut && !routeHold) return null;
   const notes = [
     ...new Set((flags.scaleNotes ?? []).map((n) => n.trim()).filter(Boolean)),
   ];
+  if (routeHold) {
+    notes.push("No construction route compiled — do not cut.");
+  }
   const headline = "Don't cut yet";
   const fallback =
-    flags.scaleConfidence === "conflict"
-      ? "Scale conflict — confirm with a tape."
-      : flags.scaleConfidence === "low"
-        ? "Scale is weak — confirm with a tape."
-        : "Confirm scale and any '?' dimensions.";
+    routeHold
+      ? "No construction route compiled — do not cut."
+      : flags.scaleConfidence === "conflict"
+        ? "Scale conflict — confirm with a tape."
+        : flags.scaleConfidence === "low"
+          ? "Scale is weak — confirm with a tape."
+          : "Confirm scale and any '?' dimensions.";
   const body = notes.length ? notes : [fallback];
   return {
     headline,

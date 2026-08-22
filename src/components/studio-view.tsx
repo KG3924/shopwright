@@ -101,6 +101,7 @@ export function StudioView() {
   const confidencePct = Math.round(project.confidence * 100);
   const cutHold = formatDoNotCut({
     doNotCut: packet.doNotCut,
+    routeRunnable: packet.routeRunnable,
     scaleConfidence: project.scaleConfidence,
     scaleNotes: project.scaleNotes,
   });
@@ -169,6 +170,7 @@ export function StudioView() {
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-muted">
             {project.sourceKind === "catalog" ? "Studio piece" : "Interpretation"}
+            {` · ${packet.route.name}`}
             {project.overallSource !== "catalog"
               ? ` · ${project.overallSource} size`
               : ""}
@@ -205,7 +207,7 @@ export function StudioView() {
               <Badge tone={confidencePct >= 80 ? "good" : "warn"}>
                 {confidencePct}% confidence
               </Badge>
-              {packet.doNotCut || project.doNotCut ? (
+              {packet.doNotCut || project.doNotCut || !packet.routeRunnable ? (
                 <Badge tone="warn">Do not cut</Badge>
               ) : null}
               {project.scaleConfidence === "high" ? (
@@ -767,6 +769,19 @@ export function StudioView() {
 
           {tab === "Build" ? (
             <ol className="space-y-6">
+              {!packet.routeRunnable ? (
+                <li>
+                  <DoNotCutCallout
+                    hold={
+                      cutHold ?? {
+                        headline: "Don't cut yet",
+                        notes: ["No construction route compiled — do not cut."],
+                        text: "Don't cut yet. No construction route compiled — do not cut.",
+                      }
+                    }
+                  />
+                </li>
+              ) : null}
               {packet.steps.map((step, i) => (
                 <li key={step.id}>
                   <p className="font-mono text-xs text-ink-soft">

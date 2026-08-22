@@ -21,7 +21,11 @@ import {
 } from "./hydrate";
 
 const dir = dirname(fileURLToPath(import.meta.url));
-const input: InterpretInput = { kind: "photo", rank: "beginner" };
+const input: InterpretInput = {
+  kind: "photo",
+  rank: "beginner",
+  toolsAvailable: ["drill", "miter-saw", "kreg-jig", "clamps"],
+};
 
 type FixtureExpect = {
   scaleConfidence: "high" | "low" | "conflict";
@@ -100,6 +104,7 @@ function assertShopTruth(fixture: Fixture) {
 
   const hold = formatDoNotCut({
     doNotCut: packet.doNotCut,
+    routeRunnable: packet.routeRunnable,
     scaleConfidence: project.scaleConfidence,
     scaleNotes: project.scaleNotes,
   });

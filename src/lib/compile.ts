@@ -209,13 +209,17 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
       `${unknownTickets.length} ticket${unknownTickets.length === 1 ? "" : "s"} print '?' where a size was not sourced. Measure that axis before you cut.`,
     );
   }
-  const doNotCut =
+  const scaleHold =
     !!project.doNotCut ||
     weakScale(project.scaleConfidence) ||
     unknownTickets.length > 0;
-  if (doNotCut && project.sourceKind !== "catalog") {
+  if (scaleHold && project.sourceKind !== "catalog") {
     warnings.push("Do not cut yet. Confirm scale and any '?' dimensions on the tickets.");
   }
+  if (!resolved.runnable) {
+    warnings.push("Do not cut yet. No construction route compiled.");
+  }
+  const doNotCut = !resolved.runnable || (project.sourceKind !== "catalog" && scaleHold);
   const lockedCount = cuts.filter(
     (c) => c.locked.length || c.locked.width || c.locked.thickness,
   ).length;
@@ -270,7 +274,7 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
     species,
     sources: sourcesForZip(zip),
     warnings,
-    doNotCut: project.sourceKind === "catalog" ? false : doNotCut,
+    doNotCut,
     ...yieldPack,
   };
 }

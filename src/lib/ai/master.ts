@@ -26,6 +26,7 @@ export const askMaster = createServerFn({ method: "POST" })
     const packet = compilePacket(data.project, data.zip);
     const cutHold = formatDoNotCut({
       doNotCut: packet.doNotCut,
+      routeRunnable: packet.routeRunnable,
       scaleConfidence: packet.project.scaleConfidence,
       scaleNotes: packet.project.scaleNotes,
     });

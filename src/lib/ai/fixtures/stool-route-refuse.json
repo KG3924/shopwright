@@ -1,0 +1,22 @@
+{
+  "id": "stool-route-refuse",
+  "base": "tape-stool-pass",
+  "input": {
+    "rank": "beginner",
+    "toolsAvailable": ["drill", "miter-saw", "clamps"],
+    "routeId": "mortise"
+  },
+  "expect": {
+    "routeId": "none",
+    "routeName": "No route",
+    "routeRunnable": false,
+    "doNotCut": true,
+    "routesOffered": [],
+    "routesHidden": ["pocket", "mortise"],
+    "hardwareIdsInclude": [],
+    "hardwareIdsExclude": ["kreg-chair"],
+    "stepIdsInclude": [],
+    "stepIdsExclude": ["sc3m", "sc3p"],
+    "mustNotPresentAsMortise": true
+  }
+}

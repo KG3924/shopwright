@@ -33,4 +33,16 @@ describe("print hold", () => {
     assert.match(printCss, /shop-print-hold/);
     assert.match(printCss, /shop-print-packet/);
   });
+
+  it("studio header and drawings print the compiled packet route, not the requested id", () => {
+    const drawings = read("src/components/shop-drawings.tsx");
+    const studio = read("src/components/studio-view.tsx");
+    assert.match(studio, /packet\.route\.name/);
+    assert.match(drawings, /route\.name/);
+    assert.match(drawings, /route\.joinery/);
+    assert.doesNotMatch(
+      studio.split("\n").find((line) => line.includes("packet.route.name")) ?? "",
+      /project\.routeId/,
+    );
+  });
 });

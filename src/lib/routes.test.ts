@@ -25,6 +25,9 @@ type RouteFixture = {
   };
   expect: {
     routeId: string;
+    routeName?: string;
+    routeRunnable?: boolean;
+    doNotCut?: boolean;
     routesOffered: string[];
     routesHidden: string[];
     hardwareIdsInclude: string[];
@@ -34,6 +37,7 @@ type RouteFixture = {
     stepIdsExclude: string[];
     cutNotesInclude?: Record<string, string | null>;
     doNotInventAdvanced?: boolean;
+    mustNotPresentAsMortise?: boolean;
     packetMustDifferFrom?: string;
   };
 };
@@ -84,6 +88,11 @@ function assertRouteFixture(fixture: RouteFixture): ShopPacket {
   const { expect } = fixture;
 
   assert.equal(packet.route.id, expect.routeId);
+  if (expect.routeName) assert.equal(packet.route.name, expect.routeName);
+  if (expect.routeRunnable != null) {
+    assert.equal(packet.routeRunnable, expect.routeRunnable);
+  }
+  if (expect.doNotCut != null) assert.equal(packet.doNotCut, expect.doNotCut);
   assert.deepEqual(packet.routesOffered, expect.routesOffered);
   assert.deepEqual(packet.routesHidden, expect.routesHidden);
 
@@ -120,7 +129,22 @@ function assertRouteFixture(fixture: RouteFixture): ShopPacket {
     assert.ok(packet.routesHidden.includes("mortise"));
   }
 
+  if (expect.mustNotPresentAsMortise) {
+    assertPacketNotMortise(packet);
+  }
+
   return packet;
+}
+
+function assertPacketNotMortise(packet: ShopPacket) {
+  assert.notEqual(packet.route.id, "mortise");
+  assert.doesNotMatch(packet.route.name, /mortise/i);
+  assert.doesNotMatch(packet.route.joinery, /mortise|m&t|tenon/i);
+  assert.ok(!packet.routeRunnable);
+  assert.ok(packet.doNotCut);
+  assert.ok(!packet.steps.some((s) => s.id === "sc3m"));
+  assert.ok(!packet.hardware.some((h) => h.id === "kreg-chair"));
+  assert.ok(!packet.routesOffered.includes("mortise"));
 }
 
 function idSetEqual(a: string[], b: string[]): boolean {
@@ -165,6 +189,15 @@ describe("stool construction routes", () => {
     assert.ok(!mortiseSteps.includes("sc3p"));
   });
 
+  it("stool-route-refuse: beginner + mortise without M&T tools is not a mortise packet", () => {
+    const refused = assertRouteFixture(loadRoute("stool-route-refuse.json"));
+    assert.equal(refused.route.id, "none");
+    assert.equal(refused.route.name, "No route");
+    assert.equal(refused.routeRunnable, false);
+    assert.equal(refused.doNotCut, true);
+    assertPacketNotMortise(refused);
+  });
+
   it("beginner + empty tools never auto-compiles mortise", () => {
     const ai = parseVisionJson(JSON.stringify(loadBaseAi("tape-stool-pass")));
     const project = hydrateVision(
@@ -181,6 +214,7 @@ describe("stool construction routes", () => {
     assert.ok(!packet.steps.some((s) => s.id === "sc3m"));
     assert.ok(!packet.hardware.some((h) => h.id === "kreg-chair"));
     assert.equal(packet.routeRunnable, false);
+    assertPacketNotMortise(packet);
 
     const promoted = compilePacket(
       { ...project, rank: "craftsman", routeId: "mortise", toolsAvailable: [] },
@@ -189,6 +223,7 @@ describe("stool construction routes", () => {
     assert.ok(!promoted.routesOffered.includes("mortise"));
     assert.ok(!promoted.steps.some((s) => s.id === "sc3m"));
     assert.equal(promoted.routeRunnable, false);
+    assertPacketNotMortise(promoted);
   });
 
   it("beginner + mortise without mortiser/chisels refuses or steers; never emits sc3m", () => {
@@ -208,6 +243,7 @@ describe("stool construction routes", () => {
       !refused.routeRunnable || refused.route.id === "pocket",
       "must refuse or steer off mortise",
     );
+    assertPacketNotMortise(refused);
 
     const steered = compilePacket(
       { ...project, toolsAvailable: ["kreg-jig", "drill", "clamps"] },
