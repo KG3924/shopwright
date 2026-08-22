@@ -347,7 +347,12 @@ function applySeatHeight(parts: InferCandidate[], ctx: InferContext): void {
   if (height == null || height <= 0) return;
 
   for (const part of parts) {
-    if (isBackLeg(part)) continue;
+    if (isBackLeg(part)) {
+      if (isUnknownAxis(part.measured.length)) {
+        part.measured.length = inferredDim(ctx.overall.h, "overall");
+      }
+      continue;
+    }
     const fill =
       isFrontLeg(part) || isStoolLegSet(part, parts);
     if (!fill || !isUnknownAxis(part.measured.length)) continue;

@@ -155,8 +155,10 @@ describe("inferFill", () => {
     assert.ok(front.measured.length.value != null);
     assert.ok(front.measured.length.value >= 17 && front.measured.length.value <= 18);
     assert.match(formatDimSource(front.measured.length), /guessed from seat height — verify/);
-    assert.equal(back.measured.length.source, "unknown");
-    assert.equal(back.measured.length.value, null);
+    assert.equal(back.measured.length.source, "inferred");
+    assert.equal(back.measured.length.value, 36);
+    assert.notEqual(back.measured.length.value, front.measured.length.value);
+    assert.match(formatDimSource(back.measured.length), /guessed from overall — verify/);
   });
 
   it("leaves thickness unknown when no edge is visible and never invents 0.75", () => {
