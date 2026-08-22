@@ -62,6 +62,28 @@ export type Dim = {
   offset: number;
 };
 
+export const DIM_SOURCES = ["measured", "inferred", "unknown"] as const;
+export type DimSource = (typeof DIM_SOURCES)[number];
+
+export const SCALE_CONFIDENCES = ["high", "low", "conflict"] as const;
+export type ScaleConfidence = (typeof SCALE_CONFIDENCES)[number];
+
+/** Per-axis measure truth. `value` is null when the axis was not sourced. */
+export type MeasuredDim = {
+  value: number | null;
+  source: DimSource;
+  /** 0–1. */
+  confidence: number;
+  photoIndex?: number;
+  note?: string;
+};
+
+export type PartMeasured = {
+  length: MeasuredDim;
+  width: MeasuredDim;
+  thickness: MeasuredDim;
+};
+
 export type Part = {
   id: string;
   name: string;
@@ -79,6 +101,8 @@ export type Part = {
   role?: PartRole;
   /** Where each copy sits. Drawings compile from this when present. */
   instances?: PartInstance[];
+  /** Photo/URL/blueprint measure truth. Catalog parts omit this. */
+  measured?: PartMeasured;
 };
 
 /** Locks a part so it no longer follows overall W/D/H. */
@@ -196,6 +220,11 @@ export type Project = ProjectTemplate & {
   rank: Rank;
   /** True when the cut list came from the photos, not a stock template. */
   partsFromPhotos?: boolean;
+  /** Piece-level scale quality from a tape, label, or conflicting cues. */
+  scaleConfidence?: ScaleConfidence;
+  scaleNotes?: string[];
+  /** Weak or conflicted scale — confirm before you cut. */
+  doNotCut?: boolean;
 };
 
 export type CutRow = {
@@ -224,6 +253,7 @@ export type CutRow = {
     width: Axis;
     thickness: Axis;
   };
+  measured?: PartMeasured;
 };
 
 export type ShopPacket = {
@@ -242,6 +272,8 @@ export type ShopPacket = {
   stillBuy: string[];
   doNotBuy: string[];
   stack: string[];
+  /** True when scale is weak/conflict or tickets still have unknown axes. */
+  doNotCut?: boolean;
 };
 
 export type Technique = {

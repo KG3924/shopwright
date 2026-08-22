@@ -6,6 +6,7 @@ import { getSpecies } from "./species";
 import { sourcesForZip } from "./sourcing";
 import { techniquesFor } from "./techniques";
 import { compileYield, inferFromStock, nextLetter } from "./yield";
+import { formatCutAxis, weakScale } from "./measure";
 import type {
   CutRow,
   Overall,
@@ -13,6 +14,7 @@ import type {
   Project,
   ProjectTemplate,
   Rank,
+  ScaleConfidence,
   ShopPacket,
 } from "./types";
 
@@ -32,6 +34,10 @@ export function instantiate(
     interpretation?: string;
     confidence?: number;
     uncertainties?: string[];
+    partsFromPhotos?: boolean;
+    scaleConfidence?: ScaleConfidence;
+    scaleNotes?: string[];
+    doNotCut?: boolean;
   } = {},
 ): Project {
   const photos =
@@ -56,6 +62,10 @@ export function instantiate(
     interpretation: opts.interpretation ?? template.interpretation,
     confidence: opts.confidence ?? template.confidence,
     uncertainties: opts.uncertainties ?? template.uncertainties,
+    partsFromPhotos: opts.partsFromPhotos,
+    scaleConfidence: opts.scaleConfidence,
+    scaleNotes: opts.scaleNotes,
+    doNotCut: opts.doNotCut,
   };
 }
 
@@ -91,7 +101,11 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
         role: p.role ?? inferRole(p.id, p.name),
         instances: p.instances,
         boardFeet:
-          p.stock === "sheet" ? 0 : partBoardFeet(p, project.overall, over),
+          p.stock === "sheet" ||
+          (p.measured?.thickness.value == null && p.measured?.thickness.source === "unknown")
+            ? 0
+            : partBoardFeet(p, project.overall, over),
+        measured: p.measured,
         locked: {
           length: over?.length != null,
           width: over?.width != null,
@@ -154,6 +168,36 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
         : "Part drawings are compiled from this packet. Confirm every ticket against a tape before you cut.",
     );
   }
+  if (project.scaleConfidence === "conflict") {
+    warnings.push(
+      "Scale conflict: labeled sizes and the boards we read do not agree. Confirm with a tape before you cut.",
+    );
+  } else if (project.scaleConfidence === "low") {
+    warnings.push(
+      "Scale confidence is low — no reliable tape or labeled dimension. Confirm overall W / D / H before you cut.",
+    );
+  }
+  for (const note of project.scaleNotes ?? []) {
+    if (note && !warnings.includes(note)) warnings.push(note);
+  }
+  const unknownTickets = cuts.filter(
+    (c) =>
+      formatCutAxis(c, "length") === "?" ||
+      formatCutAxis(c, "width") === "?" ||
+      formatCutAxis(c, "thickness") === "?",
+  );
+  if (unknownTickets.length) {
+    warnings.push(
+      `${unknownTickets.length} ticket${unknownTickets.length === 1 ? "" : "s"} print '?' where a size was not sourced. Measure that axis before you cut.`,
+    );
+  }
+  const doNotCut =
+    !!project.doNotCut ||
+    weakScale(project.scaleConfidence) ||
+    unknownTickets.length > 0;
+  if (doNotCut && project.sourceKind !== "catalog") {
+    warnings.push("Do not cut yet. Confirm scale and any '?' dimensions on the tickets.");
+  }
   const lockedCount = cuts.filter(
     (c) => c.locked.length || c.locked.width || c.locked.thickness,
   ).length;
@@ -202,6 +246,7 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
     species,
     sources: sourcesForZip(zip),
     warnings,
+    doNotCut: project.sourceKind === "catalog" ? false : doNotCut,
     ...yieldPack,
   };
 }
