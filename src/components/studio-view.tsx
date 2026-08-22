@@ -24,6 +24,7 @@ import { interpretPiece } from "@/lib/ai/interpret";
 import { fileToDataUrl } from "@/lib/image";
 import { formatInches, rankIndex } from "@/lib/format";
 import {
+  editorAxisValue,
   formatCutAxis,
   formatCutAxisSource,
   formatDoNotCut,
@@ -563,7 +564,7 @@ export function StudioView() {
                       </label>
                       <InchField
                         label="Length"
-                        value={c.length}
+                        value={editorAxisValue(c, "length")}
                         locked={c.locked.length}
                         follows={c.follows.length}
                         hint={formatCutAxisSource(c, "length") || undefined}
@@ -572,7 +573,7 @@ export function StudioView() {
                       />
                       <InchField
                         label="Width"
-                        value={c.width}
+                        value={editorAxisValue(c, "width")}
                         locked={c.locked.width}
                         follows={c.follows.width}
                         hint={formatCutAxisSource(c, "width") || undefined}
@@ -581,7 +582,7 @@ export function StudioView() {
                       />
                       <InchField
                         label="Thickness"
-                        value={c.thickness}
+                        value={editorAxisValue(c, "thickness")}
                         locked={c.locked.thickness}
                         follows={c.follows.thickness}
                         hint={formatCutAxisSource(c, "thickness") || undefined}

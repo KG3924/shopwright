@@ -13,7 +13,8 @@ export function InchField({
   className,
 }: {
   label: string;
-  value: number;
+  /** null = unknown axis. Do not pass a resolvePart fallback inch. */
+  value: number | null;
   onCommit: (n: number) => void;
   locked?: boolean;
   follows?: string;
@@ -22,15 +23,17 @@ export function InchField({
   hint?: string;
   className?: string;
 }) {
-  const [raw, setRaw] = useState(String(value));
+  const unknown = value == null;
+  const shown = value == null ? "?" : formatInches(value);
+  const [raw, setRaw] = useState(value == null ? "?" : String(value));
   useEffect(() => {
-    setRaw(String(value));
+    setRaw(value == null ? "?" : String(value));
   }, [value]);
 
   function commit() {
     const parsed = parseInches(raw);
     if (parsed == null || parsed <= 0) {
-      setRaw(String(value));
+      setRaw(value == null ? "?" : String(value));
       return;
     }
     onCommit(parsed);
@@ -42,7 +45,7 @@ export function InchField({
       <span className="flex items-center justify-between gap-1 text-[10px] uppercase tracking-wider text-ink-soft">
         <span>
           {label}{" "}
-          <span className="tabular-nums text-ink">{formatInches(value)}</span>
+          <span className="tabular-nums text-ink">{shown}</span>
         </span>
         {locked ? (
           <button
@@ -52,7 +55,7 @@ export function InchField({
           >
             unlock
           </button>
-        ) : follows && follows !== "fixed" ? (
+        ) : unknown ? null : follows && follows !== "fixed" ? (
           <span>follows {follows.toUpperCase()}</span>
         ) : (
           <span>fixed</span>

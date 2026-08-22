@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  editorAxisValue,
   formatCutAxis,
   formatCutAxisSource,
   formatCutSources,
@@ -80,6 +81,25 @@ describe("measure helpers", () => {
       locked: { length: false, width: false, thickness: true, qty: false },
     } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
     assert.equal(formatCutAxis(cut, "thickness"), `7/8"`);
+    assert.equal(editorAxisValue(cut, "thickness"), 0.875);
+  });
+
+  it("does not bind a fallback inch into the editor for an unknown axis", () => {
+    const cut = {
+      length: 16,
+      width: 16,
+      thickness: 0,
+      measured: sourced,
+      locked: { length: false, width: false, thickness: false, qty: false },
+    } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
+    assert.equal(editorAxisValue(cut, "thickness"), null);
+    assert.equal(editorAxisValue(cut, "length"), 16);
+    const catalog = {
+      length: 48,
+      width: 14,
+      thickness: 0.75,
+    } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
+    assert.equal(editorAxisValue(catalog, "thickness"), 0.75);
   });
 
   it("labels sourced, inferred, and unknown dims in builder language", () => {

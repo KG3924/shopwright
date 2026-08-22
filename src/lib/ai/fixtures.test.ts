@@ -7,6 +7,7 @@ import { compilePacket } from "../compile";
 import { inferDrawing } from "../drawing";
 import { layoutBoxes } from "../layout";
 import {
+  editorAxisValue,
   formatCutAxisSource,
   formatCutTriplet,
   formatDoNotCut,
@@ -128,6 +129,7 @@ describe("accuracy Cut B fixtures", () => {
     assert.equal(edge.y, `3/4"`);
     assert.equal(edge.unknownY, false);
     assert.ok(!/measure first/i.test(seat.fromStock));
+    assert.equal(editorAxisValue(seat, "thickness"), 0.75);
   });
 
   it("weak-scale-missing-underside-fail: unknown thickness stays ? and is not a stock fill", () => {
@@ -145,6 +147,8 @@ describe("accuracy Cut B fixtures", () => {
     assert.equal(seat.measured?.thickness.source, "unknown");
     assert.equal(seat.measured?.thickness.value, null);
     assert.notEqual(seat.thickness, 0.75);
+    assert.equal(editorAxisValue(seat, "thickness"), null);
+    assert.equal(formatCutAxisSource(seat, "thickness"), "verify before cut");
     assert.ok(/measure first/i.test(seat.fromStock));
     assert.ok(!/1×12|¾"|3\/4/.test(seat.fromStock));
 

@@ -161,6 +161,20 @@ export function isCutAxisUnknown(
   return !!measured && measured.value == null;
 }
 
+/**
+ * Studio InchField binding. Unknown (unlocked) axes return null so the editor
+ * shows "?" — never a resolvePart / inferDim fallback inch. Locked overrides
+ * are authoritative and return the locked number (same as formatCutAxis).
+ */
+export function editorAxisValue(
+  cut: Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">,
+  axis: CutAxis,
+): number | null {
+  if (isCutAxisUnknown(cut, axis)) return null;
+  const n = cut[axis];
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Count of ticket axes that still print `?` (not tickets, axes). */
 export function ticketUnknownAxes(
   cuts: Array<Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">>,
