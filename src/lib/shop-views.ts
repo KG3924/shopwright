@@ -45,6 +45,9 @@ const MAJOR_ROLES = new Set<PartRole>([
   "apron-short",
   "post",
   "stile",
+  "side",
+  "back",
+  "arm",
 ]);
 
 const QUIET_RANKS = new Set<Rank>(["beginner", "novice"]);

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Printer } from "lucide-react";
 import { LatticeJoinery } from "@/components/chair-drawings";
 import { inferDrawing } from "@/lib/drawing";
@@ -731,6 +731,11 @@ function AssemblyStepList({
   steps: ShopPacket["steps"];
 }) {
   const [open, setOpen] = useState(() => assemblyStepsOpen(rank));
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener("beforeprint", show);
+    return () => window.removeEventListener("beforeprint", show);
+  }, []);
   if (!steps.length) return null;
   return (
     <details

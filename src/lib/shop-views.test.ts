@@ -76,6 +76,9 @@ describe("elevation part labels", () => {
     assert.equal(isMajorShopPart("apron-long"), true);
     assert.equal(isMajorShopPart("post"), true);
     assert.equal(isMajorShopPart("stile"), true);
+    assert.equal(isMajorShopPart("side"), true);
+    assert.equal(isMajorShopPart("back"), true);
+    assert.equal(isMajorShopPart("arm"), true);
     assert.equal(isMajorShopPart("slat"), false);
     assert.equal(isMajorShopPart("cleat"), false);
     assert.equal(isMajorShopPart("other"), false);
@@ -92,6 +95,20 @@ describe("elevation part labels", () => {
     const letters = labels.map((l) => l.letter).sort();
     assert.deepEqual(letters, ["A", "B", "B", "D"]);
     assert.ok(labels.every((l) => l.letter !== "E" && l.letter !== "F"));
+  });
+
+  it("labels bookcase sides and a back — not every shelf", () => {
+    const labels = labelElevationParts([
+      rect({ letter: "A", role: "side", x: 0, y: 0, w: 0.75, h: 60 }),
+      rect({ letter: "A", role: "side", x: 31.25, y: 0, w: 0.75, h: 60 }),
+      rect({ letter: "B", role: "back", x: 0.75, y: 0, w: 30.5, h: 60, depth: 12 }),
+      rect({ letter: "C", role: "shelf", x: 0.75, y: 20, w: 30.5, h: 0.75 }),
+      rect({ letter: "C", role: "shelf", x: 0.75, y: 40, w: 30.5, h: 0.75 }),
+      rect({ letter: "D", role: "top", x: 0, y: 0, w: 32, h: 12 }),
+    ]);
+    const letters = [...new Set(labels.map((l) => l.letter))].sort();
+    assert.deepEqual(letters, ["A", "B", "D"]);
+    assert.ok(labels.every((l) => l.letter !== "C"));
   });
 
   it("keeps a dashed unknown major part labeled — identity is not a size claim", () => {
