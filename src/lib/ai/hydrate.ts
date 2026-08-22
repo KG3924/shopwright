@@ -7,6 +7,7 @@ import {
   clampInch,
   hasSourcedDims,
   isDimSource,
+  isTapeMeasured,
   sourcedAxisCount,
   unknownDim,
   weakScale,
@@ -315,8 +316,9 @@ function resolveScale(
     const measuredAxes = parts.reduce(
       (n, p) =>
         n +
-        (["length", "width", "thickness"] as const).filter((axis) => p.measured[axis].source === "measured")
-          .length,
+        (["length", "width", "thickness"] as const).filter((axis) =>
+          isTapeMeasured(p.measured[axis]),
+        ).length,
       0,
     );
     if (ai.overallSource === "labeled" && measuredAxes >= 2) scaleConfidence = "high";

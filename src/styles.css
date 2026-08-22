@@ -143,18 +143,28 @@
     visibility: hidden;
   }
 
+  .shop-print-packet,
+  .shop-print-packet *,
   .shop-drawings,
   .shop-drawings * {
     visibility: visible;
   }
 
-  .shop-drawings {
+  .shop-print-packet {
+    display: block !important;
     position: absolute;
-    inset: 0;
+    left: 0;
+    top: 0;
+    width: 100%;
     background: #fff8ee;
   }
 
-  header,
+  .shop-print-hold,
+  .shop-print-hold * {
+    visibility: visible !important;
+  }
+
+  header.sticky,
   [data-sonner-toaster] {
     display: none !important;
   }
