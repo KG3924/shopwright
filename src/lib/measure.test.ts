@@ -5,8 +5,11 @@ import {
   formatCutTriplet,
   formatMeasured,
   hasSourcedDims,
+  ticketUnknownAxes,
+  ticketViewLabels,
   unknownDim,
 } from "./measure";
+import { formatInches } from "./format";
 import type { CutRow, PartMeasured } from "./types";
 
 const sourced: PartMeasured = {
@@ -39,6 +42,29 @@ describe("measure helpers", () => {
     } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
     assert.equal(formatCutAxis(cut, "thickness"), "?");
     assert.equal(formatCutTriplet(cut), `48" × 14" × ?`);
+  });
+
+  it("counts unknown ticket axes and binds ticket views to MeasuredDim", () => {
+    const cut = {
+      length: 16,
+      width: 16,
+      thickness: 0.75,
+      measured: sourced,
+      locked: { length: false, width: false, thickness: false, qty: false },
+    } as Pick<
+      CutRow,
+      "length" | "width" | "thickness" | "measured" | "locked"
+    >;
+    assert.equal(ticketUnknownAxes([cut]), 1);
+    const edge = ticketViewLabels(cut, "edge");
+    assert.equal(edge.y, "?");
+    assert.equal(edge.unknownY, true);
+  });
+
+  it("prints shop mixed numbers with a hyphen", () => {
+    assert.equal(formatInches(17.25), `17-1/4"`);
+    assert.equal(formatInches(1.5), `1-1/2"`);
+    assert.equal(formatInches(0.75), `3/4"`);
   });
 
   it("prints a locked override instead of ?", () => {

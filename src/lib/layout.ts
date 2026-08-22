@@ -1,3 +1,4 @@
+import { isCutAxisUnknown } from "./measure";
 import type {
   Axis3,
   CutRow,
@@ -18,6 +19,8 @@ export type WorldBox = {
   w: number;
   d: number;
   h: number;
+  /** World-axis unknown flags from MeasuredDim — elevations dash these. */
+  unknown?: { w: boolean; d: boolean; h: boolean };
 };
 
 export function isPartRole(value: string | undefined): value is PartRole {
@@ -94,11 +97,11 @@ function defaultWidthAlong(role: PartRole): Axis3 {
   }
 }
 
-function worldSize(
+function orientedAxes(
   cut: CutRow,
   role: PartRole,
   inst?: PartInstance,
-): { w: number; d: number; h: number } {
+): { la: Axis3; wa: Axis3; ta: Axis3 } {
   let la: Axis3 = inst?.lengthAlong ?? defaultLengthAlong(role);
   let wa: Axis3 = inst?.widthAlong ?? defaultWidthAlong(role);
   if (la === wa) {
@@ -109,12 +112,34 @@ function worldSize(
       wa = "y";
     }
   }
-  const size: Record<Axis3, number> = { x: 0, y: 0, z: 0 };
-  size[la] = cut.length;
-  size[wa] = cut.width;
   const ta: Axis3 = la !== "x" && wa !== "x" ? "x" : la !== "y" && wa !== "y" ? "y" : "z";
-  size[ta] = cut.thickness;
+  return { la, wa, ta };
+}
+
+function worldSize(
+  cut: CutRow,
+  role: PartRole,
+  inst?: PartInstance,
+): { w: number; d: number; h: number } {
+  const { la, wa, ta } = orientedAxes(cut, role, inst);
+  const size: Record<Axis3, number> = { x: 0, y: 0, z: 0 };
+  size[la] = isCutAxisUnknown(cut, "length") ? 0 : cut.length;
+  size[wa] = isCutAxisUnknown(cut, "width") ? 0 : cut.width;
+  size[ta] = isCutAxisUnknown(cut, "thickness") ? 0 : cut.thickness;
   return { w: size.x, d: size.y, h: size.z };
+}
+
+function worldUnknown(
+  cut: CutRow,
+  role: PartRole,
+  inst?: PartInstance,
+): { w: boolean; d: boolean; h: boolean } {
+  const { la, wa, ta } = orientedAxes(cut, role, inst);
+  const unk: Record<Axis3, boolean> = { x: false, y: false, z: false };
+  if (isCutAxisUnknown(cut, "length")) unk[la] = true;
+  if (isCutAxisUnknown(cut, "width")) unk[wa] = true;
+  if (isCutAxisUnknown(cut, "thickness")) unk[ta] = true;
+  return { w: unk.x, d: unk.y, h: unk.z };
 }
 
 type Ctx = {
@@ -133,9 +158,15 @@ function contextFrom(cuts: CutRow[], overall: Overall, seatHeightRatio?: number)
   const side = cuts.find((c) => (c.role || inferRole(c.id, c.name)) === "side");
   const ratio = seatHeightRatio ?? 0.48;
   return {
-    topT: top?.thickness ?? 0.75,
-    legW: Math.min(leg?.width ?? 1.5, overall.w / 6),
-    sideT: side?.thickness ?? 0.75,
+    // Missing parts may still use a shop heuristic. A part that exists with
+    // an unknown axis must not pick up typical ¾" / 1½" stock.
+    topT: !top ? 0.75 : isCutAxisUnknown(top, "thickness") ? 0 : top.thickness,
+    legW: !leg
+      ? 1.5
+      : isCutAxisUnknown(leg, "width")
+        ? 0
+        : Math.min(leg.width, overall.w / 6),
+    sideT: !side ? 0.75 : isCutAxisUnknown(side, "thickness") ? 0 : side.thickness,
     seatH: overall.h * ratio,
   };
 }
@@ -332,6 +363,7 @@ function boxesForCut(
         role,
         ...pos,
         ...sz,
+        unknown: worldUnknown(cut, role, inst),
       };
     });
   }
@@ -346,6 +378,7 @@ function boxesForCut(
       role,
       ...p,
       ...sz,
+      unknown: worldUnknown(cut, role),
     };
   });
 }
