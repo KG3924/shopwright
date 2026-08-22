@@ -30,9 +30,10 @@ import {
   formatDoNotCut,
 } from "@/lib/measure";
 import { RANK_META } from "@/lib/ranks";
+import { normalizeTools, SHOP_TOOL_META, statusForRoute } from "@/lib/routes";
 import { SPECIES } from "@/lib/species";
 import { useStudio } from "@/lib/store";
-import { MAX_PHOTOS, projectPhotos, RANKS } from "@/lib/types";
+import { MAX_PHOTOS, projectPhotos, RANKS, SHOP_TOOLS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const TABS = ["Drawings", "Cut list", "Hardware", "Lumber", "Build", "Wood"] as const;
@@ -55,6 +56,7 @@ export function StudioView() {
   const setRoute = useStudio((s) => s.setRoute);
   const setSpecies = useStudio((s) => s.setSpecies);
   const setRank = useStudio((s) => s.setRank);
+  const toggleToolAvailable = useStudio((s) => s.toggleToolAvailable);
   const setZip = useStudio((s) => s.setZip);
   const setPartOverride = useStudio((s) => s.setPartOverride);
   const clearPartOverride = useStudio((s) => s.clearPartOverride);
@@ -63,6 +65,7 @@ export function StudioView() {
   const loadProject = useStudio((s) => s.loadProject);
   const reset = useStudio((s) => s.reset);
   const rank = useStudio((s) => s.rank);
+  const toolsAvailable = useStudio((s) => s.toolsAvailable);
   const [tab, setTab] = useState<Tab>("Drawings");
   const [chatOpen, setChatOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -134,6 +137,7 @@ export function StudioView() {
           imageDataUrls: dataUrls,
           kind: project.sourceKind === "blueprint" ? "blueprint" : "photo",
           rank,
+          toolsAvailable,
         },
       });
       if (!result.ok) {
@@ -147,6 +151,7 @@ export function StudioView() {
         routeId: project.routeId,
         speciesId: project.speciesId,
         rank: project.rank,
+        toolsAvailable: project.toolsAvailable ?? toolsAvailable,
         photos,
         photoDataUrl: photos[0],
       });
@@ -332,29 +337,95 @@ export function StudioView() {
 
           <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
             <p className="text-xs uppercase tracking-wider text-muted">
+              Rank and tools on the bench
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              Pick these before a route. Rank alone with an empty bench never
+              invents joinery.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {RANKS.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRank(r)}
+                  className={cn(
+                    "h-11 rounded-md border text-sm transition-colors",
+                    project.rank === r
+                      ? "border-accent bg-accent text-accent-fg"
+                      : "border-border text-muted hover:text-fg",
+                  )}
+                >
+                  {RANK_META[r].label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-3 text-sm text-muted">{RANK_META[project.rank].shop}</p>
+            <p className="mt-4 text-xs uppercase tracking-wider text-muted">
+              Tools available
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {SHOP_TOOLS.map((tool) => {
+                const on = normalizeTools(
+                  project.toolsAvailable ?? toolsAvailable,
+                ).includes(tool);
+                return (
+                  <button
+                    key={tool}
+                    type="button"
+                    onClick={() => toggleToolAvailable(tool)}
+                    className={cn(
+                      "h-10 rounded-md border px-3 text-sm transition-colors",
+                      on
+                        ? "border-accent bg-accent text-accent-fg"
+                        : "border-border text-muted hover:text-fg",
+                    )}
+                  >
+                    {SHOP_TOOL_META[tool]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
+            <p className="text-xs uppercase tracking-wider text-muted">
               How the underside goes together
             </p>
             <div className="mt-3 grid gap-2">
               {project.routes.map((route) => {
-                const active = route.id === project.routeId;
+                const benchTools = normalizeTools(
+                  project.toolsAvailable ?? toolsAvailable,
+                );
+                const status = statusForRoute(route, project.rank, benchTools);
+                const active = packet.routeRunnable
+                  ? route.id === packet.route.id
+                  : route.id === project.routeId && status.runnable;
                 return (
                   <button
                     key={route.id}
                     type="button"
-                    onClick={() => setRoute(route.id)}
+                    disabled={!status.runnable}
+                    onClick={() => {
+                      if (!status.runnable) return;
+                      setRoute(route.id);
+                    }}
                     className={cn(
                       "rounded-md border px-3 py-3 text-left transition-colors duration-150",
-                      active
+                      !status.runnable && "cursor-not-allowed opacity-60",
+                      active && status.runnable
                         ? "border-accent bg-surface-2"
-                        : "border-border hover:border-border-strong",
+                        : "border-border",
+                      status.runnable && !active && "hover:border-border-strong",
                     )}
                   >
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{route.name}</span>
                       <Badge
                         tone={
+                          status.runnable &&
                           rankIndex(project.rank) >=
-                          rankIndex(route.recommendedRank)
+                            rankIndex(route.recommendedRank)
                             ? "good"
                             : "warn"
                         }
@@ -365,7 +436,11 @@ export function StudioView() {
                     <span className="mt-1 block text-sm text-muted">
                       {route.summary}
                     </span>
-                    {active ? (
+                    {!status.runnable ? (
+                      <span className="mt-2 block text-sm text-warn">
+                        {status.reasons.join(" · ")}
+                      </span>
+                    ) : active ? (
                       <span className="mt-2 block text-sm text-fg/80">
                         Tradeoff: {route.tradeoffs} Hidden work:{" "}
                         {route.hiddenWork}
@@ -381,25 +456,11 @@ export function StudioView() {
 
       <section className="mt-4 grid gap-4 lg:grid-cols-12">
         <div className="rounded-lg border border-border bg-surface p-4 sm:p-5 lg:col-span-8">
-          <p className="text-xs uppercase tracking-wider text-muted">Your rank</p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {RANKS.map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRank(r)}
-                className={cn(
-                  "h-11 rounded-md border text-sm transition-colors",
-                  project.rank === r
-                    ? "border-accent bg-accent text-accent-fg"
-                    : "border-border text-muted hover:text-fg",
-                )}
-              >
-                {RANK_META[r].label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-3 text-sm text-muted">{RANK_META[project.rank].shop}</p>
+          <p className="text-sm text-muted">
+            Routes above only compile when this rank and these tools can actually
+            run them. Switching a live route rewrites fasteners, steps, and cut
+            notes — not just the prose.
+          </p>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4 sm:p-5 lg:col-span-4">
           <p className="text-xs uppercase tracking-wider text-muted">

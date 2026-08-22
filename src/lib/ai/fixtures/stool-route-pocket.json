@@ -1,0 +1,65 @@
+{
+  "id": "stool-route-pocket",
+  "rank": "beginner",
+  "routeId": "pocket",
+  "toolsAvailable": ["drill", "miter", "kreg"],
+  "expect": {
+    "routeRunnable": true,
+    "hardwareIds": ["kreg-chair", "corner-blocks"],
+    "absentHardwareIds": [],
+    "stepIds": ["sc3p"],
+    "absentStepIds": ["sc3m"],
+    "cutTriplets": {
+      "Seat": "14\" × 14\" × 3/4\"",
+      "Leg": "17-1/4\" × 1-1/2\" × 1-1/2\""
+    },
+    "cutNotesInclude": {
+      "Leg": "Do not invent tenon length"
+    },
+    "cutNotesExclude": {
+      "Leg": "Tenon shoulders"
+    },
+    "kregWhereIncludes": ["stretcher", "seat"]
+  },
+  "ai": {
+    "name": "Shop stool",
+    "category": "chair",
+    "templateId": "side-chair",
+    "interpretation": "Square-seat stool; tape on seat front edge.",
+    "confidence": 0.86,
+    "overall": { "w": 14, "d": 14, "h": 18 },
+    "overallSource": "labeled",
+    "scaleConfidence": "high",
+    "scaleNotes": ["Tape visible on photo 0 along seat front."],
+    "speciesGuess": "maple",
+    "uncertainties": [],
+    "suggestedRouteId": "pocket",
+    "parts": [
+      {
+        "name": "Seat",
+        "qty": 1,
+        "role": "seat",
+        "stock": "solid",
+        "length": { "value": 14, "source": "measured", "confidence": 0.95, "photoIndex": 0 },
+        "width": { "value": 14, "source": "measured", "confidence": 0.9, "photoIndex": 0 },
+        "thickness": { "value": 0.75, "source": "measured", "confidence": 0.9, "photoIndex": 2, "note": "edge on underside" },
+        "instances": [{ "x": 0, "y": 0, "z": 17.25, "lengthAlong": "x", "widthAlong": "y" }]
+      },
+      {
+        "name": "Leg",
+        "qty": 4,
+        "role": "leg",
+        "stock": "solid",
+        "length": { "value": 17.25, "source": "measured", "confidence": 0.9, "photoIndex": 1 },
+        "width": { "value": 1.5, "source": "measured", "confidence": 0.85, "photoIndex": 1 },
+        "thickness": { "value": 1.5, "source": "measured", "confidence": 0.85, "photoIndex": 1 },
+        "instances": [
+          { "x": 0, "y": 0, "z": 0, "lengthAlong": "z", "widthAlong": "x" },
+          { "x": 12.5, "y": 0, "z": 0, "lengthAlong": "z", "widthAlong": "x" },
+          { "x": 0, "y": 12.5, "z": 0, "lengthAlong": "z", "widthAlong": "x" },
+          { "x": 12.5, "y": 12.5, "z": 0, "lengthAlong": "z", "widthAlong": "x" }
+        ]
+      }
+    ]
+  }
+}

@@ -2,6 +2,7 @@ import { CATALOG } from "./catalog";
 import { inferRole } from "./layout";
 import { rankIndex } from "./format";
 import { resolvePart, partBoardFeet } from "./parametric";
+import { compileCutNotes, normalizeTools, resolveConstructionRoute } from "./routes";
 import { getSpecies } from "./species";
 import { sourcesForZip } from "./sourcing";
 import { techniquesFor } from "./techniques";
@@ -16,6 +17,7 @@ import type {
   Rank,
   ScaleConfidence,
   ShopPacket,
+  ShopTool,
 } from "./types";
 
 export function instantiate(
@@ -25,6 +27,7 @@ export function instantiate(
     routeId?: string;
     speciesId?: string;
     rank?: Rank;
+    toolsAvailable?: ShopTool[];
     photoDataUrl?: string;
     photos?: string[];
     partOverrides?: Record<string, PartOverride>;
@@ -53,6 +56,7 @@ export function instantiate(
     routeId: opts.routeId ?? template.defaultRoute,
     speciesId: opts.speciesId ?? template.defaultSpecies,
     rank: opts.rank ?? "beginner",
+    toolsAvailable: normalizeTools(opts.toolsAvailable),
     photoDataUrl: opts.photoDataUrl ?? photos[0],
     photos,
     partOverrides: opts.partOverrides ?? {},
@@ -70,8 +74,8 @@ export function instantiate(
 }
 
 export function compilePacket(project: Project, zip: string): ShopPacket {
-  const route =
-    project.routes.find((r) => r.id === project.routeId) ?? project.routes[0]!;
+  const resolved = resolveConstructionRoute(project);
+  const route = resolved.route;
   const species = getSpecies(project.speciesId);
   const overrides = project.partOverrides ?? {};
 
@@ -108,7 +112,7 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
         thickness: d.thickness,
         stock: p.stock,
         grain: p.grain,
-        notes: p.notes,
+        notes: compileCutNotes(p, route.id, resolved.runnable),
         fromStock,
         role: p.role ?? inferRole(p.id, p.name),
         instances: p.instances,
@@ -131,11 +135,13 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
   const volumeFt3 = boardFeet / 12;
   const weightLb = Math.round(volumeFt3 * species.density);
 
-  const hardware = project.hardware.filter(
-    (h) => !h.forRoutes || h.forRoutes.includes(route.id),
-  );
+  const hardware = project.hardware.filter((h) => {
+    if (!resolved.runnable) return !h.forRoutes;
+    return !h.forRoutes || h.forRoutes.includes(route.id);
+  });
 
   const steps = project.steps.filter((step) => {
+    if (!resolved.runnable) return !step.forRoutes;
     if (step.forRoutes && !step.forRoutes.includes(route.id)) return false;
     if (step.minRank && rankIndex(project.rank) < rankIndex(step.minRank)) {
       return false;
@@ -157,7 +163,7 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
   const techniques = techniquesFor(techIds, project.rank);
   const yieldPack = compileYield(project, cuts);
 
-  const warnings: string[] = [];
+  const warnings: string[] = [...resolved.warnings];
   if (!project.indoor && !species.outdoorOk) {
     warnings.push(
       `${species.name} is not a weather wood. Switch to cedar or white oak, or keep this piece indoors.`,
@@ -218,7 +224,10 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
       "That's a serious walnut bill. Price 4/4 at a hardwood dealer before you commit the cut list.",
     );
   }
-  if (project.rank === "beginner" && route.recommendedRank !== "beginner") {
+  if (
+    resolved.runnable &&
+    rankIndex(project.rank) < rankIndex(route.recommendedRank)
+  ) {
     warnings.push(
       `This route is aimed at ${route.recommendedRank}s. The pocket-hole route is the safer first build.`,
     );
@@ -244,6 +253,8 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
   return {
     project,
     route,
+    routeRunnable: resolved.runnable,
+    routeStatuses: resolved.statuses,
     cuts,
     boardFeet,
     weightLb,
