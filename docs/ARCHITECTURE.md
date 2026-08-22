@@ -33,7 +33,9 @@ Shop drawings (elevations, exploded assembly, part tickets) are SVG compiled fro
 
 ## Hydration from a photo
 
-The vision model returns JSON: name, overall, confidence, uncertainties, optional `templateId`. You can send up to six photos of the same piece; the first three go at high detail. If `templateId` matches a studio piece, we **scale that template** to the inferred overall size. That is what makes a photo of a bench produce a real cut list instead of hallucinated joinery.
+The vision model returns JSON: name, overall, confidence, uncertainties, optional `templateId`, and a `drawing` spec (family, backStyle, seatShape, arms, footring, recline). You can send up to six photos of the same piece; the first three go at high detail. If `templateId` matches a studio piece, we **scale that template** to the inferred overall size.
+
+Chair classification is explicit: a lattice-back kitchen chair is `side-chair` (upright, diamond lattice, square seat). Adirondack is only for reclined outdoor fan-slat chairs. Shop drawings compile from the drawing spec and the cut list, not from a single "chair = Adirondack" silhouette.
 
 If it matches nothing, parts come back as raw inches and we infer which axis they track from the part name and proximity to overall W/D/H.
 

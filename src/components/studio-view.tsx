@@ -1,5 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import { ImageUp, LoaderCircle, MessageSquare, RotateCcw, X } from "lucide-react";
+import {
+  Hammer,
+  ImageUp,
+  Layers,
+  ListChecks,
+  LoaderCircle,
+  MessageSquare,
+  RotateCcw,
+  Ruler,
+  TreePine,
+  Wrench,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { InchField } from "@/components/inch-field";
@@ -19,6 +31,15 @@ import { cn } from "@/lib/utils";
 
 const TABS = ["Drawings", "Cut list", "Hardware", "Lumber", "Build", "Wood"] as const;
 type Tab = (typeof TABS)[number];
+
+const TAB_ICON: Record<Tab, typeof Ruler> = {
+  Drawings: Ruler,
+  "Cut list": ListChecks,
+  Hardware: Wrench,
+  Lumber: Layers,
+  Build: Hammer,
+  Wood: TreePine,
+};
 
 export function StudioView() {
   const project = useStudio((s) => s.project);
@@ -153,7 +174,7 @@ export function StudioView() {
       </div>
 
       <section className="mt-8 grid gap-4 lg:grid-cols-12">
-        <div className="overflow-hidden rounded-lg border border-border bg-surface lg:col-span-5">
+        <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-bench)] lg:col-span-5">
           {photos[0] ? (
             <img
               src={photos[0]}
@@ -186,7 +207,7 @@ export function StudioView() {
                       type="button"
                       aria-label={`Remove photo ${i + 1}`}
                       onClick={() => removePhoto(i)}
-                      className="absolute right-0.5 top-0.5 flex size-7 items-center justify-center rounded-xs bg-bg/80 text-fg"
+                      className="absolute right-0.5 top-0.5 flex size-7 items-center justify-center rounded-xs bg-ink/80 text-paper"
                     >
                       <X className="size-3.5" />
                     </button>
@@ -391,7 +412,7 @@ export function StudioView() {
         </ul>
       ) : null}
 
-      <section className="mt-6 overflow-hidden rounded-xl bg-paper text-ink">
+      <section className="mt-6 overflow-hidden rounded-xl border border-ink/10 bg-paper text-ink shadow-[var(--shadow-bench)]">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink/10 px-4 py-3 sm:px-6">
           <p className="font-display text-xl">Shop packet</p>
           <p className="font-mono text-xs text-ink-soft">
@@ -400,19 +421,23 @@ export function StudioView() {
           </p>
         </div>
         <div className="flex gap-1 overflow-x-auto px-2 pt-2 sm:px-4">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={cn(
-                "h-10 shrink-0 rounded-sm px-3 text-sm",
-                tab === t ? "bg-ink text-paper" : "text-ink-soft hover:text-ink",
-              )}
-            >
-              {t}
-            </button>
-          ))}
+          {TABS.map((t) => {
+            const Icon = TAB_ICON[t];
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={cn(
+                  "flex h-10 shrink-0 items-center gap-1.5 rounded-sm px-3 text-sm",
+                  tab === t ? "bg-accent text-accent-fg" : "text-ink-soft hover:text-ink",
+                )}
+              >
+                <Icon className="size-3.5" />
+                {t}
+              </button>
+            );
+          })}
         </div>
 
         <div className="p-4 sm:p-6">

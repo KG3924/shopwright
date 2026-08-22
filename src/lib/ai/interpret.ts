@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { matchTemplate } from "../catalog";
+import { getTemplate, matchTemplate } from "../catalog";
 import { instantiate } from "../compile";
+import { inferDrawing, isAdirondackReading, isUprightChair, mergeDrawing } from "../drawing";
 import { inferDim } from "../parametric";
-import type { Overall, Part, Project, Rank } from "../types";
+import type { DrawingSpec, Overall, Part, Project, Rank } from "../types";
 import { MAX_PHOTOS } from "../types";
 
 type InterpretInput = {
@@ -33,6 +34,7 @@ type AiJson = {
     thicknessIn: number;
     stock?: Part["stock"];
   }[];
+  drawing?: Partial<DrawingSpec>;
 };
 
 function extractJson(text: string): AiJson | null {
@@ -56,7 +58,7 @@ Return ONLY JSON with this shape:
 {
   "name": "short name",
   "category": "bench|table|case|bookcase|cabinet|chair|feeder|other",
-  "templateId": "bench|console|bookcase|coffee-table|cabinet|adirondack|feeder|null",
+  "templateId": "bench|console|bookcase|coffee-table|cabinet|adirondack|side-chair|feeder|null",
   "interpretation": "2-4 sentences: what it is, what you can see across the photos, what you are inferring",
   "confidence": 0.0-1.0,
   "overall": { "w": inches, "d": inches, "h": inches },
@@ -64,7 +66,16 @@ Return ONLY JSON with this shape:
   "speciesGuess": "maple|walnut|white-oak|red-oak|pine|cedar|poplar|plywood-oak",
   "uncertainties": ["what is still not visible after all photos"],
   "suggestedRouteId": "pocket|dado|mortise|dovetail|screwed|frame|dowel|adjustable|plugged",
-  "parts": optional array if it does NOT match a templateId. Each: {name, qty, lengthIn, widthIn, thicknessIn, stock}
+  "parts": optional array if it does NOT match a templateId. Each: {name, qty, lengthIn, widthIn, thicknessIn, stock},
+  "drawing": {
+    "family": "table|case|chair|feeder",
+    "backStyle": "lattice|x-back|splat|slat-fan|solid|none",
+    "hasArms": false,
+    "hasFootring": false,
+    "seatShape": "square|round",
+    "seatHeightRatio": 0.61,
+    "reclined": false
+  }
 }
 
 Rules:
@@ -72,9 +83,21 @@ Rules:
 - If dimensions are labeled on a blueprint or product graphic, use them (overallSource: labeled).
 - If a tape, ruler, or known object is in frame, prefer that scale.
 - Call out hidden construction. Never invent cam-locks or exact factory joinery as fact.
-- Prefer templateId when the piece is clearly a bench, console/credenza/nightstand, bookcase, coffee table, wall cabinet, Adirondack, or hip-roof bird feeder.
+- Prefer templateId when the piece is clearly a bench, console/credenza/nightstand, bookcase, coffee table, wall cabinet, Adirondack, lattice/dining/counter chair, or hip-roof bird feeder.
 - Inches, not mm. Typical stock: 0.75, 0.5, 0.25, 1.5.
-- confidence < 0.7 if you still cannot see the underside or joinery after every photo.`;
+- confidence < 0.7 if you still cannot see the underside or joinery after every photo.
+
+CHAIR CLASSIFICATION — this is the most common failure. Get it right:
+- Adirondack / Westport / Muskoka ONLY if it is a reclined outdoor chair with a FAN of back slats and wide flat arms. templateId: adirondack. drawing.reclined: true, backStyle: slat-fan, hasArms: true, family: chair.
+- Indoor dining chairs, kitchen chairs, counter stools, bar stools, lattice backs, X-backs, Chippendale, splat backs, painted white chairs: templateId: side-chair. drawing.reclined: false. family: chair. Set backStyle from what you SEE (lattice, x-back, splat, solid). Square painted kitchen chairs are side-chair, NEVER Adirondack.
+- Lattice / diamond / criss-cross back → backStyle: lattice.
+- Single X in the back → backStyle: x-back.
+- Central vase/splat → backStyle: splat.
+- Square seat → seatShape: square. Only use round if the seat is visibly a circle.
+- No arms unless arms are actually in the photo.
+- Footring / box of stretchers under a tall seat → hasFootring: true.
+- seatHeightRatio: dining 0.45–0.50, counter stool 0.58–0.64, bar stool 0.68–0.75, Adirondack ~0.40.
+- NEVER classify a lattice-back or X-back chair as an Adirondack. The shop drawings must look like the piece in the photo.`;
 
 async function grokChat(messages: unknown[], maxTokens: number): Promise<string> {
   const apiKey = process.env.XAI_API_KEY;
@@ -103,8 +126,14 @@ async function grokChat(messages: unknown[], maxTokens: number): Promise<string>
   return body.choices[0]?.message.content ?? "";
 }
 
+function pickTemplate(ai: AiJson) {
+  if (isUprightChair(ai)) return getTemplate("side-chair");
+  if (isAdirondackReading(ai)) return getTemplate("adirondack");
+  return matchTemplate(ai.templateId ?? ai.category, ai.name);
+}
+
 function hydrate(ai: AiJson, input: InterpretInput, photos: string[]): Project {
-  const template = matchTemplate(ai.templateId ?? ai.category, ai.name);
+  const template = pickTemplate(ai);
   const overall: Overall = {
     w: clamp(ai.overall?.w ?? template?.overall.w ?? 36, 8, 120),
     d: clamp(ai.overall?.d ?? template?.overall.d ?? 16, 6, 60),
@@ -126,28 +155,40 @@ function hydrate(ai: AiJson, input: InterpretInput, photos: string[]): Project {
       ? ai.speciesGuess
       : (template?.defaultSpecies ?? "maple");
 
+  const drawing = mergeDrawing(
+    template?.drawing ?? (template ? inferDrawing(template) : undefined),
+    ai.drawing,
+  );
+
   if (template) {
-    return instantiate(template, {
-      overall,
-      rank: input.rank,
-      speciesId,
-      photos,
-      routeId: ai.suggestedRouteId && template.routes.some((r) => r.id === ai.suggestedRouteId)
-        ? ai.suggestedRouteId
-        : template.defaultRoute,
-      overallSource: ai.overallSource ?? "estimated",
-      sourceKind: input.kind,
-      sourceLabel: input.url,
-      interpretation: ai.interpretation ?? template.interpretation,
-      confidence: clamp(ai.confidence ?? template.confidence, 0, 1),
-      uncertainties:
-        ai.uncertainties && ai.uncertainties.length
-          ? ai.uncertainties
-          : template.uncertainties,
-    });
+    return instantiate(
+      { ...template, drawing, name: ai.name ?? template.name },
+      {
+        overall,
+        rank: input.rank,
+        speciesId,
+        photos,
+        routeId: ai.suggestedRouteId && template.routes.some((r) => r.id === ai.suggestedRouteId)
+          ? ai.suggestedRouteId
+          : template.defaultRoute,
+        overallSource: ai.overallSource ?? "estimated",
+        sourceKind: input.kind,
+        sourceLabel: input.url,
+        interpretation: ai.interpretation ?? template.interpretation,
+        confidence: clamp(ai.confidence ?? template.confidence, 0, 1),
+        uncertainties:
+          ai.uncertainties && ai.uncertainties.length
+            ? ai.uncertainties
+            : template.uncertainties,
+      },
+    );
   }
 
-  const fallback = matchTemplate("bench", "bench")!;
+  const fallback =
+    getTemplate("side-chair") &&
+    (ai.category === "chair" || /chair|stool/i.test(ai.name ?? ""))
+      ? getTemplate("side-chair")!
+      : matchTemplate("bench", "bench")!;
   const parts: Part[] = (ai.parts ?? []).map((p, i) => ({
     id: `p${i}`,
     name: p.name,
@@ -159,6 +200,11 @@ function hydrate(ai: AiJson, input: InterpretInput, photos: string[]): Project {
     grain: "length" as const,
   }));
 
+  const customDrawing = mergeDrawing(
+    fallback.drawing ?? inferDrawing(fallback),
+    ai.drawing,
+  );
+
   return instantiate(
     {
       ...fallback,
@@ -169,6 +215,7 @@ function hydrate(ai: AiJson, input: InterpretInput, photos: string[]): Project {
       image: "",
       overall,
       parts: parts.length ? parts : fallback.parts,
+      drawing: customDrawing,
       interpretation: ai.interpretation ?? "Interpreted from the photos.",
       confidence: ai.confidence ?? 0.55,
       uncertainties: ai.uncertainties ?? [
@@ -282,7 +329,7 @@ export const interpretPiece = createServerFn({ method: "POST" })
           { role: "system", content: SYSTEM },
           { role: "user", content: userContent },
         ],
-        1800,
+        2200,
       );
       const ai = extractJson(text);
       if (!ai) {

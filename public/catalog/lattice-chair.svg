@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Lattice-back chair">
+  <rect width="800" height="600" fill="#ebe1d2"/>
+  <g transform="translate(400 28) scale(1.12)">
+    <path d="M-150 210 L150 210 L118 268 L-118 268 Z" fill="#f7f1e6" stroke="#241c14" stroke-width="3"/>
+    <rect x="-118" y="8" width="22" height="260" fill="#f4eee2" stroke="#241c14" stroke-width="3"/>
+    <rect x="96" y="8" width="22" height="260" fill="#f4eee2" stroke="#241c14" stroke-width="3"/>
+    <rect x="-118" y="8" width="236" height="28" fill="#efe6d4" stroke="#241c14" stroke-width="3"/>
+    <rect x="-118" y="188" width="236" height="22" fill="#efe6d4" stroke="#241c14" stroke-width="3"/>
+    <g fill="none" stroke="#241c14" stroke-width="3.2" stroke-linecap="square">
+      <path d="M-90 42 L90 182"/>
+      <path d="M90 42 L-90 182"/>
+      <path d="M-90 112 L0 42 L90 112 L0 182 Z"/>
+      <path d="M-50 42 L50 182"/>
+      <path d="M50 42 L-50 182"/>
+    </g>
+    <rect x="-118" y="268" width="20" height="200" fill="#f4eee2" stroke="#241c14" stroke-width="3"/>
+    <rect x="98" y="268" width="20" height="200" fill="#f4eee2" stroke="#241c14" stroke-width="3"/>
+    <rect x="-98" y="400" width="196" height="16" fill="#efe6d4" stroke="#241c14" stroke-width="2.5"/>
+    <rect x="-118" y="396" width="20" height="14" fill="#e2d6c2" stroke="#241c14" stroke-width="2"/>
+    <rect x="98" y="396" width="20" height="14" fill="#e2d6c2" stroke="#241c14" stroke-width="2"/>
+  </g>
+</svg>

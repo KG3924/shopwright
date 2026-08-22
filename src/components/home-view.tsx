@@ -1,5 +1,18 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ImageUp, Link2, LoaderCircle, X } from "lucide-react";
+import {
+  Armchair,
+  BookOpen,
+  Box,
+  Hammer,
+  ImageUp,
+  Link2,
+  ListChecks,
+  LoaderCircle,
+  Ruler,
+  Table2,
+  TreePine,
+  X,
+} from "lucide-react";
 import { useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toast } from "sonner";
 import { interpretPiece } from "@/lib/ai/interpret";
@@ -7,6 +20,7 @@ import { CATALOG } from "@/lib/catalog";
 import { fileToDataUrl } from "@/lib/image";
 import { useStudio } from "@/lib/store";
 import { MAX_PHOTOS } from "@/lib/types";
+import { ChiselMark, SawMark } from "./shop-marks";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
@@ -110,8 +124,9 @@ export function HomeView() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:pt-16">
-      <p className="text-xs uppercase tracking-[0.18em] text-muted">
+    <main className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:pt-14">
+      <p className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted">
+        <SawMark className="size-3.5" />
         Photo in. Shop packet out.
       </p>
       <h1 className="mt-3 max-w-2xl font-display text-4xl leading-none text-fg sm:text-5xl">
@@ -119,9 +134,31 @@ export function HomeView() {
       </h1>
       <p className="mt-5 max-w-xl text-muted">
         Drop several angles — front, side, underside, a tape in frame. Shopwright
-        compiles a cut list, shop drawings, and a tutorial. Then size every
-        board, not just the overall box.
+        compiles a cut list, shop drawings of <em className="not-italic text-fg">that</em> piece,
+        and a tutorial. Then size every board, not just the overall box.
       </p>
+
+      <ol className="mt-8 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[
+          { icon: ImageUp, label: "Photos", body: "Up to six angles" },
+          { icon: Ruler, label: "Reading", body: "What it actually is" },
+          { icon: Hammer, label: "Drawings", body: "Of this piece" },
+          { icon: ListChecks, label: "Cut list", body: "Board by board" },
+        ].map((step) => (
+          <li
+            key={step.label}
+            className="flex items-start gap-3 rounded-md border border-border bg-surface px-3 py-3 shadow-[var(--shadow-bench)]"
+          >
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-sm bg-accent/10 text-accent">
+              <step.icon className="size-4" />
+            </span>
+            <span>
+              <span className="block text-sm font-medium">{step.label}</span>
+              <span className="text-xs text-muted">{step.body}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
 
       <div
         onDragOver={(e) => {
@@ -131,12 +168,12 @@ export function HomeView() {
         onDragLeave={() => setDrag(false)}
         onDrop={onDrop}
         className={`mt-10 rounded-xl border border-dashed p-6 transition-colors duration-200 sm:p-10 ${
-          drag ? "border-accent bg-surface-2" : "border-border-strong bg-surface"
+          drag ? "border-accent bg-accent/5" : "border-border-strong bg-surface shadow-[var(--shadow-bench)]"
         }`}
       >
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex size-10 items-center justify-center rounded-md bg-surface-2 text-accent">
+            <span className="mt-0.5 flex size-10 items-center justify-center rounded-md bg-accent/10 text-accent">
               <ImageUp className="size-5" />
             </span>
             <div>
@@ -181,7 +218,7 @@ export function HomeView() {
                   type="button"
                   aria-label={`Remove photo ${i + 1}`}
                   onClick={() => setStaged((prev) => prev.filter((_, j) => j !== i))}
-                  className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-sm bg-bg/80 text-fg"
+                  className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-sm bg-ink/80 text-paper"
                 >
                   <X className="size-4" />
                 </button>
@@ -242,7 +279,10 @@ export function HomeView() {
       <section className="mt-16">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="font-display text-2xl">Studio pieces</h2>
+            <h2 className="flex items-center gap-2 font-display text-2xl">
+              <ChiselMark className="size-5 text-accent" />
+              Studio pieces
+            </h2>
             <p className="mt-1 text-sm text-muted">
               Start from a known form. Same packet — drawings, per-part sizes,
               species, construction.
@@ -255,7 +295,7 @@ export function HomeView() {
               <button
                 type="button"
                 onClick={() => openCatalog(item.id)}
-                className="group flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-surface text-left transition-colors duration-200 hover:border-border-strong"
+                className="group flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-surface text-left shadow-[var(--shadow-bench)] transition-colors duration-200 hover:border-border-strong"
               >
                 <span className="relative aspect-[4/3] overflow-hidden bg-surface-2">
                   <img
@@ -263,6 +303,10 @@ export function HomeView() {
                     alt=""
                     className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                   />
+                  <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-sm bg-surface/90 px-2 py-1 text-[10px] uppercase tracking-wider text-ink">
+                    <CatalogIcon category={item.category} />
+                    {item.category}
+                  </span>
                 </span>
                 <span className="flex flex-1 flex-col p-4">
                   <span className="font-display text-lg">{item.name}</span>
@@ -276,3 +320,14 @@ export function HomeView() {
     </main>
   );
 }
+
+function CatalogIcon({ category }: { category: string }) {
+  const cls = "size-3";
+  if (category === "chair") return <Armchair className={cls} />;
+  if (category === "feeder") return <TreePine className={cls} />;
+  if (category === "bookcase") return <BookOpen className={cls} />;
+  if (category === "table" || category === "bench") return <Table2 className={cls} />;
+  if (category === "cabinet" || category === "case") return <Box className={cls} />;
+  return <Ruler className={cls} />;
+}
+

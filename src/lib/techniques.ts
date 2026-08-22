@@ -92,6 +92,13 @@ export const TECHNIQUES: Technique[] = [
     body: "Two pieces of ½\" plywood cannot pass through each other. At each hip the edges just push together. A hairline gap is fine. Copper and the wooden hip cap cover the outside. The ¾×¾ cleat inside is what actually holds it. Tape the pyramid, flip it, nest a cleat in the valley. If it rocks, knock one corner off until it sits on both inner faces. Four screws per hip, staggered, two through each triangle into the cleat.",
   },
   {
+    id: "half-lap",
+    name: "Half-lapped lattice",
+    autoUntil: "apprentice",
+    tools: ["Saw", "chisel or a ⅜\" dado", "square", "pins"],
+    body: "Lay the strips in the back opening on 45° so they make stacked diamonds. Mark every crossing. Saw and chisel a lap half the thickness so the faces come flush. Dry-fit the whole web in the frame before any glue. Glue and pin, then trim the horns flush to the stiles and rails.",
+  },
+  {
     id: "finish-paint",
     name: "Painted casework",
     autoUntil: "novice",

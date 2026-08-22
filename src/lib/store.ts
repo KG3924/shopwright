@@ -150,7 +150,7 @@ export const useStudio = create<StudioState>()(
       },
     }),
     {
-      name: "shopwright-v01",
+      name: "shopwright-v02",
       partialize: (s) => ({
         rank: s.rank,
         zip: s.zip,

@@ -2,23 +2,23 @@
 @import "tw-animate-css";
 
 @theme {
-  --color-bg: #12110f;
-  --color-surface: #1c1a17;
-  --color-surface-2: #26231e;
-  --color-paper: #ece6d8;
-  --color-paper-2: #e2d9c6;
-  --color-ink: #1a1714;
-  --color-ink-soft: #4a433a;
-  --color-fg: #f1ece3;
-  --color-muted: #9a9184;
-  --color-subtle: #6f675c;
-  --color-border: rgb(241 236 227 / 0.12);
-  --color-border-strong: rgb(241 236 227 / 0.22);
-  --color-accent: #e7e1d4;
-  --color-accent-fg: #161410;
-  --color-warn: #c4a574;
-  --color-good: #8a9a7a;
-  --color-danger: #c47a6a;
+  --color-bg: #f3ebe0;
+  --color-surface: #fffaf3;
+  --color-surface-2: #ebe1d2;
+  --color-paper: #fff8ee;
+  --color-paper-2: #f0e6d4;
+  --color-ink: #241c14;
+  --color-ink-soft: #5c5348;
+  --color-fg: #241c14;
+  --color-muted: #6d6458;
+  --color-subtle: #8a8074;
+  --color-border: rgb(36 28 20 / 0.12);
+  --color-border-strong: rgb(36 28 20 / 0.22);
+  --color-accent: #2f5d4a;
+  --color-accent-fg: #f7f3ea;
+  --color-warn: #9a6b2f;
+  --color-good: #3d6b4f;
+  --color-danger: #a45a4a;
 
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
@@ -37,6 +37,8 @@
   --text-xl: 1.5rem;
   --text-2xl: 2rem;
   --text-3xl: 2.75rem;
+
+  --shadow-bench: 0 1px 0 rgb(36 28 20 / 0.06), 0 12px 32px rgb(36 28 20 / 0.08);
 }
 
 @layer base {
@@ -56,6 +58,28 @@
   body {
     font-family: var(--font-sans);
     line-height: 1.5;
+    background-image:
+      linear-gradient(rgb(36 28 20 / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(36 28 20 / 0.035) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: 0 5px;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    height: 5px;
+    z-index: 60;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--color-ink) 0 10px,
+      color-mix(in oklab, var(--color-ink) 72%, white) 10px 16px,
+      var(--color-accent) 16px 18px,
+      var(--color-ink) 18px 28px,
+      color-mix(in oklab, var(--color-ink) 55%, white) 28px 36px
+    );
   }
 
   h1,
@@ -82,6 +106,14 @@
   }
 }
 
+@layer components {
+  .bench-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-bench);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -99,8 +131,12 @@
   }
 
   body {
-    background: #ece6d8 !important;
-    color: #1a1714 !important;
+    background: #fff8ee !important;
+    color: #241c14 !important;
+  }
+
+  body::before {
+    display: none;
   }
 
   body * {
@@ -115,7 +151,7 @@
   .shop-drawings {
     position: absolute;
     inset: 0;
-    background: #ece6d8;
+    background: #fff8ee;
   }
 
   header,

@@ -87,6 +87,28 @@ export type BuyBoard = {
   spare?: boolean;
 };
 
+export type BackStyle =
+  | "lattice"
+  | "x-back"
+  | "splat"
+  | "slat-fan"
+  | "solid"
+  | "none";
+
+export type SeatShape = "square" | "round";
+
+/** How to draw the piece — from the photo, not from a catalog silhouette. */
+export type DrawingSpec = {
+  family: "table" | "case" | "chair" | "feeder";
+  backStyle?: BackStyle;
+  hasArms?: boolean;
+  hasFootring?: boolean;
+  seatShape?: SeatShape;
+  /** Seat height as a fraction of overall H. Dining ~0.48, counter ~0.61, bar ~0.72. */
+  seatHeightRatio?: number;
+  reclined?: boolean;
+};
+
 export type Overall = { w: number; d: number; h: number };
 
 export type ProjectTemplate = {
@@ -113,6 +135,8 @@ export type ProjectTemplate = {
   buyBoards?: BuyBoard[];
   stillBuy?: string[];
   doNotBuy?: string[];
+  /** How shop drawings should look. Inferred from the piece if omitted. */
+  drawing?: DrawingSpec;
 };
 
 export type Project = ProjectTemplate & {

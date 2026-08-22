@@ -22,7 +22,7 @@ export const Route = createRootRoute({
         content:
           "From a photo to a shop packet. Interpret furniture, fit it to a space, get cut lists, fasteners, lumber, and a rank-adapted tutorial.",
       },
-      { name: "theme-color", content: "#12110f" },
+      { name: "theme-color", content: "#f3ebe0" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
@@ -51,13 +51,13 @@ export const Route = createRootRoute({
         <AuthProvider>
           <Outlet />
           <Toaster
-            theme="dark"
+            theme="light"
             position="bottom-center"
             toastOptions={{
               style: {
-                background: "#1c1a17",
-                color: "#f1ece3",
-                border: "1px solid rgb(241 236 227 / 0.12)",
+                background: "#fffaf3",
+                color: "#241c14",
+                border: "1px solid rgb(36 28 20 / 0.12)",
               },
             }}
           />

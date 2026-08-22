@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { Printer } from "lucide-react";
+import { ChairElevations, chairExplodedBoxes, LatticeJoinery } from "@/components/chair-drawings";
+import { drawingCaption, inferDrawing } from "@/lib/drawing";
 import { formatDimTriplet, formatInches } from "@/lib/format";
 import { RANK_META } from "@/lib/ranks";
-import type { CutRow, HardwareItem, Project, ShopPacket } from "@/lib/types";
+import type { CutRow, HardwareItem, ShopPacket } from "@/lib/types";
 import { Button } from "./ui/button";
 
 const INK = "var(--color-ink)";
@@ -13,7 +15,8 @@ const WOOD_DK = "#cfc3ab";
 export function ShopDrawings({ packet }: { packet: ShopPacket }) {
   const { project, cuts, route, species } = packet;
   const overall = project.overall;
-  const family = drawingFamily(project);
+  const spec = inferDrawing(project);
+  const family = spec.family;
 
   return (
     <div className="shop-drawings space-y-8">
@@ -122,26 +125,18 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         >
           <FeederJoinery />
         </Sheet>
+      ) : spec.family === "chair" &&
+        (spec.backStyle === "lattice" || spec.backStyle === "x-back") ? (
+        <Sheet
+          title="Joinery — lattice back"
+          sheet="6"
+          meta={drawingCaption(spec)}
+        >
+          <LatticeJoinery />
+        </Sheet>
       ) : null}
     </div>
   );
-}
-
-function drawingFamily(project: Project): "table" | "case" | "chair" | "feeder" {
-  const { category, id } = project;
-  if (id === "feeder" || category === "feeder") return "feeder";
-  if (id === "adirondack" || category === "chair") return "chair";
-  if (
-    category === "bookcase" ||
-    category === "cabinet" ||
-    category === "case" ||
-    id === "console" ||
-    id === "bookcase" ||
-    id === "cabinet"
-  ) {
-    return "case";
-  }
-  return "table";
 }
 
 function findCut(cuts: CutRow[], re: RegExp): CutRow | undefined {
@@ -334,13 +329,7 @@ function Elevations({
     return <FeederElevations packet={packet} />;
   }
   if (family === "chair") {
-    return (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-        <ChairSide w={w} d={d} h={h} cuts={cuts} />
-        <ChairFront w={w} h={h} cuts={cuts} />
-        <PlanView w={w} d={d} family="chair" cuts={cuts} />
-      </div>
-    );
+    return <ChairElevations packet={packet} spec={inferDrawing(project)} />;
   }
   if (family === "case") {
     return (
@@ -615,75 +604,6 @@ function CaseSide({ d, h, cuts }: { d: number; h: number; cuts: CutRow[] }) {
   );
 }
 
-function ChairSide({ w: _w, d, h, cuts }: { w: number; d: number; h: number; cuts: CutRow[] }) {
-  void _w;
-  void cuts;
-  return (
-    <Frame label="Side" worldW={d} worldH={h} xName="D" yName="H">
-      {(s, ox, oy) => {
-        const x0 = ox;
-        const y0 = oy;
-        const dw = d * s;
-        const dh = h * s;
-        const seatY = y0 + dh * 0.55;
-        const seatX = x0 + dw * 0.12;
-        const backX = x0 + dw * 0.72;
-        return (
-          <g fill={WOOD} stroke={INK} strokeWidth="0.7">
-            <path d={`M ${seatX} ${y0 + dh} L ${seatX + dw * 0.08} ${seatY} L ${backX} ${seatY + dh * 0.08} L ${backX - dw * 0.06} ${y0 + dh} Z`} />
-            <rect x={seatX + dw * 0.02} y={y0 + dh * 0.22} width={dw * 0.08} height={dh * 0.78} />
-            <path d={`M ${backX - dw * 0.04} ${y0 + dh * 0.08} L ${backX + dw * 0.08} ${y0} L ${backX + dw * 0.16} ${y0 + dh * 0.06} L ${backX + dw * 0.04} ${y0 + dh * 0.16} Z`} />
-            <rect x={seatX} y={seatY} width={dw * 0.62} height={dh * 0.06} fill={WOOD_DK} />
-            <rect x={seatX + dw * 0.02} y={y0 + dh * 0.22} width={dw * 0.55} height={dh * 0.05} fill={WOOD_DK} />
-          </g>
-        );
-      }}
-    </Frame>
-  );
-}
-
-function ChairFront({ w, h, cuts }: { w: number; h: number; cuts: CutRow[] }) {
-  const arm = findCut(cuts, /arm/i);
-  const slats = findCut(cuts, /back slat/i);
-  const n = slats?.qty ?? 7;
-  return (
-    <Frame label="Front" worldW={w} worldH={h} xName="W" yName="H">
-      {(s, ox, oy) => {
-        const dw = w * s;
-        const dh = h * s;
-        const slatW = dw / (n + 3);
-        const gap = slatW * 0.25;
-        const slatsEl = [];
-        for (let i = 0; i < n; i++) {
-          const x = ox + dw * 0.18 + i * (slatW + gap);
-          const extra = Math.sin((i / Math.max(n - 1, 1)) * Math.PI) * dh * 0.08;
-          slatsEl.push(
-            <rect
-              key={i}
-              x={x}
-              y={oy + dh * 0.06 - extra}
-              width={slatW}
-              height={dh * 0.55 + extra}
-              fill={WOOD}
-              stroke={INK}
-              strokeWidth="0.5"
-            />,
-          );
-        }
-        return (
-          <g>
-            {slatsEl}
-            <rect x={ox} y={oy + dh * 0.22} width={dw} height={(arm?.thickness ?? 0.75) * s * 1.6} fill={WOOD_DK} stroke={INK} strokeWidth="0.6" />
-            <rect x={ox + dw * 0.08} y={oy + dh * 0.55} width={dw * 0.84} height={dh * 0.08} fill={WOOD_DK} stroke={INK} strokeWidth="0.6" />
-            <rect x={ox + dw * 0.08} y={oy + dh * 0.55} width={dw * 0.08} height={dh * 0.45} fill={WOOD} stroke={INK} strokeWidth="0.6" />
-            <rect x={ox + dw * 0.84} y={oy + dh * 0.55} width={dw * 0.08} height={dh * 0.45} fill={WOOD} stroke={INK} strokeWidth="0.6" />
-          </g>
-        );
-      }}
-    </Frame>
-  );
-}
-
 function PlanView({
   w,
   d,
@@ -730,18 +650,24 @@ function PlanView({
                   strokeDasharray="1.5 1"
                 />
               )
-              : (
-                <ellipse
-                  cx={ox + w * s * 0.5}
-                  cy={oy + d * s * 0.55}
-                  rx={w * s * 0.38}
-                  ry={d * s * 0.28}
-                  fill="none"
-                  stroke={INK}
-                  strokeWidth="0.5"
-                  strokeDasharray="1.4 1"
-                />
-              )}
+              : family === "chair"
+              ? (
+                <>
+                  <rect x={ox} y={oy} width={legPx} height={legPx} fill={WOOD_DK} stroke={INK} strokeWidth="0.5" />
+                  <rect x={ox + w * s - legPx} y={oy} width={legPx} height={legPx} fill={WOOD_DK} stroke={INK} strokeWidth="0.5" />
+                  <rect x={ox} y={oy + d * s - legPx} width={legPx} height={legPx} fill={WOOD_DK} stroke={INK} strokeWidth="0.5" />
+                  <rect
+                    x={ox + w * s - legPx}
+                    y={oy + d * s - legPx}
+                    width={legPx}
+                    height={legPx}
+                    fill={WOOD_DK}
+                    stroke={INK}
+                    strokeWidth="0.5"
+                  />
+                </>
+              )
+              : null}
         </g>
         );
       }}
@@ -762,7 +688,13 @@ function Exploded({
     return <FeederExploded cuts={cuts} w={w} d={d} h={h} />;
   }
   if (family === "chair") {
-    return <ChairExploded cuts={cuts} w={w} d={d} h={h} />;
+    const spec = inferDrawing(project);
+    return (
+      <div className="grid gap-4 lg:grid-cols-[1fr_14rem]">
+        <IsoScene boxes={chairExplodedBoxes(packet, spec)} />
+        <Legend cuts={cuts} />
+      </div>
+    );
   }
   if (family === "case") {
     return <CaseExploded cuts={cuts} w={w} d={d} h={h} />;
@@ -981,39 +913,6 @@ function CaseExploded({
       mark: idx(back.id),
     });
   }
-  return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_14rem]">
-      <IsoScene boxes={boxes} />
-      <Legend cuts={cuts} />
-    </div>
-  );
-}
-
-function ChairExploded({
-  cuts,
-  w,
-  d,
-  h,
-}: {
-  cuts: CutRow[];
-  w: number;
-  d: number;
-  h: number;
-}) {
-  void h;
-  const boxes: IsoSpec[] = cuts.slice(0, 8).map((c, i) => {
-    const col = i % 3;
-    const row = Math.floor(i / 3);
-    return {
-      x: col * (Math.min(c.length, w * 0.5) + 3),
-      y: row * (Math.min(c.width, d * 0.4) + 3),
-      z: 0,
-      w: Math.min(c.length, w * 0.48),
-      d: Math.max(Math.min(c.width, 6), 1.5),
-      h: Math.max(c.thickness * 4, 1.2),
-      mark: c.letter,
-    };
-  });
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_14rem]">
       <IsoScene boxes={boxes} />

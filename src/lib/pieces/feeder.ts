@@ -15,6 +15,7 @@ export const feederTemplate: ProjectTemplate = {
   defaultSpecies: "cedar",
   defaultRoute: "screwed",
   indoor: false,
+  drawing: { family: "feeder" },
   interpretation:
     "Improved replica of a hip-roof hopper feeder. Four ⅛\" PETG panels slide in grooved 1×1 posts. The roof is a lift-off hat: plywood pyramid, clapboard slats ~5/16\", copper on the hips. Tray is 13½\" square on a 1\" NPT floor flange. Not terracotta — the hopper is plastic.",
   confidence: 0.96,

@@ -1,4 +1,5 @@
 import { feederTemplate } from "./pieces/feeder";
+import { sideChairTemplate } from "./pieces/side-chair";
 import type { BuildStep, HardwareItem, Part, ProjectTemplate } from "./types";
 import { dim } from "./parametric";
 
@@ -196,6 +197,7 @@ const consoleSteps: BuildStep[] = [
 
 export const CATALOG: ProjectTemplate[] = [
   feederTemplate,
+  sideChairTemplate,
   {
     id: "bench",
     name: "Shaker bench",
@@ -600,6 +602,15 @@ export const CATALOG: ProjectTemplate[] = [
     indoor: false,
     interpretation:
       "Classic Westport Adirondack: fan back, wide flat arms that meet the back legs, deep reclined seat. Built from 1× slats on shaped sides. Outdoor joinery is mechanical — screws and bolts, not glue as the primary structure.",
+    drawing: {
+      family: "chair",
+      backStyle: "slat-fan",
+      hasArms: true,
+      hasFootring: false,
+      seatShape: "square",
+      reclined: true,
+      seatHeightRatio: 0.42,
+    },
     confidence: 0.86,
     uncertainties: [
       "Exact back-slat count varies (commonly 7). We spec 7.",
@@ -696,7 +707,18 @@ export function matchTemplate(
     ["cabinet", "cabinet"],
     ["cabinet", "cupboard"],
     ["adirondack", "adirondack"],
-    ["adirondack", "chair"],
+    ["adirondack", "westport"],
+    ["adirondack", "muskoka"],
+    ["side-chair", "lattice"],
+    ["side-chair", "chippendale"],
+    ["side-chair", "x-back"],
+    ["side-chair", "x back"],
+    ["side-chair", "counter"],
+    ["side-chair", "bar stool"],
+    ["side-chair", "dining"],
+    ["side-chair", "side chair"],
+    ["side-chair", "stool"],
+    ["side-chair", "chair"],
     ["feeder", "feeder"],
     ["feeder", "birdhouse"],
     ["feeder", "bird feeder"],

@@ -19,7 +19,7 @@ npm run dev
 
 Then open [http://localhost:8080](http://localhost:8080). Always start with `npm run dev` — not `vite` directly. The npm script loads app env the rest of the toolchain expects.
 
-The seven **studio pieces** (bench, console, bookcase, coffee table, wall cabinet, Adirondack, cedar hopper feeder) work with no extra setup. Click one, change size / rank / species, and read the packet.
+The eight **studio pieces** (lattice-back chair, bench, console, bookcase, coffee table, wall cabinet, Adirondack, cedar hopper feeder) work with no extra setup. Click one, change size / rank / species, and read the packet. Shop drawings follow the piece — a lattice-back chair is not drawn as an Adirondack.
 
 ### Photo, links, and the Master Woodworker
 
