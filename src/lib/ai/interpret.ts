@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { MAX_PHOTOS } from "../types";
-import { hydrateVision, InterpretError, parseVisionJson, type InterpretInput } from "./hydrate";
+import { hydrateVision, parseVisionJson, type InterpretInput } from "./hydrate";
+import { mapInterpretHandlerError, resolveUrlSource } from "./url-source";
 
 const SYSTEM = `You are Shopwright, a master furniture maker who reverse-engineers a piece from photographs into a shop-buildable interpretation — not a clone, and not a stock silhouette.
 
@@ -107,28 +108,6 @@ function collectPhotos(data: InterpretInput): string[] {
   return [...new Set(list)].slice(0, MAX_PHOTOS);
 }
 
-async function fetchUrlExcerpt(url: string): Promise<{ title: string; text: string; image?: string }> {
-  const res = await fetch(url, {
-    headers: { "User-Agent": "Shopwright/0.1 (interpretation; +https://github.com/KG3924/shopwright)" },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) throw new Error(`Could not read that page (${res.status})`);
-  const html = (await res.text()).slice(0, 80_000);
-  const title =
-    html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/\s+/g, " ").trim() ??
-    url;
-  const ogImage =
-    html.match(/property=["']og:image["'][^>]*content=["']([^"']+)/i)?.[1] ??
-    html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i)?.[1];
-  const text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .slice(0, 4000);
-  return { title, text, image: ogImage };
-}
-
 export const interpretPiece = createServerFn({ method: "POST" })
   .validator((input: InterpretInput) => input)
   .handler(async ({ data }) => {
@@ -146,19 +125,16 @@ export const interpretPiece = createServerFn({ method: "POST" })
 
       if (data.kind === "url" && data.url) {
         try {
-          const page = await fetchUrlExcerpt(data.url);
-          pageNote = `Product page title: ${page.title}\nExcerpt: ${page.text}`;
-          if (page.image && photos.length === 0) {
+          const source = await resolveUrlSource(data.url);
+          pageNote = source.pageNote;
+          if (source.photoUrl && photos.length === 0) {
             userContent.push({
               type: "image_url",
-              image_url: { url: page.image, detail: "high" },
+              image_url: { url: source.photoUrl, detail: "high" },
             });
           }
         } catch (err) {
-          return {
-            ok: false as const,
-            error: err instanceof Error ? err.message : "Could not read that link",
-          };
+          return mapInterpretHandlerError(err, "Could not read that link");
         }
       }
 
@@ -195,12 +171,6 @@ export const interpretPiece = createServerFn({ method: "POST" })
       const project = hydrateVision(ai, data, photos);
       return { ok: true as const, project };
     } catch (err) {
-      if (err instanceof InterpretError) {
-        return { ok: false as const, error: err.message, code: err.code };
-      }
-      return {
-        ok: false as const,
-        error: err instanceof Error ? err.message : "Interpretation failed",
-      };
+      return mapInterpretHandlerError(err);
     }
   });
