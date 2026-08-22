@@ -168,4 +168,9 @@
   [data-sonner-toaster] {
     display: none !important;
   }
+
+  /* Closed disclosure still prints — the packet is the shop copy. */
+  .shop-assembly-steps > :not(summary) {
+    display: block !important;
+  }
 }

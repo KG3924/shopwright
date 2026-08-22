@@ -1,8 +1,7 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Printer } from "lucide-react";
 import { LatticeJoinery } from "@/components/chair-drawings";
 import { inferDrawing } from "@/lib/drawing";
-import { formatInches } from "@/lib/format";
 import { layoutBoxes, type WorldBox } from "@/lib/layout";
 import {
   formatCutAxis,
@@ -16,7 +15,19 @@ import {
   type CutHold,
 } from "@/lib/measure";
 import { RANK_META } from "@/lib/ranks";
-import type { CutRow, HardwareItem, Overall, ShopPacket } from "@/lib/types";
+import {
+  assemblyStepsOpen,
+  elevationCallout,
+  elevationViewAxes,
+  explodeOffset,
+  formatElevationCallout,
+  isoShowsBadge,
+  isMajorShopPart,
+  isQuietRank,
+  labelElevationParts,
+  separateBadges,
+} from "@/lib/shop-views";
+import type { CutRow, HardwareItem, Overall, Rank, ShopPacket } from "@/lib/types";
 import { projectPhotos } from "@/lib/types";
 import { Button } from "./ui/button";
 
@@ -58,7 +69,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
     seatHeightRatio: spec.seatHeightRatio,
   });
   const exploded = layoutBoxes(overall, cuts, {
-    explode: Math.max(overall.w, overall.d, overall.h) * 0.2,
+    explode: explodeOffset(overall, project.rank),
     seatHeightRatio: spec.seatHeightRatio,
   });
   const lattice = cuts.some((c) => /lattice|half-?lap|diamond/i.test(`${c.id} ${c.name}`));
@@ -92,7 +103,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
       <Sheet
         title={project.name}
         sheet="1"
-        meta={`${formatInches(overall.w)} W × ${formatInches(overall.d)} D × ${formatInches(overall.h)} H  ·  ${species.name}  ·  ${route.name}  ·  ${RANK_META[project.rank].label}`}
+        meta={`${formatElevationCallout("W", overall.w)} × ${formatElevationCallout("D", overall.d)} × ${formatElevationCallout("H", overall.h)}  ·  ${species.name}  ·  ${route.name}  ·  ${RANK_META[project.rank].label}`}
       >
         <PhotoStrip photos={photos} fromPhotos={!!fromPhotos} />
         <p className="mb-4 max-w-2xl text-sm text-ink-soft">
@@ -144,23 +155,16 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         sheet="4"
         meta={`${cuts.length} parts  ·  ${route.joinery}`}
       >
+        <p className="mb-3 text-sm text-ink-soft">
+          {isQuietRank(project.rank)
+            ? "Letters on the explode match the legend. Assembly stays folded until you want the sequence — the iso is the drawing."
+            : "Letters on the explode match the legend. Assembly sequence is under the drawing."}
+        </p>
         <div className="grid gap-4 lg:grid-cols-[1fr_14rem]">
-          <IsoScene boxes={exploded} />
+          <IsoScene boxes={exploded} rank={project.rank} />
           <Legend cuts={cuts} />
         </div>
-        <ol className="mt-5 grid gap-3 sm:grid-cols-2">
-          {packet.steps.map((step, i) => (
-            <li key={step.id} className="border-t border-ink/10 pt-2">
-              <p className="font-mono text-[10px] text-ink-soft">
-                {String(i + 1).padStart(2, "0")} · assembly
-              </p>
-              <p className="mt-0.5 text-sm font-medium">{step.title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-                {step.body}
-              </p>
-            </li>
-          ))}
-        </ol>
+        <AssemblyStepList key={project.rank} rank={project.rank} steps={packet.steps} />
       </Sheet>
 
       <Sheet
@@ -426,19 +430,23 @@ function Frame({
   label: string;
   worldW: number;
   worldH: number;
-  xName: string;
-  yName: string;
+  xName: "W" | "D" | "H";
+  yName: "W" | "D" | "H";
   children: (s: number, ox: number, oy: number) => ReactNode;
 }) {
-  const padX = 14;
-  const padY = 16;
+  const padX = 16;
+  const padY = 18;
   const innerW = 100 - padX * 2;
-  const innerH = 78 - padY;
+  const innerH = 76 - padY;
   const s = Math.min(innerW / Math.max(worldW, 1), innerH / Math.max(worldH, 1));
-  const dw = worldW * s;
-  const dh = worldH * s;
+  const dw = Math.max(worldW, 0.25) * s;
+  const dh = Math.max(worldH, 0.25) * s;
   const ox = (100 - dw) / 2;
-  const oy = 6 + (78 - dh) / 2;
+  const oy = 5 + (76 - dh) / 2;
+  const xCall = elevationCallout(xName, worldW);
+  const yCall = elevationCallout(yName, worldH);
+  const xDash = xCall.unknown ? "1.6 1.2" : undefined;
+  const yDash = yCall.unknown ? "1.6 1.2" : undefined;
   return (
     <figure>
       <svg viewBox="0 0 100 100" className="h-auto w-full" aria-hidden>
@@ -453,35 +461,37 @@ function Frame({
         />
         {children(s, ox, oy)}
         <path
-          d={`M ${ox} ${oy + dh + 6} L ${ox + dw} ${oy + dh + 6}`}
+          d={`M ${ox} ${oy + dh + 4} L ${ox} ${oy + dh + 8} M ${ox + dw} ${oy + dh + 4} L ${ox + dw} ${oy + dh + 8} M ${ox} ${oy + dh + 6} L ${ox + dw} ${oy + dh + 6}`}
           stroke={INK}
           strokeWidth="0.55"
+          strokeDasharray={xDash}
         />
         <path
-          d={`M ${ox - 6} ${oy} L ${ox - 6} ${oy + dh}`}
+          d={`M ${ox - 8} ${oy} L ${ox - 4} ${oy} M ${ox - 8} ${oy + dh} L ${ox - 4} ${oy + dh} M ${ox - 6} ${oy} L ${ox - 6} ${oy + dh}`}
           stroke={INK}
           strokeWidth="0.55"
+          strokeDasharray={yDash}
         />
         <text
           x={ox + dw / 2}
-          y={oy + dh + 12}
+          y={oy + dh + 13.2}
           textAnchor="middle"
-          fontSize="5.4"
+          fontSize="5.6"
           fill={INK}
           fontFamily="IBM Plex Mono, monospace"
         >
-          {xName} {formatInches(worldW)}
+          {xCall.text}
         </text>
         <text
-          x={ox - 8.5}
+          x={ox - 10}
           y={oy + dh / 2}
           textAnchor="middle"
-          fontSize="5.4"
+          fontSize="5.6"
           fill={INK}
           fontFamily="IBM Plex Mono, monospace"
-          transform={`rotate(-90 ${ox - 8.5} ${oy + dh / 2})`}
+          transform={`rotate(-90 ${ox - 10} ${oy + dh / 2})`}
         >
-          {yName} {formatInches(worldH)}
+          {yCall.text}
         </text>
       </svg>
       <figcaption className="mt-1 text-center font-mono text-xs text-ink-soft">
@@ -512,8 +522,7 @@ function ProjectedView({
 }) {
   const worldW = mode === "side" ? overall.d : overall.w;
   const worldH = mode === "plan" ? overall.d : overall.h;
-  const xName = mode === "side" ? "D" : "W";
-  const yName = mode === "plan" ? "D" : "H";
+  const { xName, yName } = elevationViewAxes(mode);
   const rects = boxes
     .map((b) => {
       if (mode === "front") {
@@ -525,7 +534,6 @@ function ProjectedView({
           depth: b.y,
           letter: b.letter,
           role: b.role,
-          area: b.w * b.h,
           unknownW: !!b.unknown?.w,
           unknownH: !!b.unknown?.h,
         };
@@ -539,7 +547,6 @@ function ProjectedView({
           depth: -b.x,
           letter: b.letter,
           role: b.role,
-          area: b.d * b.h,
           unknownW: !!b.unknown?.d,
           unknownH: !!b.unknown?.h,
         };
@@ -552,7 +559,6 @@ function ProjectedView({
         depth: b.z,
         letter: b.letter,
         role: b.role,
-        area: b.w * b.d,
         unknownW: !!b.unknown?.w,
         unknownH: !!b.unknown?.d,
       };
@@ -560,7 +566,7 @@ function ProjectedView({
     .filter((r) => r.unknownW || r.unknownH || (r.w > 0.04 && r.h > 0.04))
     .sort((a, b) => a.depth - b.depth);
 
-  const areaMin = worldW * worldH * 0.06;
+  const labels = labelElevationParts(rects);
 
   return (
     <Frame label={label} worldW={worldW} worldH={worldH} xName={xName} yName={yName}>
@@ -570,7 +576,6 @@ function ProjectedView({
             const unknown = r.unknownW || r.unknownH;
             const rw = Math.max(r.w * s, 1.15);
             const rh = Math.max(r.h * s, 1.15);
-            const showLetter = r.area >= areaMin && !unknown;
             return (
               <g key={`${r.letter}-${i}`}>
                 <rect
@@ -583,19 +588,29 @@ function ProjectedView({
                   strokeWidth="0.6"
                   strokeDasharray={unknown ? "2 1.4" : undefined}
                 />
-                {showLetter ? (
-                  <text
-                    x={ox + r.x * s + rw / 2}
-                    y={oy + r.y * s + rh / 2 + 1.6}
-                    textAnchor="middle"
-                    fontSize="4.2"
-                    fill={INK}
-                    fontFamily="IBM Plex Mono, monospace"
-                  >
-                    {r.letter}
-                  </text>
-                ) : null}
               </g>
+            );
+          })}
+          {labels.map((r, i) => {
+            const rw = Math.max(r.w * s, 1.15);
+            const rh = Math.max(r.h * s, 1.15);
+            const cx = ox + r.x * s + rw / 2;
+            const cy = oy + r.y * s + rh / 2 + 1.5;
+            const thinTall = r.beside && r.w <= r.h;
+            const lx = thinTall ? ox + r.x * s + rw + 3.4 : cx;
+            const ly = r.beside && !thinTall ? oy + r.y * s - 1.8 : cy;
+            return (
+              <text
+                key={`lbl-${r.letter}-${i}`}
+                x={lx}
+                y={ly}
+                textAnchor={thinTall ? "start" : "middle"}
+                fontSize="4.6"
+                fill={INK}
+                fontFamily="IBM Plex Mono, monospace"
+              >
+                {r.letter}
+              </text>
             );
           })}
         </g>
@@ -608,9 +623,10 @@ function isoRaw(x: number, y: number, z: number) {
   return { px: (x - y) * 0.866, py: -z * 0.9 + (x + y) * 0.5 };
 }
 
-function IsoScene({ boxes }: { boxes: WorldBox[] }) {
+function IsoScene({ boxes, rank }: { boxes: WorldBox[]; rank?: Rank }) {
   const VW = 240;
   const VH = 176;
+  const quiet = isQuietRank(rank);
   if (!boxes.length) {
     return (
       <svg viewBox={`0 0 ${VW} ${VH}`} className="h-auto w-full" aria-hidden>
@@ -645,6 +661,16 @@ function IsoScene({ boxes }: { boxes: WorldBox[] }) {
     return `${(ox + r.px * s).toFixed(2)},${(oy + r.py * s).toFixed(2)}`;
   };
   const sorted = [...boxes].sort((a, b) => a.x + a.y - (b.x + b.y) || a.z - b.z);
+  const anchors = sorted
+    .filter((b) => isoShowsBadge(b.role, rank))
+    .map((b) => {
+      const [cx, cy] = P(b.x + b.w / 2, b.y + b.d / 2, b.z + b.h)
+        .split(",")
+        .map(Number);
+      return { id: b.id, letter: b.letter, x: cx, y: cy - 6 };
+    });
+  const badges = separateBadges(anchors, 12);
+  const fromId = new Map(anchors.map((a) => [a.id, a]));
 
   return (
     <svg viewBox={`0 0 ${VW} ${VH}`} className="h-auto w-full" aria-hidden>
@@ -652,35 +678,87 @@ function IsoScene({ boxes }: { boxes: WorldBox[] }) {
       {sorted.map((b) => {
         const unknown = !!(b.unknown?.w || b.unknown?.d || b.unknown?.h);
         const dash = unknown ? "2.2 1.6" : undefined;
+        const light = quiet && !isMajorShopPart(b.role);
+        const strokeW = light ? 0.5 : 0.85;
         const p = (dx: number, dy: number, dz: number) => P(b.x + dx, b.y + dy, b.z + dz);
         const top = `${p(0, 0, b.h)} ${p(b.w, 0, b.h)} ${p(b.w, b.d, b.h)} ${p(0, b.d, b.h)}`;
         const right = `${p(b.w, 0, 0)} ${p(b.w, b.d, 0)} ${p(b.w, b.d, b.h)} ${p(b.w, 0, b.h)}`;
         const front = `${p(0, 0, 0)} ${p(b.w, 0, 0)} ${p(b.w, 0, b.h)} ${p(0, 0, b.h)}`;
-        const [cx, cy] = P(b.x + b.w / 2, b.y + b.d / 2, b.z + b.h)
-          .split(",")
-          .map(Number);
         return (
           <g key={b.id}>
-            <polygon points={right} fill={unknown ? "none" : WOOD_DK} stroke={INK} strokeWidth="0.85" strokeDasharray={dash} />
-            <polygon points={front} fill={unknown ? "none" : fillFor(b.role)} stroke={INK} strokeWidth="0.85" strokeDasharray={dash} />
-            <polygon points={top} fill={unknown ? "none" : PAPER} stroke={INK} strokeWidth="0.85" strokeDasharray={dash} />
-            <g>
-              <circle cx={cx} cy={cy - 6} r="5.4" fill={PAPER} stroke={INK} strokeWidth="0.8" />
-              <text
-                x={cx}
-                y={cy - 4}
-                textAnchor="middle"
-                fontSize="5.2"
-                fill={INK}
-                fontFamily="IBM Plex Mono, monospace"
-              >
-                {b.letter}
-              </text>
-            </g>
+            <polygon points={right} fill={unknown || light ? "none" : WOOD_DK} stroke={INK} strokeWidth={strokeW} strokeDasharray={dash} />
+            <polygon points={front} fill={unknown || light ? "none" : fillFor(b.role)} stroke={INK} strokeWidth={strokeW} strokeDasharray={dash} />
+            <polygon points={top} fill={unknown || light ? "none" : PAPER} stroke={INK} strokeWidth={strokeW} strokeDasharray={dash} />
+          </g>
+        );
+      })}
+      {badges.map((badge) => {
+        const from = fromId.get(badge.id);
+        const moved =
+          from && (Math.hypot(badge.x - from.x, badge.y - from.y) > 2.2);
+        return (
+          <g key={`badge-${badge.id}`}>
+            {moved && from ? (
+              <path
+                d={`M ${from.x} ${from.y} L ${badge.x} ${badge.y}`}
+                stroke={INK}
+                strokeWidth="0.45"
+              />
+            ) : null}
+            <circle cx={badge.x} cy={badge.y} r="5.2" fill={PAPER} stroke={INK} strokeWidth="0.75" />
+            <text
+              x={badge.x}
+              y={badge.y + 1.8}
+              textAnchor="middle"
+              fontSize="5.2"
+              fill={INK}
+              fontFamily="IBM Plex Mono, monospace"
+            >
+              {badge.letter}
+            </text>
           </g>
         );
       })}
     </svg>
+  );
+}
+
+function AssemblyStepList({
+  rank,
+  steps,
+}: {
+  rank: Rank;
+  steps: ShopPacket["steps"];
+}) {
+  const [open, setOpen] = useState(() => assemblyStepsOpen(rank));
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener("beforeprint", show);
+    return () => window.removeEventListener("beforeprint", show);
+  }, []);
+  if (!steps.length) return null;
+  return (
+    <details
+      className="shop-assembly-steps mt-5 border-t border-ink/10 pt-3"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary className="cursor-pointer font-mono text-xs text-ink-soft">
+        Assembly steps · {steps.length}
+        {assemblyStepsOpen(rank) ? "" : " — open when you are ready to build"}
+      </summary>
+      <ol className="mt-3 grid gap-3 sm:grid-cols-2">
+        {steps.map((step, i) => (
+          <li key={step.id} className="border-t border-ink/10 pt-2">
+            <p className="font-mono text-[10px] text-ink-soft">
+              {String(i + 1).padStart(2, "0")} · assembly
+            </p>
+            <p className="mt-0.5 text-sm font-medium">{step.title}</p>
+            <p className="mt-1 text-xs leading-relaxed text-ink-soft">{step.body}</p>
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }
 
