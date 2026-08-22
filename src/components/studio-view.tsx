@@ -29,6 +29,7 @@ import {
   formatCutAxis,
   formatCutAxisSource,
   formatDoNotCut,
+  offersStockThicknessPick,
   STOCK_THICKNESS_INCHES,
 } from "@/lib/measure";
 import { RANK_META } from "@/lib/ranks";
@@ -677,7 +678,9 @@ export function StudioView() {
                         locked={c.locked.thickness}
                         follows={c.follows.thickness}
                         hint={formatCutAxisSource(c, "thickness") || undefined}
-                        picks={STOCK_THICKNESS_INCHES}
+                        picks={
+                          offersStockThicknessPick(c) ? STOCK_THICKNESS_INCHES : undefined
+                        }
                         onCommit={(n) => setPartOverride(c.id, { thickness: n })}
                         onUnlock={() => clearPartOverride(c.id, "thickness")}
                       />

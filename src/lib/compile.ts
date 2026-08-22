@@ -127,8 +127,7 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
         role: p.role ?? inferRole(p.id, p.name),
         instances: p.instances,
         boardFeet:
-          p.stock === "sheet" ||
-          (p.measured?.thickness.value == null && p.measured?.thickness.source === "unknown")
+          p.stock === "sheet" || isCutAxisUnknown(cutMeasure, "thickness")
             ? 0
             : partBoardFeet(p, project.overall, over),
         measured: p.measured,

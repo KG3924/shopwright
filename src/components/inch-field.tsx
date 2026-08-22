@@ -100,7 +100,7 @@ export function InchField({
               key={n}
               type="button"
               onClick={() => onCommit(n)}
-              className="h-8 rounded-sm border border-ink/20 bg-paper px-2 font-mono text-xs tabular-nums text-ink hover:border-ink/40"
+              className="h-10 min-w-11 rounded-sm border border-ink/20 bg-paper px-2.5 font-mono text-xs tabular-nums text-ink hover:border-ink/40"
             >
               {formatInches(n)}
             </button>

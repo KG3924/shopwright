@@ -189,6 +189,9 @@ describe("stock thickness picker", () => {
     assert.notEqual(lockedSeat.measured?.thickness.source, "measured");
     assert.doesNotMatch(formatCutAxisSource(lockedSeat, "thickness"), /measured from photo/);
     assert.equal(offersStockThicknessPick(lockedSeat), false);
+    assert.equal(seat.boardFeet, 0);
+    assert.ok(lockedSeat.boardFeet > 0);
+    assert.ok(!/measure first/i.test(lockedSeat.fromStock));
   });
 
   it("clears Don't-cut when unknown thickness was the last hold and the builder picks stock", () => {
@@ -217,6 +220,39 @@ describe("stock thickness picker", () => {
     assert.ok(confirmed.routeRunnable);
   });
 
+  it("keeps Don't-cut on when another ticket is still ? after the thickness pick", () => {
+    const project = hydrateVision(
+      {
+        ...chairWithUnknownSeatThickness(),
+        parts: [
+          ...(chairWithUnknownSeatThickness().parts ?? []),
+          {
+            name: "Crest rail",
+            qty: 1,
+            role: "rail",
+            length: { value: 16, source: "measured", confidence: 0.9, photoIndex: 0 },
+            width: { value: 2.5, source: "measured", confidence: 0.85, photoIndex: 0 },
+            thickness: { value: null, source: "unknown", confidence: 0 },
+          },
+        ],
+      },
+      tools,
+      [],
+    );
+    const held = compilePacket(project, "75013");
+    const seat = held.cuts.find((c) => c.name === "Seat")!;
+    const crest = held.cuts.find((c) => c.name === "Crest rail")!;
+    assert.equal(formatCutAxis(seat, "thickness"), "?");
+    assert.equal(formatCutAxis(crest, "thickness"), "?");
+    assert.equal(held.doNotCut, true);
+
+    project.partOverrides = { [seat.id]: { thickness: 0.75 } };
+    const after = compilePacket(project, "75013");
+    assert.equal(formatCutAxis(after.cuts.find((c) => c.name === "Seat")!, "thickness"), `3/4"`);
+    assert.equal(formatCutAxis(after.cuts.find((c) => c.name === "Crest rail")!, "thickness"), "?");
+    assert.equal(after.doNotCut, true);
+  });
+
   it("wires common-stock picks on the thickness InchField, not a parallel lock path", () => {
     const field = read("src/components/inch-field.tsx");
     const studio = read("src/components/studio-view.tsx");
@@ -225,7 +261,8 @@ describe("stock thickness picker", () => {
     assert.match(studio, /STOCK_THICKNESS_INCHES/);
     assert.match(studio, /label="Thickness"/);
     const thicknessBlock = studio.slice(studio.indexOf('label="Thickness"'));
-    assert.match(thicknessBlock, /picks=\{STOCK_THICKNESS_INCHES\}/);
+    assert.match(thicknessBlock, /offersStockThicknessPick\(c\)/);
+    assert.match(thicknessBlock, /STOCK_THICKNESS_INCHES/);
     assert.match(thicknessBlock, /setPartOverride\(c\.id, \{ thickness: n \}\)/);
     assert.doesNotMatch(studio, /source:\s*"measured"/);
   });
