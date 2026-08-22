@@ -29,6 +29,7 @@ import {
   formatCutAxis,
   formatCutAxisSource,
   formatDoNotCut,
+  STOCK_THICKNESS_INCHES,
 } from "@/lib/measure";
 import { RANK_META } from "@/lib/ranks";
 import { NO_ROUTE_NAME, normalizeTools, SHOP_TOOL_META, statusForRoute } from "@/lib/routes";
@@ -676,6 +677,7 @@ export function StudioView() {
                         locked={c.locked.thickness}
                         follows={c.follows.thickness}
                         hint={formatCutAxisSource(c, "thickness") || undefined}
+                        picks={STOCK_THICKNESS_INCHES}
                         onCommit={(n) => setPartOverride(c.id, { thickness: n })}
                         onUnlock={() => clearPartOverride(c.id, "thickness")}
                       />

@@ -195,6 +195,16 @@ export function isCutAxisUnknown(
   return !!measured && measured.value == null;
 }
 
+/** Common board stock. Builder pick only — never auto-selected on hydrate/infer. */
+export const STOCK_THICKNESS_INCHES = [0.5, 0.75, 1] as const;
+
+/** Unknown unlocked thickness — the `?` novices hit after Infer-Fill honesty. */
+export function offersStockThicknessPick(
+  cut: Pick<CutRow, "measured"> & { locked?: CutRow["locked"] },
+): boolean {
+  return isCutAxisUnknown(cut, "thickness");
+}
+
 /**
  * Unlocked axis that is still a guess or a ?. A builder lock
  * (`locked — your tape`) clears that axis from the Don't-cut hold.
