@@ -12,7 +12,12 @@ import { getSpecies } from "./species";
 import { sourcesForZip } from "./sourcing";
 import { techniquesFor } from "./techniques";
 import { compileYield, inferFromStock, nextLetter } from "./yield";
-import { formatCutAxis, isCutAxisUnknown, weakScale } from "./measure";
+import {
+  cutHasUnconfirmedAxis,
+  formatCutAxis,
+  isCutAxisUnknown,
+  weakScale,
+} from "./measure";
 import type {
   CutRow,
   Overall,
@@ -209,10 +214,12 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
       `${unknownTickets.length} ticket${unknownTickets.length === 1 ? "" : "s"} print '?' where a size was not sourced. Measure that axis before you cut.`,
     );
   }
+  const unconfirmedTickets = cuts.filter((c) => cutHasUnconfirmedAxis(c));
+  // Live hold — do not keep a sticky project.doNotCut from infer-fill.
+  // Unknown/? , unlocked inferred, or weak/conflict scale. A builder lock
+  // clears that axis (`locked — your tape`).
   const scaleHold =
-    !!project.doNotCut ||
-    weakScale(project.scaleConfidence) ||
-    unknownTickets.length > 0;
+    weakScale(project.scaleConfidence) || unconfirmedTickets.length > 0;
   if (scaleHold && project.sourceKind !== "catalog") {
     warnings.push("Do not cut yet. Confirm scale and any '?' dimensions on the tickets.");
   }

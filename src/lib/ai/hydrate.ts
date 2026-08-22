@@ -13,7 +13,7 @@ import {
   weakScale,
 } from "../measure";
 import { inferDim } from "../parametric";
-import { partHasUnknownCutAxis, runInferFill } from "./infer";
+import { runInferFill } from "./infer";
 import { normalizeTools } from "../routes";
 import type {
   Axis3,
@@ -552,7 +552,6 @@ export function hydrateVision(
   }
 
   const scale = resolveScale(ai, sourced, overall);
-  const stillUnknown = sourced.some((c) => partHasUnknownCutAxis(c.measured));
   const speciesId =
     ai.speciesGuess &&
     [
@@ -623,7 +622,7 @@ export function hydrateVision(
       partsFromPhotos: true,
       scaleConfidence: scale.scaleConfidence,
       scaleNotes: scale.scaleNotes,
-      doNotCut: scale.doNotCut || stillUnknown || inferred.filledAxes > 0,
+      doNotCut: scale.doNotCut,
     },
   );
 }

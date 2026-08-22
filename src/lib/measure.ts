@@ -196,6 +196,29 @@ export function isCutAxisUnknown(
 }
 
 /**
+ * Unlocked axis that is still a guess or a ?. A builder lock
+ * (`locked — your tape`) clears that axis from the Don't-cut hold.
+ */
+export function isCutAxisUnconfirmed(
+  cut: Pick<CutRow, "measured" | "locked">,
+  axis: CutAxis,
+): boolean {
+  if (cut.locked?.[axis]) return false;
+  const measured = cut.measured?.[axis];
+  if (!measured) return false;
+  if (measured.source === "unknown" || measured.value == null) return true;
+  return measured.source === "inferred";
+}
+
+export function cutHasUnconfirmedAxis(
+  cut: Pick<CutRow, "measured" | "locked">,
+): boolean {
+  return (["length", "width", "thickness"] as const).some((axis) =>
+    isCutAxisUnconfirmed(cut, axis),
+  );
+}
+
+/**
  * Studio InchField binding. Unknown (unlocked) axes return null so the editor
  * shows "?" — never a resolvePart / inferDim fallback inch. Locked overrides
  * are authoritative and return the locked number (same as formatCutAxis).

@@ -346,7 +346,7 @@ describe("infer fill through hydrate", () => {
     assert.equal(formatCutAxisSource(stretcher, "length"), "guessed from the clear span — verify");
 
     assert.equal(packet.doNotCut, true);
-    assert.equal(project.doNotCut, true);
+    assert.equal(project.doNotCut, false);
     assert.ok(packet.warnings.some((w) => /do not cut/i.test(w)));
   });
 
@@ -388,7 +388,10 @@ describe("infer fill through hydrate", () => {
           },
         ],
       },
-      input,
+      {
+        ...input,
+        toolsAvailable: ["drill", "miter-saw", "kreg-jig", "clamps"],
+      },
       [],
     );
     const packet = compilePacket(project, "75013");
@@ -397,8 +400,23 @@ describe("infer fill through hydrate", () => {
     assert.equal(right.measured?.width.source, "inferred");
     assert.equal(right.measured?.thickness.source, "inferred");
     assert.equal(formatCutAxis(right, "length"), `17-1/4"`);
-    assert.equal(project.doNotCut, true);
+    assert.equal(project.doNotCut, false);
     assert.equal(packet.doNotCut, true);
+
+    project.partOverrides = {
+      [right.id]: {
+        length: right.length,
+        width: right.width,
+        thickness: right.thickness,
+      },
+    };
+    const confirmed = compilePacket(project, "75013");
+    const lockedRight = confirmed.cuts.find((c) => c.name === "Front right leg")!;
+    assert.equal(formatCutAxisSource(lockedRight, "length"), "locked — your tape");
+    assert.equal(formatCutAxisSource(lockedRight, "width"), "locked — your tape");
+    assert.equal(formatCutAxisSource(lockedRight, "thickness"), "locked — your tape");
+    assert.equal(lockedRight.measured?.length.source, "inferred");
+    assert.equal(confirmed.doNotCut, false);
   });
 
   it("does not promote any inferred axis to measured", () => {

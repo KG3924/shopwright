@@ -92,12 +92,6 @@ export function isUnknownAxis(dim: MeasuredDim | undefined): boolean {
   return !dim || dim.source === "unknown" || dim.value == null;
 }
 
-export function partHasUnknownCutAxis(measured: PartMeasured): boolean {
-  return (["length", "width", "thickness"] as const).some((axis) =>
-    isUnknownAxis(measured[axis]),
-  );
-}
-
 function overallIsAnchor(ctx: InferContext): boolean {
   if (!ctx.overall) return false;
   if (ctx.scaleConfidence === "conflict") return false;
