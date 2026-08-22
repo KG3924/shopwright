@@ -10,6 +10,7 @@ import {
   formatCutSources,
   formatCutTriplet,
   formatDoNotCut,
+  ticketIdentity,
   ticketViewLabels,
   type CutAxis,
   type CutHold,
@@ -168,8 +169,9 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         meta={`${cuts.length} boards  ·  face, edge, and end  ·  ${packet.boardFeet.toFixed(1)} bd ft`}
       >
         <p className="mb-4 text-sm text-ink-soft">
-          One ticket per board. The three views are that part at the size on
-          the cut list. Lock a length and this ticket updates.
+          {project.rank === "beginner" || project.rank === "novice"
+            ? "One ticket per board. Read the cut list and elevations first — then use these to check each board. Letter and size lead so seats, legs, and stretchers do not look the same."
+            : "One ticket per board. Letter and size lead. The three views are that part at the size on the cut list. Lock a length and this ticket updates."}
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           {cuts.map((cut) => (
@@ -798,20 +800,35 @@ function BoardView({
 }
 
 function PartTicket({ cut }: { cut: CutRow }) {
+  const identity = ticketIdentity(cut);
   const locked = cut.locked.length || cut.locked.width || cut.locked.thickness;
   const face = ticketViewLabels(cut, "face");
   const edge = ticketViewLabels(cut, "edge");
   const end = ticketViewLabels(cut, "end");
+  const sources = formatCutSources(cut);
   return (
-    <article className="rounded-sm border border-ink/15 p-3">
-      <p className="flex items-baseline justify-between gap-2 font-mono text-xs text-ink-soft">
-        <span>{cut.letter}</span>
-        <span>
-          qty {cut.qty}
-          {locked ? " · locked" : ""}
+    <article
+      className="rounded-sm border border-ink/15 p-3"
+      data-ticket-identity={identity.lead}
+    >
+      <header className="flex items-start gap-3">
+        <span className="flex size-11 shrink-0 items-center justify-center border border-ink/25 bg-paper font-display text-2xl leading-none text-ink">
+          {identity.letter}
         </span>
-      </p>
-      <h4 className="mt-1 font-medium text-ink">{cut.name}</h4>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-baseline justify-between gap-2">
+            <span className="font-medium text-ink">{identity.name}</span>
+            <span className="shrink-0 font-mono text-xs text-ink-soft">
+              qty {cut.qty}
+              {locked ? " · locked" : ""}
+            </span>
+          </p>
+          <p className="mt-0.5 font-mono text-sm text-ink">{identity.dimLine}</p>
+        </div>
+      </header>
+      {sources ? (
+        <p className="mt-1.5 text-[11px] leading-snug text-ink-soft">{sources}</p>
+      ) : null}
       <div className="mt-2 grid grid-cols-3 gap-1">
         <BoardView
           label="Face"
@@ -848,15 +865,10 @@ function PartTicket({ cut }: { cut: CutRow }) {
           unknownY={end.unknownY}
         />
       </div>
-      <p className="mt-2 font-mono text-xs text-ink">
-        {formatCutTriplet(cut)} · {cut.stock}
+      <p className="mt-2 font-mono text-xs text-ink-soft">
+        {cut.stock}
         {cut.grain === "length" ? " · grain long" : " · grain across"}
       </p>
-      {formatCutSources(cut) ? (
-        <p className="mt-1 text-[11px] leading-snug text-ink-soft">
-          {formatCutSources(cut)}
-        </p>
-      ) : null}
       <p className="mt-1 font-mono text-xs text-ink-soft">From {cut.fromStock}</p>
       {cut.notes ? <p className="mt-1 text-xs text-ink-soft">{cut.notes}</p> : null}
     </article>

@@ -96,6 +96,29 @@ export function formatCutTriplet(
   return `${formatCutAxis(cut, "length")} × ${formatCutAxis(cut, "width")} × ${formatCutAxis(cut, "thickness")}`;
 }
 
+export type TicketIdentityCut = Pick<
+  CutRow,
+  "letter" | "name" | "length" | "width" | "thickness" | "measured" | "locked"
+>;
+
+/** Letter + name + L×W×T that a ticket must lead with so parts do not look alike. */
+export type TicketIdentity = {
+  letter: string;
+  name: string;
+  dimLine: string;
+  lead: string;
+};
+
+export function ticketIdentity(cut: TicketIdentityCut): TicketIdentity {
+  const dimLine = formatCutTriplet(cut);
+  return {
+    letter: cut.letter,
+    name: cut.name,
+    dimLine,
+    lead: `${cut.letter} · ${cut.name} · ${dimLine}`,
+  };
+}
+
 export type CutAxis = "length" | "width" | "thickness";
 
 const AXIS_LETTER: Record<CutAxis, string> = {
