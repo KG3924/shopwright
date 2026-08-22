@@ -45,7 +45,8 @@ function partsBlob(parts: { name: string; role?: string }[] | undefined): string
 
 /** A back exists only when we saw back parts or the reading named a back style. */
 export function hasBackEvidence(
-  project: Pick<Project, "name" | "interpretation" | "parts"> & {
+  project: Pick<Project, "name" | "interpretation"> & {
+    parts?: { name: string; role?: string }[];
     drawing?: Partial<DrawingSpec>;
   },
 ): boolean {

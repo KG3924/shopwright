@@ -117,7 +117,13 @@ export function formatDimSource(dim: MeasuredDim | undefined): string {
   if (dim.source === "measured" && hasPhotoIndex(dim)) {
     return `measured from photo ${dim.photoIndex + 1}`;
   }
-  if (dim.source === "measured" || dim.source === "inferred") return "guessed — verify";
+  if (dim.source === "inferred") {
+    if (dim.note && /^guessed(?: from .+)? — verify$/.test(dim.note)) {
+      return dim.note;
+    }
+    return "guessed — verify";
+  }
+  if (dim.source === "measured") return "guessed — verify";
   return "verify before cut";
 }
 
@@ -187,6 +193,29 @@ export function isCutAxisUnknown(
   if (cut.locked?.[axis]) return false;
   const measured = cut.measured?.[axis];
   return !!measured && measured.value == null;
+}
+
+/**
+ * Unlocked axis that is still a guess or a ?. A builder lock
+ * (`locked — your tape`) clears that axis from the Don't-cut hold.
+ */
+export function isCutAxisUnconfirmed(
+  cut: Pick<CutRow, "measured" | "locked">,
+  axis: CutAxis,
+): boolean {
+  if (cut.locked?.[axis]) return false;
+  const measured = cut.measured?.[axis];
+  if (!measured) return false;
+  if (measured.source === "unknown" || measured.value == null) return true;
+  return measured.source === "inferred";
+}
+
+export function cutHasUnconfirmedAxis(
+  cut: Pick<CutRow, "measured" | "locked">,
+): boolean {
+  return (["length", "width", "thickness"] as const).some((axis) =>
+    isCutAxisUnconfirmed(cut, axis),
+  );
 }
 
 /**

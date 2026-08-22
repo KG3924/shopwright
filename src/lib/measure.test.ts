@@ -14,6 +14,7 @@ import {
   ticketUnknownAxes,
   ticketViewLabels,
   unknownDim,
+  isCutAxisUnconfirmed,
 } from "./measure";
 import { formatInches } from "./format";
 import type { CutRow, PartMeasured } from "./types";
@@ -71,6 +72,27 @@ describe("measure helpers", () => {
     assert.equal(formatInches(17.25), `17-1/4"`);
     assert.equal(formatInches(1.5), `1-1/2"`);
     assert.equal(formatInches(0.75), `3/4"`);
+  });
+
+  it("treats unlocked inferred as unconfirmed and a lock as confirmed", () => {
+    const inferred = {
+      length: 17.25,
+      width: 1.5,
+      thickness: 1.5,
+      measured: {
+        length: { value: 17.25, source: "inferred" as const, confidence: 0.45 },
+        width: { value: 1.5, source: "inferred" as const, confidence: 0.45 },
+        thickness: { value: 1.5, source: "inferred" as const, confidence: 0.45 },
+      },
+      locked: { length: false, width: false, thickness: false, qty: false },
+    } as Pick<CutRow, "measured" | "locked">;
+    assert.equal(isCutAxisUnconfirmed(inferred, "length"), true);
+    const locked = {
+      ...inferred,
+      locked: { length: true, width: true, thickness: true, qty: false },
+    };
+    assert.equal(isCutAxisUnconfirmed(locked, "length"), false);
+    assert.equal(formatCutAxisSource(locked, "length"), "locked — your tape");
   });
 
   it("prints a locked override instead of ?", () => {
@@ -164,6 +186,24 @@ describe("measure helpers", () => {
     assert.equal(
       formatDimSource({ value: 16, source: "inferred", confidence: 0.4 }),
       "guessed — verify",
+    );
+    assert.equal(
+      formatDimSource({
+        value: 17.5,
+        source: "inferred",
+        confidence: 0.45,
+        note: "guessed from seat height — verify",
+      }),
+      "guessed from seat height — verify",
+    );
+    assert.equal(
+      formatDimSource({
+        value: 15,
+        source: "inferred",
+        confidence: 0.45,
+        note: "guessed from the clear span — verify",
+      }),
+      "guessed from the clear span — verify",
     );
     assert.equal(formatDimSource(unknownDim("underside not visible")), "verify before cut");
     assert.equal(formatDimSource(undefined), "");

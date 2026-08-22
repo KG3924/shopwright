@@ -219,7 +219,7 @@ export function StudioView() {
               <Badge tone={confidencePct >= 80 ? "good" : "warn"}>
                 {confidencePct}% confidence
               </Badge>
-              {packet.doNotCut || project.doNotCut || !packet.routeRunnable ? (
+              {packet.doNotCut ? (
                 <Badge tone="warn">{DONT_CUT_YET}</Badge>
               ) : null}
               {project.scaleConfidence === "high" ? (

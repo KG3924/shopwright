@@ -13,9 +13,11 @@ import {
   weakScale,
 } from "../measure";
 import { inferDim } from "../parametric";
+import { runInferFill } from "./infer";
 import { normalizeTools } from "../routes";
 import type {
   Axis3,
+  Dim,
   DrawingSpec,
   MeasuredDim,
   Overall,
@@ -351,6 +353,24 @@ function resolveScale(
   };
 }
 
+function dimFromMeasured(
+  name: string,
+  axis: "length" | "width" | "thickness",
+  measured: MeasuredDim,
+  value: number,
+  overall: Overall,
+): Dim {
+  // A named seat-height band is a shop standard, not a proportion of overall H.
+  if (
+    axis === "length" &&
+    measured.source === "inferred" &&
+    measured.note?.includes("seat height")
+  ) {
+    return { from: "fixed", offset: value };
+  }
+  return inferDim(name, axis, value, overall);
+}
+
 function toGraphParts(
   raw: { part: AiPart; measured: PartMeasured }[],
   overall: Overall,
@@ -370,9 +390,9 @@ function toGraphParts(
       id: `p${i}`,
       name,
       qty: Math.max(1, Math.round(Number(part.qty) || 1) || 1),
-      length: inferDim(name, "length", lengthVal, overall),
-      width: inferDim(name, "width", widthVal, overall),
-      thickness: inferDim(name, "thickness", thicknessVal || 0, overall),
+      length: dimFromMeasured(name, "length", measured.length, lengthVal, overall),
+      width: dimFromMeasured(name, "width", measured.width, widthVal, overall),
+      thickness: dimFromMeasured(name, "thickness", measured.thickness, thicknessVal, overall),
       stock,
       grain: "length" as const,
       notes: part.notes,
@@ -470,22 +490,53 @@ export function hydrateVision(
   const candidates = (ai.parts ?? [])
     .filter((p) => p && typeof p.name === "string" && p.name.trim())
     .map((part) => ({ part, measured: measuredOf(part) }));
-  const sourced = candidates.filter((c) => hasSourcedDims(c.measured));
+  const visionSourced = candidates.filter((c) => hasSourcedDims(c.measured));
 
-  if (sourced.length < 2) {
+  if (visionSourced.length < 2) {
     throw new InterpretError(
       "incomplete_parts",
       "Could not source measurements for at least two boards. Add a side, underside, or a tape in frame — we will not substitute a stock cut list.",
     );
   }
 
-  const overall = deriveOverall(ai, sourced);
+  const overall = deriveOverall(ai, visionSourced);
   if (!overall) {
     throw new InterpretError(
       "missing_overall",
       "The reading did not include overall width, depth, and height, and the boards were not placed in space. Add a tape or a labeled plan and try again.",
     );
   }
+
+  // Safe infer-fill after the vision gate. Cannot invent a 2-board
+  // packet; may fill twins and leftover unknown axes, then re-admit
+  // those boards. Fills from this pass do not release Don't-cut.
+  const inferred = runInferFill(
+    candidates.map(({ part, measured }) => ({
+      name: part.name.trim(),
+      role: part.role,
+      qty: Math.max(1, Math.round(Number(part.qty) || 1) || 1),
+      measured,
+      instances: part.instances,
+    })),
+    {
+      overall,
+      overallSource: ai.overallSource,
+      scaleConfidence: ai.scaleConfidence,
+      name: ai.name,
+      category: ai.category,
+      interpretation: ai.interpretation,
+      drawing: ai.drawing,
+    },
+  );
+  const sourced = candidates
+    .map((c, i) => ({
+      part: {
+        ...c.part,
+        instances: inferred.parts[i]?.instances ?? c.part.instances,
+      },
+      measured: inferred.parts[i]?.measured ?? c.measured,
+    }))
+    .filter((c) => hasSourcedDims(c.measured));
 
   const rawOverall = {
     w: ai.overall?.w ?? overall.w,
