@@ -6,7 +6,7 @@ Shipped in this cut:
 - Up to six photos of the same piece (front, side, underside, tape) in one reading
 - Product URL fetch + interpretation
 - Eight studio pieces (lattice-back chair + cedar hopper feeder is the shop-plan quality bar)
-- Shop drawings follow the piece: lattice / X / splat / Adirondack backs, square vs round seats, dining vs counter height
+- Shop drawings compiled from the parts read off the photos — face / edge / end tickets at those inches, not a stock silhouette
 - Lettered cut list with a FROM column
 - Board-by-board lumber yield, still-buy / do-not-buy
 - Fasteners with where each one goes

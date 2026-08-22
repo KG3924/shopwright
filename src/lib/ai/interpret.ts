@@ -2,8 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { getTemplate, matchTemplate } from "../catalog";
 import { instantiate } from "../compile";
 import { inferDrawing, isAdirondackReading, isUprightChair, mergeDrawing } from "../drawing";
+import { inferRole, isPartRole } from "../layout";
 import { inferDim } from "../parametric";
-import type { DrawingSpec, Overall, Part, Project, Rank } from "../types";
+import type {
+  Axis3,
+  DrawingSpec,
+  Overall,
+  Part,
+  PartInstance,
+  Project,
+  Rank,
+} from "../types";
 import { MAX_PHOTOS } from "../types";
 
 type InterpretInput = {
@@ -13,6 +22,25 @@ type InterpretInput = {
   note?: string;
   kind: "photo" | "url" | "blueprint";
   rank: Rank;
+};
+
+type AiPart = {
+  name: string;
+  qty: number;
+  lengthIn: number;
+  widthIn: number;
+  thicknessIn: number;
+  stock?: Part["stock"];
+  role?: string;
+  letter?: string;
+  notes?: string;
+  instances?: {
+    x: number;
+    y: number;
+    z: number;
+    lengthAlong?: string;
+    widthAlong?: string;
+  }[];
 };
 
 type AiJson = {
@@ -26,14 +54,7 @@ type AiJson = {
   speciesGuess?: string;
   uncertainties?: string[];
   suggestedRouteId?: string;
-  parts?: {
-    name: string;
-    qty: number;
-    lengthIn: number;
-    widthIn: number;
-    thicknessIn: number;
-    stock?: Part["stock"];
-  }[];
+  parts?: AiPart[];
   drawing?: Partial<DrawingSpec>;
 };
 
@@ -50,54 +71,67 @@ function extractJson(text: string): AiJson | null {
   }
 }
 
-const SYSTEM = `You are Shopwright, a master furniture maker who reverse-engineers pieces into shop-buildable interpretations — not clones.
+const SYSTEM = `You are Shopwright, a master furniture maker who reverse-engineers a piece from photographs into a shop-buildable interpretation — not a clone, and not a stock silhouette.
 
-You may receive several photos of the SAME piece from different angles (front, side, back, underside, detail, a tape in frame). Use ALL of them. Extra angles of joinery or the underside should raise confidence and shrink the uncertainty list.
+You may receive several photos of the SAME piece from different angles (front, side, back, underside, detail, a tape in frame). Use ALL of them.
 
-Return ONLY JSON with this shape:
+The shop drawings are compiled from YOUR parts list. If you skip a board or invent a template instead of what is in the photo, the builder cuts the wrong wood. Always return the complete cut list for THIS piece.
+
+Return ONLY JSON:
 {
-  "name": "short name",
+  "name": "short name of THIS piece",
   "category": "bench|table|case|bookcase|cabinet|chair|feeder|other",
   "templateId": "bench|console|bookcase|coffee-table|cabinet|adirondack|side-chair|feeder|null",
-  "interpretation": "2-4 sentences: what it is, what you can see across the photos, what you are inferring",
+  "interpretation": "2-4 sentences: what you can see across the photos, what you are inferring",
   "confidence": 0.0-1.0,
   "overall": { "w": inches, "d": inches, "h": inches },
   "overallSource": "labeled|estimated|assumed",
   "speciesGuess": "maple|walnut|white-oak|red-oak|pine|cedar|poplar|plywood-oak",
-  "uncertainties": ["what is still not visible after all photos"],
+  "uncertainties": ["what is still not visible"],
   "suggestedRouteId": "pocket|dado|mortise|dovetail|screwed|frame|dowel|adjustable|plugged",
-  "parts": optional array if it does NOT match a templateId. Each: {name, qty, lengthIn, widthIn, thicknessIn, stock},
+  "parts": [
+    {
+      "name": "Top panel",
+      "qty": 1,
+      "lengthIn": 48,
+      "widthIn": 14,
+      "thicknessIn": 0.75,
+      "stock": "solid",
+      "role": "top",
+      "notes": "optional",
+      "instances": [
+        { "x": 0, "y": 0, "z": 17.25, "lengthAlong": "x", "widthAlong": "y" }
+      ]
+    }
+  ],
   "drawing": {
     "family": "table|case|chair|feeder",
     "backStyle": "lattice|x-back|splat|slat-fan|solid|none",
     "hasArms": false,
     "hasFootring": false,
     "seatShape": "square|round",
-    "seatHeightRatio": 0.61,
+    "seatHeightRatio": 0.48,
     "reclined": false
   }
 }
 
-Rules:
-- This is an INTERPRETATION a competent shop would build, not a factory reproduction.
-- If dimensions are labeled on a blueprint or product graphic, use them (overallSource: labeled).
-- If a tape, ruler, or known object is in frame, prefer that scale.
-- Call out hidden construction. Never invent cam-locks or exact factory joinery as fact.
-- Prefer templateId when the piece is clearly a bench, console/credenza/nightstand, bookcase, coffee table, wall cabinet, Adirondack, lattice/dining/counter chair, or hip-roof bird feeder.
-- Inches, not mm. Typical stock: 0.75, 0.5, 0.25, 1.5.
-- confidence < 0.7 if you still cannot see the underside or joinery after every photo.
+PARTS (required):
+- Every board the shop will cut. Do not omit parts because a templateId exists. templateId only suggests joinery/hardware.
+- Inches. Typical stock: 0.75, 0.5, 0.25, 1.5.
+- role: top|seat|leg|apron-long|apron-short|side|shelf|bottom|back|rail|stile|splat|slat|arm|stretcher|cleat|door|panel|post|roof|brace|kick|other
+- instances: one entry per copy. Origin is the front-left corner of the piece sitting on the floor. x = right, y = back (depth), z = up. The point is the part's front-left-bottom.
+- lengthAlong / widthAlong: which world axis the board's LENGTH and WIDTH run ("x"|"y"|"z"). Thickness takes the remaining axis.
+  Legs: lengthAlong z. Tops/seats/shelves: lengthAlong x, widthAlong y. Long aprons: lengthAlong x, widthAlong z. Case sides: lengthAlong z, widthAlong y.
+- If a tape, ruler, or labeled dimension is in frame, those inches WIN (overallSource: labeled).
 
-CHAIR CLASSIFICATION — this is the most common failure. Get it right:
-- Adirondack / Westport / Muskoka ONLY if it is a reclined outdoor chair with a FAN of back slats and wide flat arms. templateId: adirondack. drawing.reclined: true, backStyle: slat-fan, hasArms: true, family: chair.
-- Indoor dining chairs, kitchen chairs, counter stools, bar stools, lattice backs, X-backs, Chippendale, splat backs, painted white chairs: templateId: side-chair. drawing.reclined: false. family: chair. Set backStyle from what you SEE (lattice, x-back, splat, solid). Square painted kitchen chairs are side-chair, NEVER Adirondack.
-- Lattice / diamond / criss-cross back → backStyle: lattice.
-- Single X in the back → backStyle: x-back.
-- Central vase/splat → backStyle: splat.
-- Square seat → seatShape: square. Only use round if the seat is visibly a circle.
-- No arms unless arms are actually in the photo.
-- Footring / box of stretchers under a tall seat → hasFootring: true.
-- seatHeightRatio: dining 0.45–0.50, counter stool 0.58–0.64, bar stool 0.68–0.75, Adirondack ~0.40.
-- NEVER classify a lattice-back or X-back chair as an Adirondack. The shop drawings must look like the piece in the photo.`;
+CHAIR CLASSIFICATION — common failure:
+- Adirondack ONLY if reclined outdoor chair with a FAN of back slats and wide flat arms.
+- Indoor dining / kitchen / counter / lattice / X-back / splat: templateId side-chair, reclined false.
+- NEVER classify a lattice-back or X-back chair as an Adirondack.
+
+Other rules:
+- Interpretation, not factory clone. Hidden joinery is a route, not a fact.
+- confidence < 0.7 if the underside or joinery is still not visible.`;
 
 async function grokChat(messages: unknown[], maxTokens: number): Promise<string> {
   const apiKey = process.env.XAI_API_KEY;
@@ -132,6 +166,71 @@ function pickTemplate(ai: AiJson) {
   return matchTemplate(ai.templateId ?? ai.category, ai.name);
 }
 
+function asAxis3(value: string | undefined): Axis3 | undefined {
+  if (value === "x" || value === "y" || value === "z") return value;
+  return undefined;
+}
+
+function mapInstances(
+  raw: AiPart["instances"],
+  from: Overall,
+  to: Overall,
+): PartInstance[] | undefined {
+  if (!raw?.length) return undefined;
+  const sx = to.w / (from.w || to.w);
+  const sy = to.d / (from.d || to.d);
+  const sz = to.h / (from.h || to.h);
+  const mapped = raw
+    .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z))
+    .map((p) => ({
+      x: p.x * sx,
+      y: p.y * sy,
+      z: p.z * sz,
+      lengthAlong: asAxis3(p.lengthAlong),
+      widthAlong: asAxis3(p.widthAlong),
+    }));
+  return mapped.length ? mapped : undefined;
+}
+
+function partsFromAi(ai: AiJson, overall: Overall): Part[] {
+  const rawOverall = {
+    w: ai.overall?.w ?? overall.w,
+    d: ai.overall?.d ?? overall.d,
+    h: ai.overall?.h ?? overall.h,
+  };
+  return (ai.parts ?? [])
+    .filter(
+      (p) =>
+        p &&
+        typeof p.name === "string" &&
+        Number.isFinite(p.lengthIn) &&
+        Number.isFinite(p.widthIn) &&
+        Number.isFinite(p.thicknessIn),
+    )
+    .map((p, i) => {
+      const name = p.name.trim() || `Part ${i + 1}`;
+      const stock = (
+        ["solid", "plywood", "hardwood-ply", "dowel", "sheet"] as const
+      ).includes(p.stock as Part["stock"])
+        ? (p.stock as Part["stock"])
+        : "solid";
+      return {
+        id: `p${i}`,
+        name,
+        qty: Math.max(1, Math.round(p.qty) || 1),
+        length: inferDim(name, "length", p.lengthIn, overall),
+        width: inferDim(name, "width", p.widthIn, overall),
+        thickness: inferDim(name, "thickness", p.thicknessIn, overall),
+        stock,
+        grain: "length" as const,
+        notes: p.notes,
+        role: isPartRole(p.role) ? p.role : inferRole(`p${i}`, name),
+        instances: mapInstances(p.instances, rawOverall, overall),
+        letter: p.letter?.slice(0, 3),
+      };
+    });
+}
+
 function hydrate(ai: AiJson, input: InterpretInput, photos: string[]): Project {
   const template = pickTemplate(ai);
   const overall: Overall = {
@@ -160,76 +259,56 @@ function hydrate(ai: AiJson, input: InterpretInput, photos: string[]): Project {
     ai.drawing,
   );
 
-  if (template) {
-    return instantiate(
-      { ...template, drawing, name: ai.name ?? template.name },
-      {
-        overall,
-        rank: input.rank,
-        speciesId,
-        photos,
-        routeId: ai.suggestedRouteId && template.routes.some((r) => r.id === ai.suggestedRouteId)
-          ? ai.suggestedRouteId
-          : template.defaultRoute,
-        overallSource: ai.overallSource ?? "estimated",
-        sourceKind: input.kind,
-        sourceLabel: input.url,
-        interpretation: ai.interpretation ?? template.interpretation,
-        confidence: clamp(ai.confidence ?? template.confidence, 0, 1),
-        uncertainties:
-          ai.uncertainties && ai.uncertainties.length
-            ? ai.uncertainties
-            : template.uncertainties,
-      },
-    );
-  }
+  const aiParts = partsFromAi(ai, overall);
+  const usePhotoParts = aiParts.length >= 2;
 
   const fallback =
-    getTemplate("side-chair") &&
-    (ai.category === "chair" || /chair|stool/i.test(ai.name ?? ""))
-      ? getTemplate("side-chair")!
-      : matchTemplate("bench", "bench")!;
-  const parts: Part[] = (ai.parts ?? []).map((p, i) => ({
-    id: `p${i}`,
-    name: p.name,
-    qty: p.qty || 1,
-    length: inferDim(p.name, "length", p.lengthIn, overall),
-    width: inferDim(p.name, "width", p.widthIn, overall),
-    thickness: inferDim(p.name, "thickness", p.thicknessIn, overall),
-    stock: p.stock ?? "solid",
-    grain: "length" as const,
-  }));
+    template ??
+    (ai.category === "chair" || /chair|stool/i.test(ai.name ?? "")
+      ? getTemplate("side-chair")
+      : matchTemplate("bench", "bench"));
 
-  const customDrawing = mergeDrawing(
-    fallback.drawing ?? inferDrawing(fallback),
-    ai.drawing,
-  );
+  const base = fallback ?? getTemplate("bench")!;
 
   return instantiate(
     {
-      ...fallback,
-      id: "custom",
-      name: ai.name ?? "Interpreted piece",
-      category: ai.category ?? "other",
-      blurb: "Interpreted from photos.",
-      image: "",
+      ...base,
+      id: usePhotoParts ? `${base.id}-read` : base.id,
+      name: ai.name ?? base.name,
+      category: ai.category ?? base.category,
+      blurb: usePhotoParts ? "Interpreted from photos." : base.blurb,
       overall,
-      parts: parts.length ? parts : fallback.parts,
-      drawing: customDrawing,
-      interpretation: ai.interpretation ?? "Interpreted from the photos.",
-      confidence: ai.confidence ?? 0.55,
-      uncertainties: ai.uncertainties ?? [
-        "Custom interpretation — verify every dimension.",
-      ],
+      parts: usePhotoParts ? aiParts : base.parts,
+      drawing,
+      interpretation: ai.interpretation ?? base.interpretation,
+      confidence: ai.confidence ?? base.confidence,
+      uncertainties:
+        ai.uncertainties && ai.uncertainties.length
+          ? ai.uncertainties
+          : base.uncertainties,
+      buyBoards: usePhotoParts ? undefined : base.buyBoards,
+      stack: usePhotoParts ? undefined : base.stack,
+      stillBuy: usePhotoParts ? undefined : base.stillBuy,
+      doNotBuy: usePhotoParts ? undefined : base.doNotBuy,
     },
     {
       overall,
       rank: input.rank,
       speciesId,
       photos,
+      routeId:
+        ai.suggestedRouteId && base.routes.some((r) => r.id === ai.suggestedRouteId)
+          ? ai.suggestedRouteId
+          : base.defaultRoute,
       overallSource: ai.overallSource ?? "estimated",
       sourceKind: input.kind,
       sourceLabel: input.url,
+      interpretation: ai.interpretation ?? base.interpretation,
+      confidence: clamp(ai.confidence ?? base.confidence, 0, 1),
+      uncertainties:
+        ai.uncertainties && ai.uncertainties.length
+          ? ai.uncertainties
+          : base.uncertainties,
     },
   );
 }
@@ -311,13 +390,13 @@ export const interpretPiece = createServerFn({ method: "POST" })
 
       const prompt = [
         data.kind === "blueprint"
-          ? "These are dimensioned plans or blueprint scans. Prefer labeled measurements."
+          ? "These are dimensioned plans or blueprint scans. Prefer labeled measurements. Return the full parts list with instances so we can draw every board."
           : photos.length > 1
-            ? `These are ${photos.length} photographs of the same piece from different angles. Combine them. Photo 1 is the primary view; later photos are additional angles (side, back, underside, detail, tape).`
-            : "This is a photograph of a piece of furniture. Interpret a shop-buildable version.",
+            ? `These are ${photos.length} photographs of the same piece from different angles. Combine them. Photo 1 is the primary view; later photos are additional angles (side, back, underside, detail, tape). Return a complete parts list with inches and 3D instances for THIS piece — not a stock template.`
+            : "This is a photograph of a piece of furniture. Return a complete parts list with inches and 3D instances for THIS piece — not a stock silhouette.",
         data.note ? `Builder note: ${data.note}` : "",
         pageNote,
-        "Return JSON only.",
+        "Return JSON only. parts[] is required.",
       ]
         .filter(Boolean)
         .join("\n");
@@ -329,13 +408,16 @@ export const interpretPiece = createServerFn({ method: "POST" })
           { role: "system", content: SYSTEM },
           { role: "user", content: userContent },
         ],
-        2200,
+        3500,
       );
       const ai = extractJson(text);
       if (!ai) {
         return { ok: false as const, error: "Could not parse an interpretation. Try another photo." };
       }
       const project = hydrate(ai, data, photos);
+      if (project.parts.length >= 2 && project.parts[0]?.id.startsWith("p")) {
+        project.partsFromPhotos = true;
+      }
       return { ok: true as const, project };
     } catch (err) {
       return {

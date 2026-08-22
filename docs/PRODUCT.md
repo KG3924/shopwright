@@ -11,7 +11,7 @@ Most people will never own a clean set of dimensioned plans. They will photograp
 3. **Uncertainty is a first-class object.** If the underside is invisible, the builder picks a construction route. Confidence is visible. Warnings are visible.
 4. **Rank changes the packet, not the piece.** A beginner Shaker bench is still that bench. Pocket holes replace mortises; overall size stays.
 5. **Size is parametric.** An alcove that is 62" wide is a slider, not a new design. Dependent parts move. A single board can be typed and locked so it no longer follows.
-6. **Drawings come from the graph, and they have to look like the piece.** A lattice-back counter stool is not drawn as an Adirondack. Elevations follow back style, seat shape, arms, and height.
+6. **Drawings come from the boards we read, not a pool of silhouettes.** Elevations, exploded assembly, and part tickets are compiled from that cut list. A lattice-back stool is not drawn as an Adirondack.
 7. **Wood has consequences.** Species is not a stain swatch. It is weight, movement, weather, fasteners, and a lumber stop.
 
 ## The builder

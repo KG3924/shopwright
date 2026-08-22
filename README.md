@@ -51,7 +51,7 @@ Do not commit the key. Do not put it in a tracked `.env`.
 - **Product URL** — fetches the page, reads dimensions and images when it can
 - **Studio catalog** — seven pieces you can open without a photo, including a full hip-roof hopper feeder
 - **Shop packet** — lettered cut list, board-by-board lumber, fasteners with where they go, printable elevations
-- **Shop drawings** — elevations, exploded assembly, and a part ticket for every board. Print them. They follow the sizes you set.
+- **Shop drawings** — compiled from the boards we read in the photos: front / side / plan, exploded assembly, and a face-edge-end ticket for every part at those inches. Not a stock silhouette. Print them. They follow sizes you lock.
 - **Per-part size** — overall W / D / H still drive the piece. Type a length on one board to lock it so it no longer follows.
 - **Construction routes** — when the underside is unclear, you pick pocket holes vs. dados vs. dovetails
 - **Rank** — Beginner → Master. Technique modules appear only when they still teach you something

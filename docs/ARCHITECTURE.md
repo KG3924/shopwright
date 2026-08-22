@@ -29,15 +29,17 @@ A long apron is `{ from: "w", offset: -3 }` because two 1½" legs eat three inch
 
 Routes (`pocket`, `dado`, `mortise`, …) filter hardware, steps, and sometimes parts (a slab door vs. frame-and-panel).
 
-Shop drawings (elevations, exploded assembly, part tickets) are SVG compiled from the resolved cut list, so a locked part shows up on the drawing the same turn.
+Shop drawings (elevations, exploded assembly, part tickets) are SVG compiled from the resolved cut list placed in space, so a locked part shows up on the drawing the same turn. They are not picked from a pool of furniture silhouettes.
 
 ## Hydration from a photo
 
-The vision model returns JSON: name, overall, confidence, uncertainties, optional `templateId`, and a `drawing` spec (family, backStyle, seatShape, arms, footring, recline). You can send up to six photos of the same piece; the first three go at high detail. If `templateId` matches a studio piece, we **scale that template** to the inferred overall size.
+The vision model returns JSON: name, overall, confidence, uncertainties, a **complete parts list with inches and 3D instances**, optional `templateId`. You can send up to six photos of the same piece; the first three go at high detail.
 
-Chair classification is explicit: a lattice-back kitchen chair is `side-chair` (upright, diamond lattice, square seat). Adirondack is only for reclined outdoor fan-slat chairs. Shop drawings compile from the drawing spec and the cut list, not from a single "chair = Adirondack" silhouette.
+If `templateId` matches a studio piece, we keep that piece's *routes, hardware, and steps* (how to join it). Whenever the model returns two or more boards, the **cut list and drawings come from those photo parts**, not the template's stock cut list. Template parts are only a fallback.
 
-If it matches nothing, parts come back as raw inches and we infer which axis they track from the part name and proximity to overall W/D/H.
+Each part can carry `instances` (front-left-floor origin, x right, y back, z up). The layout compiler places every copy, then projects front / side / plan and an exploded assembly. Part tickets are face, edge, and end of that board at the cut-list size.
+
+Chair classification is still explicit so joinery routes stay sane: a lattice-back kitchen chair is `side-chair`; Adirondack is only for reclined outdoor fan-slat chairs. That does not replace the photo-derived parts.
 
 ## AI
 

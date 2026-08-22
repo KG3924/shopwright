@@ -134,8 +134,9 @@ export function HomeView() {
       </h1>
       <p className="mt-5 max-w-xl text-muted">
         Drop several angles — front, side, underside, a tape in frame. Shopwright
-        compiles a cut list, shop drawings of <em className="not-italic text-fg">that</em> piece,
-        and a tutorial. Then size every board, not just the overall box.
+        reads the boards off the photos, then compiles cut list, measured
+        drawings of <em className="not-italic text-fg">that</em> piece, and a
+        tutorial. Size every board, not just the overall box.
       </p>
 
       <ol className="mt-8 grid grid-cols-2 gap-2 sm:grid-cols-4">

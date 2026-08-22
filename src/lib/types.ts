@@ -10,9 +10,51 @@ export type Rank = (typeof RANKS)[number];
 
 export type Axis = "w" | "d" | "h" | "fixed";
 
+export type Axis3 = "x" | "y" | "z";
+
 export type Stock = "solid" | "plywood" | "hardwood-ply" | "dowel" | "sheet";
 
 export const MAX_PHOTOS = 6;
+
+export const PART_ROLES = [
+  "top",
+  "seat",
+  "leg",
+  "apron-long",
+  "apron-short",
+  "apron",
+  "side",
+  "shelf",
+  "bottom",
+  "back",
+  "rail",
+  "stile",
+  "splat",
+  "slat",
+  "arm",
+  "stretcher",
+  "cleat",
+  "door",
+  "panel",
+  "post",
+  "roof",
+  "brace",
+  "kick",
+  "other",
+] as const;
+
+export type PartRole = (typeof PART_ROLES)[number];
+
+/** One copy of a part in the piece. Origin is front-left-floor; x right, y back, z up. */
+export type PartInstance = {
+  x: number;
+  y: number;
+  z: number;
+  /** World axis the board's length runs along. */
+  lengthAlong?: Axis3;
+  /** World axis the board's width (face) runs along. */
+  widthAlong?: Axis3;
+};
 
 export type Dim = {
   from: Axis;
@@ -34,6 +76,9 @@ export type Part = {
   letter?: string;
   /** Which board or sheet this is cut from. */
   fromStock?: string;
+  role?: PartRole;
+  /** Where each copy sits. Drawings compile from this when present. */
+  instances?: PartInstance[];
 };
 
 /** Locks a part so it no longer follows overall W/D/H. */
@@ -149,6 +194,8 @@ export type Project = ProjectTemplate & {
   routeId: string;
   speciesId: string;
   rank: Rank;
+  /** True when the cut list came from the photos, not a stock template. */
+  partsFromPhotos?: boolean;
 };
 
 export type CutRow = {
@@ -164,6 +211,8 @@ export type CutRow = {
   notes?: string;
   fromStock: string;
   boardFeet: number;
+  role: PartRole;
+  instances?: PartInstance[];
   locked: {
     length: boolean;
     width: boolean;

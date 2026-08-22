@@ -1,4 +1,5 @@
 import { CATALOG } from "./catalog";
+import { inferRole } from "./layout";
 import { rankIndex } from "./format";
 import { resolvePart, partBoardFeet } from "./parametric";
 import { getSpecies } from "./species";
@@ -87,6 +88,8 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
         grain: p.grain,
         notes: p.notes,
         fromStock,
+        role: p.role ?? inferRole(p.id, p.name),
+        instances: p.instances,
         boardFeet:
           p.stock === "sheet" ? 0 : partBoardFeet(p, project.overall, over),
         locked: {
@@ -142,6 +145,13 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
   if (project.overallSource !== "labeled" && project.sourceKind !== "catalog") {
     warnings.push(
       "Overall size is interpreted, not measured. Lock width, depth, and height to the space before you cut.",
+    );
+  }
+  if (project.sourceKind !== "catalog") {
+    warnings.push(
+      project.partsFromPhotos
+        ? "Parts and drawings were read from the photos, not a stock template. Confirm every ticket against a tape before you cut."
+        : "Part drawings are compiled from this packet. Confirm every ticket against a tape before you cut.",
     );
   }
   const lockedCount = cuts.filter(
