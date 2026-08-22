@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { MAX_PHOTOS } from "../types";
 import { hydrateVision, parseVisionJson, type InterpretInput } from "./hydrate";
-import { mapInterpretHandlerError, resolveUrlSource } from "./url-source";
+import { mapInterpretHandlerError, photosForInterpret, resolveUrlSource } from "./url-source";
 
 const SYSTEM = `You are Shopwright, a master furniture maker who reverse-engineers a piece from photographs into a shop-buildable interpretation — not a clone, and not a stock silhouette.
 
@@ -115,11 +115,7 @@ export const interpretPiece = createServerFn({ method: "POST" })
       if (!process.env.XAI_API_KEY) {
         return { ok: false as const, error: "AI is not available in this environment" };
       }
-      const photos = collectPhotos(data);
-      if (photos.some((p) => p.length > 1_400_000)) {
-        return { ok: false as const, error: "A photo is too large. Try a smaller image." };
-      }
-
+      let photos = collectPhotos(data);
       const userContent: unknown[] = [];
       let pageNote = "";
 
@@ -127,15 +123,14 @@ export const interpretPiece = createServerFn({ method: "POST" })
         try {
           const source = await resolveUrlSource(data.url);
           pageNote = source.pageNote;
-          if (source.photoUrl && photos.length === 0) {
-            userContent.push({
-              type: "image_url",
-              image_url: { url: source.photoUrl, detail: "high" },
-            });
-          }
+          photos = photosForInterpret(photos, source.photoUrl);
         } catch (err) {
           return mapInterpretHandlerError(err, "Could not read that link");
         }
+      }
+
+      if (photos.some((p) => p.length > 1_400_000)) {
+        return { ok: false as const, error: "A photo is too large. Try a smaller image." };
       }
 
       photos.forEach((url, i) => {

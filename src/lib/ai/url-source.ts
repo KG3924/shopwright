@@ -1,3 +1,4 @@
+import { MAX_PHOTOS } from "../types";
 import { InterpretError, type InterpretErrorCode } from "./hydrate";
 
 const FETCH_UA = "Shopwright/0.1 (interpretation; +https://github.com/KG3924/shopwright)";
@@ -128,6 +129,16 @@ export function classifyFetchedUrl(input: {
     text: excerpt.text,
     pageNote: `Product page title: ${excerpt.title}\nExcerpt: ${excerpt.text}`,
   };
+}
+
+/** Uploads win. If none, keep the classified CDN / og:image URL on the project. */
+export function photosForInterpret(
+  uploaded: string[],
+  sourcePhotoUrl?: string,
+): string[] {
+  if (uploaded.length) return uploaded.slice(0, MAX_PHOTOS);
+  if (sourcePhotoUrl) return [sourcePhotoUrl];
+  return [];
 }
 
 export async function resolveUrlSource(

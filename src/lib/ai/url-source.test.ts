@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { InterpretError } from "./hydrate";
+import { projectPhotos } from "../types";
+import { hydrateVision, InterpretError, type AiJson, type InterpretInput } from "./hydrate";
 import {
   INTERPRET_ABORT_MESSAGE,
   classifyFetchedUrl,
@@ -10,6 +11,7 @@ import {
   isImageContentType,
   mapInterpretHandlerError,
   parseHtmlExcerpt,
+  photosForInterpret,
   resolveUrlSource,
 } from "./url-source";
 
@@ -99,6 +101,61 @@ describe("classifyFetchedUrl", () => {
     assert.match(result.pageNote, /Arhaus Slat Dining Chair/);
     assert.match(result.pageNote, /Seven vertical slats/);
     assert.match(result.pageNote, /Excerpt:/);
+  });
+});
+
+function urlOnlyBoards(): AiJson {
+  return {
+    name: "Vertical slat dining chair",
+    category: "chair",
+    templateId: "side-chair",
+    interpretation: "Seven tall slats, curved top rail, H-stretcher.",
+    confidence: 0.7,
+    overall: { w: 18, d: 20, h: 39 },
+    overallSource: "estimated",
+    scaleConfidence: "low",
+    parts: [
+      {
+        name: "Seat",
+        qty: 1,
+        length: { value: 18, source: "inferred", confidence: 0.5 },
+        width: { value: 16, source: "inferred", confidence: 0.4 },
+        thickness: { value: 0.75, source: "inferred", confidence: 0.3 },
+        role: "seat",
+      },
+      {
+        name: "Leg",
+        qty: 4,
+        length: { value: 17.25, source: "inferred", confidence: 0.5 },
+        width: { value: 1.75, source: "inferred", confidence: 0.4 },
+        thickness: { value: 1.75, source: "inferred", confidence: 0.4 },
+        role: "leg",
+      },
+    ],
+  };
+}
+
+describe("photosForInterpret", () => {
+  it("puts a URL-only classified photo on the project photos list", () => {
+    const classified = classifyFetchedUrl({
+      url: WAYFAIR_JPG,
+      contentType: "image/jpeg",
+      body: JPEG_MAGIC,
+    });
+    const photos = photosForInterpret([], classified.photoUrl);
+    assert.deepEqual(photos, [WAYFAIR_JPG]);
+
+    const input: InterpretInput = { kind: "url", rank: "beginner", url: WAYFAIR_JPG };
+    const project = hydrateVision(urlOnlyBoards(), input, photos);
+    assert.deepEqual(project.photos, [WAYFAIR_JPG]);
+    assert.equal(project.photoDataUrl, WAYFAIR_JPG);
+    assert.deepEqual(projectPhotos(project), [WAYFAIR_JPG]);
+    assert.doesNotMatch(projectPhotos(project)[0] ?? "", /catalog|lattice-chair/);
+  });
+
+  it("does not replace uploaded photos with the classified URL", () => {
+    const uploaded = ["data:image/jpeg;base64,abc"];
+    assert.deepEqual(photosForInterpret(uploaded, WAYFAIR_JPG), uploaded);
   });
 });
 
