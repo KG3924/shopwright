@@ -2,8 +2,9 @@ import type { ReactNode } from "react";
 import { Printer } from "lucide-react";
 import { LatticeJoinery } from "@/components/chair-drawings";
 import { inferDrawing } from "@/lib/drawing";
-import { formatDimTriplet, formatInches } from "@/lib/format";
+import { formatInches } from "@/lib/format";
 import { layoutBoxes, type WorldBox } from "@/lib/layout";
+import { formatCutAxis, formatCutTriplet } from "@/lib/measure";
 import { RANK_META } from "@/lib/ranks";
 import type { CutRow, HardwareItem, Overall, ShopPacket } from "@/lib/types";
 import { projectPhotos } from "@/lib/types";
@@ -38,9 +39,11 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
     <div className="shop-drawings space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <p className="max-w-xl text-sm text-ink-soft">
-          {fromPhotos
-            ? "Compiled from the boards we read in the photos — the same inches as the cut list. Not a stock silhouette. Do not scale the pictures; cut to the tickets."
-            : "Compiled from this piece’s parts. Do not scale the pictures — cut to the numbers. Unlocked parts follow overall W / D / H."}
+          {packet.doNotCut
+            ? "Do not cut yet. Scale is weak or a ticket still prints '?'. Confirm with a tape first."
+            : fromPhotos
+              ? "Compiled from the boards we read in the photos — the same inches as the cut list. Not a stock silhouette. Do not scale the pictures; cut to the tickets."
+              : "Compiled from this piece’s parts. Do not scale the pictures — cut to the numbers. Unlocked parts follow overall W / D / H."}
         </p>
         <Button
           type="button"
@@ -315,9 +318,9 @@ function CutListTable({ cuts }: { cuts: CutRow[] }) {
                 ) : null}
               </td>
               <td className="py-2 pr-2 font-mono">{c.qty}</td>
-              <td className="py-2 pr-2 font-mono">{formatInches(c.thickness)}</td>
-              <td className="py-2 pr-2 font-mono">{formatInches(c.width)}</td>
-              <td className="py-2 pr-2 font-mono">{formatInches(c.length)}</td>
+              <td className="py-2 pr-2 font-mono">{formatCutAxis(c, "thickness")}</td>
+              <td className="py-2 pr-2 font-mono">{formatCutAxis(c, "width")}</td>
+              <td className="py-2 pr-2 font-mono">{formatCutAxis(c, "length")}</td>
               <td className="py-2 text-ink-soft">{c.fromStock}</td>
             </tr>
           ))}
@@ -630,7 +633,7 @@ function Legend({ cuts }: { cuts: CutRow[] }) {
           <span>
             <span className="block font-sans text-sm font-medium">{c.name}</span>
             <span className="text-ink-soft">
-              {c.qty}× {formatDimTriplet(c.length, c.width, c.thickness)}
+              {c.qty}× {formatCutTriplet(c)}
               {c.locked.length || c.locked.width || c.locked.thickness ? " · locked" : ""}
             </span>
           </span>
@@ -735,7 +738,7 @@ function PartTicket({ cut }: { cut: CutRow }) {
         <BoardView label="End" x={cut.width} y={cut.thickness} xName="W" yName="T" />
       </div>
       <p className="mt-2 font-mono text-xs text-ink">
-        {formatDimTriplet(cut.length, cut.width, cut.thickness)} · {cut.stock}
+        {formatCutTriplet(cut)} · {cut.stock}
         {cut.grain === "length" ? " · grain long" : " · grain across"}
       </p>
       <p className="mt-1 font-mono text-xs text-ink-soft">From {cut.fromStock}</p>

@@ -1,75 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getTemplate, matchTemplate } from "../catalog";
-import { instantiate } from "../compile";
-import { inferDrawing, isAdirondackReading, isUprightChair, mergeDrawing } from "../drawing";
-import { inferRole, isPartRole } from "../layout";
-import { inferDim } from "../parametric";
-import type {
-  Axis3,
-  DrawingSpec,
-  Overall,
-  Part,
-  PartInstance,
-  Project,
-  Rank,
-} from "../types";
 import { MAX_PHOTOS } from "../types";
-
-type InterpretInput = {
-  imageDataUrl?: string;
-  imageDataUrls?: string[];
-  url?: string;
-  note?: string;
-  kind: "photo" | "url" | "blueprint";
-  rank: Rank;
-};
-
-type AiPart = {
-  name: string;
-  qty: number;
-  lengthIn: number;
-  widthIn: number;
-  thicknessIn: number;
-  stock?: Part["stock"];
-  role?: string;
-  letter?: string;
-  notes?: string;
-  instances?: {
-    x: number;
-    y: number;
-    z: number;
-    lengthAlong?: string;
-    widthAlong?: string;
-  }[];
-};
-
-type AiJson = {
-  name?: string;
-  category?: string;
-  templateId?: string;
-  interpretation?: string;
-  confidence?: number;
-  overall?: Overall;
-  overallSource?: "labeled" | "estimated" | "assumed";
-  speciesGuess?: string;
-  uncertainties?: string[];
-  suggestedRouteId?: string;
-  parts?: AiPart[];
-  drawing?: Partial<DrawingSpec>;
-};
-
-function extractJson(text: string): AiJson | null {
-  const fenced = text.match(/```json\s*([\s\S]*?)```/i);
-  const raw = fenced?.[1] ?? text;
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  try {
-    return JSON.parse(raw.slice(start, end + 1)) as AiJson;
-  } catch {
-    return null;
-  }
-}
+import { hydrateVision, InterpretError, parseVisionJson, type InterpretInput } from "./hydrate";
 
 const SYSTEM = `You are Shopwright, a master furniture maker who reverse-engineers a piece from photographs into a shop-buildable interpretation — not a clone, and not a stock silhouette.
 
@@ -86,6 +17,8 @@ Return ONLY JSON:
   "confidence": 0.0-1.0,
   "overall": { "w": inches, "d": inches, "h": inches },
   "overallSource": "labeled|estimated|assumed",
+  "scaleConfidence": "high|low|conflict",
+  "scaleNotes": ["optional notes about tape, labels, or disagreeing sizes"],
   "speciesGuess": "maple|walnut|white-oak|red-oak|pine|cedar|poplar|plywood-oak",
   "uncertainties": ["what is still not visible"],
   "suggestedRouteId": "pocket|dado|mortise|dovetail|screwed|frame|dowel|adjustable|plugged",
@@ -93,9 +26,9 @@ Return ONLY JSON:
     {
       "name": "Top panel",
       "qty": 1,
-      "lengthIn": 48,
-      "widthIn": 14,
-      "thicknessIn": 0.75,
+      "length": { "value": 48, "source": "measured", "confidence": 0.9, "photoIndex": 0 },
+      "width": { "value": 14, "source": "inferred", "confidence": 0.5 },
+      "thickness": { "value": null, "source": "unknown", "confidence": 0, "note": "edge not visible" },
       "stock": "solid",
       "role": "top",
       "notes": "optional",
@@ -115,14 +48,20 @@ Return ONLY JSON:
   }
 }
 
+MEASUREMENT RULES (required):
+- Every axis is a MeasuredDim: value (inches or null), source (measured|inferred|unknown), confidence 0–1.
+- measured = tape, ruler, or labeled dimension in frame. inferred = proportion from a known size. unknown = you cannot see it — value MUST be null.
+- Do NOT invent typical stock thickness (0.75, 0.5, 1.5) as if it were measured. If the edge is not visible, thickness.source is unknown.
+- If two labeled sizes disagree, scaleConfidence is conflict and explain in scaleNotes.
+- If a tape or labeled dimension is in frame, those inches WIN (overallSource: labeled, scaleConfidence: high).
+- overall is required unless every board has instances that reconstruct the box.
+
 PARTS (required):
 - Every board the shop will cut. Do not omit parts because a templateId exists. templateId only suggests joinery/hardware.
-- Inches. Typical stock: 0.75, 0.5, 0.25, 1.5.
 - role: top|seat|leg|apron-long|apron-short|side|shelf|bottom|back|rail|stile|splat|slat|arm|stretcher|cleat|door|panel|post|roof|brace|kick|other
 - instances: one entry per copy. Origin is the front-left corner of the piece sitting on the floor. x = right, y = back (depth), z = up. The point is the part's front-left-bottom.
 - lengthAlong / widthAlong: which world axis the board's LENGTH and WIDTH run ("x"|"y"|"z"). Thickness takes the remaining axis.
   Legs: lengthAlong z. Tops/seats/shelves: lengthAlong x, widthAlong y. Long aprons: lengthAlong x, widthAlong z. Case sides: lengthAlong z, widthAlong y.
-- If a tape, ruler, or labeled dimension is in frame, those inches WIN (overallSource: labeled).
 
 CHAIR CLASSIFICATION — common failure:
 - Adirondack ONLY if reclined outdoor chair with a FAN of back slats and wide flat arms.
@@ -158,164 +97,6 @@ async function grokChat(messages: unknown[], maxTokens: number): Promise<string>
     choices: { message: { content: string } }[];
   };
   return body.choices[0]?.message.content ?? "";
-}
-
-function pickTemplate(ai: AiJson) {
-  if (isUprightChair(ai)) return getTemplate("side-chair");
-  if (isAdirondackReading(ai)) return getTemplate("adirondack");
-  return matchTemplate(ai.templateId ?? ai.category, ai.name);
-}
-
-function asAxis3(value: string | undefined): Axis3 | undefined {
-  if (value === "x" || value === "y" || value === "z") return value;
-  return undefined;
-}
-
-function mapInstances(
-  raw: AiPart["instances"],
-  from: Overall,
-  to: Overall,
-): PartInstance[] | undefined {
-  if (!raw?.length) return undefined;
-  const sx = to.w / (from.w || to.w);
-  const sy = to.d / (from.d || to.d);
-  const sz = to.h / (from.h || to.h);
-  const mapped = raw
-    .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z))
-    .map((p) => ({
-      x: p.x * sx,
-      y: p.y * sy,
-      z: p.z * sz,
-      lengthAlong: asAxis3(p.lengthAlong),
-      widthAlong: asAxis3(p.widthAlong),
-    }));
-  return mapped.length ? mapped : undefined;
-}
-
-function partsFromAi(ai: AiJson, overall: Overall): Part[] {
-  const rawOverall = {
-    w: ai.overall?.w ?? overall.w,
-    d: ai.overall?.d ?? overall.d,
-    h: ai.overall?.h ?? overall.h,
-  };
-  return (ai.parts ?? [])
-    .filter(
-      (p) =>
-        p &&
-        typeof p.name === "string" &&
-        Number.isFinite(p.lengthIn) &&
-        Number.isFinite(p.widthIn) &&
-        Number.isFinite(p.thicknessIn),
-    )
-    .map((p, i) => {
-      const name = p.name.trim() || `Part ${i + 1}`;
-      const stock = (
-        ["solid", "plywood", "hardwood-ply", "dowel", "sheet"] as const
-      ).includes(p.stock as Part["stock"])
-        ? (p.stock as Part["stock"])
-        : "solid";
-      return {
-        id: `p${i}`,
-        name,
-        qty: Math.max(1, Math.round(p.qty) || 1),
-        length: inferDim(name, "length", p.lengthIn, overall),
-        width: inferDim(name, "width", p.widthIn, overall),
-        thickness: inferDim(name, "thickness", p.thicknessIn, overall),
-        stock,
-        grain: "length" as const,
-        notes: p.notes,
-        role: isPartRole(p.role) ? p.role : inferRole(`p${i}`, name),
-        instances: mapInstances(p.instances, rawOverall, overall),
-        letter: p.letter?.slice(0, 3),
-      };
-    });
-}
-
-function hydrate(ai: AiJson, input: InterpretInput, photos: string[]): Project {
-  const template = pickTemplate(ai);
-  const overall: Overall = {
-    w: clamp(ai.overall?.w ?? template?.overall.w ?? 36, 8, 120),
-    d: clamp(ai.overall?.d ?? template?.overall.d ?? 16, 6, 60),
-    h: clamp(ai.overall?.h ?? template?.overall.h ?? 30, 6, 96),
-  };
-
-  const speciesId =
-    ai.speciesGuess &&
-    [
-      "maple",
-      "walnut",
-      "white-oak",
-      "red-oak",
-      "pine",
-      "cedar",
-      "poplar",
-      "plywood-oak",
-    ].includes(ai.speciesGuess)
-      ? ai.speciesGuess
-      : (template?.defaultSpecies ?? "maple");
-
-  const drawing = mergeDrawing(
-    template?.drawing ?? (template ? inferDrawing(template) : undefined),
-    ai.drawing,
-  );
-
-  const aiParts = partsFromAi(ai, overall);
-  const usePhotoParts = aiParts.length >= 2;
-
-  const fallback =
-    template ??
-    (ai.category === "chair" || /chair|stool/i.test(ai.name ?? "")
-      ? getTemplate("side-chair")
-      : matchTemplate("bench", "bench"));
-
-  const base = fallback ?? getTemplate("bench")!;
-
-  return instantiate(
-    {
-      ...base,
-      id: usePhotoParts ? `${base.id}-read` : base.id,
-      name: ai.name ?? base.name,
-      category: ai.category ?? base.category,
-      blurb: usePhotoParts ? "Interpreted from photos." : base.blurb,
-      overall,
-      parts: usePhotoParts ? aiParts : base.parts,
-      drawing,
-      interpretation: ai.interpretation ?? base.interpretation,
-      confidence: ai.confidence ?? base.confidence,
-      uncertainties:
-        ai.uncertainties && ai.uncertainties.length
-          ? ai.uncertainties
-          : base.uncertainties,
-      buyBoards: usePhotoParts ? undefined : base.buyBoards,
-      stack: usePhotoParts ? undefined : base.stack,
-      stillBuy: usePhotoParts ? undefined : base.stillBuy,
-      doNotBuy: usePhotoParts ? undefined : base.doNotBuy,
-    },
-    {
-      overall,
-      rank: input.rank,
-      speciesId,
-      photos,
-      routeId:
-        ai.suggestedRouteId && base.routes.some((r) => r.id === ai.suggestedRouteId)
-          ? ai.suggestedRouteId
-          : base.defaultRoute,
-      overallSource: ai.overallSource ?? "estimated",
-      sourceKind: input.kind,
-      sourceLabel: input.url,
-      interpretation: ai.interpretation ?? base.interpretation,
-      confidence: clamp(ai.confidence ?? base.confidence, 0, 1),
-      uncertainties:
-        ai.uncertainties && ai.uncertainties.length
-          ? ai.uncertainties
-          : base.uncertainties,
-    },
-  );
-}
-
-function clamp(n: number, min: number, max: number) {
-  if (!Number.isFinite(n)) return min;
-  return Math.min(max, Math.max(min, n));
 }
 
 function collectPhotos(data: InterpretInput): string[] {
@@ -390,13 +171,13 @@ export const interpretPiece = createServerFn({ method: "POST" })
 
       const prompt = [
         data.kind === "blueprint"
-          ? "These are dimensioned plans or blueprint scans. Prefer labeled measurements. Return the full parts list with instances so we can draw every board."
+          ? "These are dimensioned plans or blueprint scans. Prefer labeled measurements. Return the full parts list with MeasuredDim axes and instances so we can draw every board."
           : photos.length > 1
-            ? `These are ${photos.length} photographs of the same piece from different angles. Combine them. Photo 1 is the primary view; later photos are additional angles (side, back, underside, detail, tape). Return a complete parts list with inches and 3D instances for THIS piece — not a stock template.`
-            : "This is a photograph of a piece of furniture. Return a complete parts list with inches and 3D instances for THIS piece — not a stock silhouette.",
+            ? `These are ${photos.length} photographs of the same piece from different angles. Combine them. Photo 1 is the primary view; later photos are additional angles (side, back, underside, detail, tape). Return a complete parts list with MeasuredDim inches and 3D instances for THIS piece — not a stock template.`
+            : "This is a photograph of a piece of furniture. Return a complete parts list with MeasuredDim inches and 3D instances for THIS piece — not a stock silhouette.",
         data.note ? `Builder note: ${data.note}` : "",
         pageNote,
-        "Return JSON only. parts[] is required.",
+        "Return JSON only. parts[] is required. Unknown axes must be value null, source unknown — do not invent typical stock.",
       ]
         .filter(Boolean)
         .join("\n");
@@ -410,16 +191,13 @@ export const interpretPiece = createServerFn({ method: "POST" })
         ],
         3500,
       );
-      const ai = extractJson(text);
-      if (!ai) {
-        return { ok: false as const, error: "Could not parse an interpretation. Try another photo." };
-      }
-      const project = hydrate(ai, data, photos);
-      if (project.parts.length >= 2 && project.parts[0]?.id.startsWith("p")) {
-        project.partsFromPhotos = true;
-      }
+      const ai = parseVisionJson(text);
+      const project = hydrateVision(ai, data, photos);
       return { ok: true as const, project };
     } catch (err) {
+      if (err instanceof InterpretError) {
+        return { ok: false as const, error: err.message, code: err.code };
+      }
       return {
         ok: false as const,
         error: err instanceof Error ? err.message : "Interpretation failed",

@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { interpretPiece } from "@/lib/ai/interpret";
 import { fileToDataUrl } from "@/lib/image";
 import { formatInches, rankIndex } from "@/lib/format";
+import { formatCutAxis } from "@/lib/measure";
 import { RANK_META } from "@/lib/ranks";
 import { SPECIES } from "@/lib/species";
 import { useStudio } from "@/lib/store";
@@ -189,6 +190,14 @@ export function StudioView() {
               <Badge tone={confidencePct >= 80 ? "good" : "warn"}>
                 {confidencePct}% confidence
               </Badge>
+              {packet.doNotCut || project.doNotCut ? (
+                <Badge tone="warn">Do not cut</Badge>
+              ) : null}
+              {project.scaleConfidence === "high" ? (
+                <Badge tone="good">Scale high</Badge>
+              ) : project.scaleConfidence ? (
+                <Badge tone="warn">Scale {project.scaleConfidence}</Badge>
+              ) : null}
               <Badge>{project.category}</Badge>
               {photos.length > 1 ? (
                 <Badge>{photos.length} angles</Badge>
@@ -470,13 +479,13 @@ export function StudioView() {
                         <td className="py-1.5 pr-2">{c.name}</td>
                         <td className="py-1.5 pr-2 font-mono">{c.qty}</td>
                         <td className="py-1.5 pr-2 font-mono">
-                          {formatInches(c.thickness)}
+                          {formatCutAxis(c, "thickness")}
                         </td>
                         <td className="py-1.5 pr-2 font-mono">
-                          {formatInches(c.width)}
+                          {formatCutAxis(c, "width")}
                         </td>
                         <td className="py-1.5 pr-2 font-mono">
-                          {formatInches(c.length)}
+                          {formatCutAxis(c, "length")}
                         </td>
                         <td className="py-1.5 text-ink-soft">{c.fromStock}</td>
                       </tr>

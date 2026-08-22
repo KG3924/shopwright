@@ -1,4 +1,5 @@
 import { formatDimTriplet, formatInches } from "./format";
+import { formatCutTriplet } from "./measure";
 import type { BuyBoard, CutRow, Project, Stock } from "./types";
 
 export function oneByLabel(width: number): string {
@@ -132,7 +133,7 @@ export function compileYield(
           .slice(0, 8)
           .map(
             (c) =>
-              `${c.letter} ${c.name}: ${c.qty}× ${formatDimTriplet(c.length, c.width, c.thickness)}`,
+              `${c.letter} ${c.name}: ${c.qty}× ${formatCutTriplet(c)}`,
           ),
       ];
   return { boards, stillBuy, doNotBuy, stack };

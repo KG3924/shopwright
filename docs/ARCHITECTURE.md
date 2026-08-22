@@ -35,9 +35,9 @@ Shop drawings (elevations, exploded assembly, part tickets) are SVG compiled fro
 
 The vision model returns JSON: name, overall, confidence, uncertainties, a **complete parts list with inches and 3D instances**, optional `templateId`. You can send up to six photos of the same piece; the first three go at high detail.
 
-If `templateId` matches a studio piece, we keep that piece's *routes, hardware, and steps* (how to join it). Whenever the model returns two or more boards, the **cut list and drawings come from those photo parts**, not the template's stock cut list. Template parts are only a fallback.
+If `templateId` matches a studio piece, we keep that piece's *routes, hardware, and steps* (how to join it). For `photo` / `url` / `blueprint`, the **cut list always comes from vision**. Fewer than two boards with sourced axes, invalid JSON, or a missing overall is a typed error — we never silently emit template stock parts. Each axis carries a `MeasuredDim` (`measured` / `inferred` / `unknown`); weak or conflicted scale sets `doNotCut` and tickets print `?` when `value` is null. Catalog pieces are unchanged.
 
-Each part can carry `instances` (front-left-floor origin, x right, y back, z up). The layout compiler places every copy, then projects front / side / plan and an exploded assembly. Part tickets are face, edge, and end of that board at the cut-list size.
+Each part can carry `instances` (front-left-floor origin, x right, y back, z up) and per-axis `measured` truth. The layout compiler places every copy, then projects front / side / plan and an exploded assembly. Part tickets are face, edge, and end of that board — printing `?` when an axis was not sourced.
 
 Chair classification is still explicit so joinery routes stay sane: a lattice-back kitchen chair is `side-chair`; Adirondack is only for reclined outdoor fan-slat chairs. That does not replace the photo-derived parts.
 

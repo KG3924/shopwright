@@ -14,7 +14,7 @@
     "preview": "node scripts/with-app-env.mjs vite preview",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs'",
+    "test": "node --import tsx --test src/lib/measure.test.ts src/lib/ai/hydrate.test.ts && node --test 'scripts/**/*.test.mjs'",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
@@ -87,6 +87,7 @@
     "nitro": "3.0.260610-beta",
     "playwright": "^1.62.0",
     "prettier": "^3.4.0",
+    "tsx": "^4.20.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.2.0"

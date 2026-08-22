@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { compilePacket } from "../compile";
-import { formatDimTriplet, formatInches } from "../format";
+import { formatInches } from "../format";
+import { formatCutTriplet } from "../measure";
 import type { ChatMessage, Project, Rank } from "../types";
 
 type MasterInput = {
@@ -26,7 +27,7 @@ export const askMaster = createServerFn({ method: "POST" })
     const cuts = packet.cuts
       .map(
         (c) =>
-          `${c.letter}  ${c.qty}× ${c.name}: ${formatDimTriplet(c.length, c.width, c.thickness)}  from ${c.fromStock}`,
+          `${c.letter}  ${c.qty}× ${c.name}: ${formatCutTriplet(c)}  from ${c.fromStock}`,
       )
       .join("\n");
 
@@ -43,7 +44,7 @@ Current packet:
 - Species: ${packet.species.name}
 - ZIP: ${data.zip}
 - Board feet: ${packet.boardFeet.toFixed(1)} · ~${packet.weightLb} lb
-Cut list:
+${packet.doNotCut ? "- DO NOT CUT yet. Scale is weak or a ticket still prints '?'. Tell the builder to confirm with a tape.\n" : ""}Cut list:
 ${cuts}
 
 Lumber:
