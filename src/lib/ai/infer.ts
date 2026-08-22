@@ -194,14 +194,20 @@ function applySymmetric(parts: InferCandidate[]): void {
 
 function applyOverallToBoxParts(parts: InferCandidate[], ctx: InferContext): void {
   if (!overallIsAnchor(ctx) || !ctx.overall) return;
+  const section = knownLegSection(parts);
   for (const part of parts) {
     const role = roleOf(part);
     if (role !== "seat" && role !== "top") continue;
+    // Seat sits in the box: overall minus the leg section we actually saw.
+    // Tops stay the box. No subtract when section is only a stock guess.
+    const sub = role === "seat" && section != null && section > 0 ? 2 * section : 0;
     if (isUnknownAxis(part.measured.length)) {
-      part.measured.length = inferredDim(ctx.overall.w, "overall");
+      const value = ctx.overall.w - sub;
+      if (value > 0.25) part.measured.length = inferredDim(value, "overall");
     }
     if (isUnknownAxis(part.measured.width)) {
-      part.measured.width = inferredDim(ctx.overall.d, "overall");
+      const value = ctx.overall.d - sub;
+      if (value > 0.25) part.measured.width = inferredDim(value, "overall");
     }
   }
 }
@@ -210,8 +216,10 @@ function knownLegSection(parts: InferCandidate[]): number | null {
   for (const part of parts) {
     const role = roleOf(part);
     if (role !== "leg" && role !== "post") continue;
-    if (isKnownDim(part.measured.width)) return part.measured.width.value;
-    if (isKnownDim(part.measured.thickness)) return part.measured.thickness.value;
+    if (isAnchorDim(part.measured.width)) return part.measured.width.value;
+    if (isTapeMeasured(part.measured.thickness) || isAnchorDim(part.measured.thickness)) {
+      return part.measured.thickness.value;
+    }
   }
   return null;
 }
@@ -341,7 +349,7 @@ function applySeatHeight(parts: InferCandidate[], ctx: InferContext): void {
         seat && isKnownDim(seat.measured.thickness) ? seat.measured.thickness.value : 0;
       height = ctx.overall.h - t;
     } else {
-      height = SEAT_BAND[classifySeatBand(ctx, ctx.overall.h, true)];
+      height = SEAT_BAND[classifySeatBand(ctx, ctx.overall.h, backed)];
     }
   }
   if (height == null || height <= 0) return;
@@ -376,14 +384,28 @@ function applyFootringHeight(parts: InferCandidate[]): void {
   const z = round32(height * 0.4);
   for (const part of parts) {
     const name = part.name.toLowerCase();
-    if (roleOf(part) !== "stretcher" && !/\bfootring|foot rail\b/.test(name)) {
-      continue;
-    }
+    if (!/\bfootring|foot rail\b/.test(name)) continue;
     if (!part.instances?.length) continue;
     for (const inst of part.instances) {
       if (!inst.z || inst.z <= 0) inst.z = z;
     }
   }
+}
+
+export type InferFillResult = {
+  parts: InferCandidate[];
+  /** Cut-axis fills this pass wrote. Placement-only (instance.z) is not counted. */
+  filledAxes: number;
+};
+
+function countUnknownAxes(parts: InferCandidate[]): number {
+  let n = 0;
+  for (const part of parts) {
+    for (const axis of ["length", "width", "thickness"] as const) {
+      if (isUnknownAxis(part.measured[axis])) n += 1;
+    }
+  }
+  return n;
 }
 
 /**
@@ -394,11 +416,22 @@ export function inferFill(
   parts: InferCandidate[],
   ctx: InferContext,
 ): InferCandidate[] {
+  return runInferFill(parts, ctx).parts;
+}
+
+export function runInferFill(
+  parts: InferCandidate[],
+  ctx: InferContext,
+): InferFillResult {
   const next = parts.map(cloneCandidate);
+  const beforeUnknown = countUnknownAxes(next);
   applySymmetric(next);
   applyOverallToBoxParts(next, ctx);
   applySeatHeight(next, ctx);
   applyStretcherSpan(next, ctx);
   applyFootringHeight(next);
-  return next;
+  return {
+    parts: next,
+    filledAxes: Math.max(0, beforeUnknown - countUnknownAxes(next)),
+  };
 }

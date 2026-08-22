@@ -13,10 +13,11 @@ import {
   weakScale,
 } from "../measure";
 import { inferDim } from "../parametric";
-import { inferFill, partHasUnknownCutAxis } from "./infer";
+import { partHasUnknownCutAxis, runInferFill } from "./infer";
 import { normalizeTools } from "../routes";
 import type {
   Axis3,
+  Dim,
   DrawingSpec,
   MeasuredDim,
   Overall,
@@ -352,6 +353,24 @@ function resolveScale(
   };
 }
 
+function dimFromMeasured(
+  name: string,
+  axis: "length" | "width" | "thickness",
+  measured: MeasuredDim,
+  value: number,
+  overall: Overall,
+): Dim {
+  // A named seat-height band is a shop standard, not a proportion of overall H.
+  if (
+    axis === "length" &&
+    measured.source === "inferred" &&
+    measured.note?.includes("seat height")
+  ) {
+    return { from: "fixed", offset: value };
+  }
+  return inferDim(name, axis, value, overall);
+}
+
 function toGraphParts(
   raw: { part: AiPart; measured: PartMeasured }[],
   overall: Overall,
@@ -371,9 +390,9 @@ function toGraphParts(
       id: `p${i}`,
       name,
       qty: Math.max(1, Math.round(Number(part.qty) || 1) || 1),
-      length: inferDim(name, "length", lengthVal, overall),
-      width: inferDim(name, "width", widthVal, overall),
-      thickness: inferDim(name, "thickness", thicknessVal || 0, overall),
+      length: dimFromMeasured(name, "length", measured.length, lengthVal, overall),
+      width: dimFromMeasured(name, "width", measured.width, widthVal, overall),
+      thickness: dimFromMeasured(name, "thickness", measured.thickness, thicknessVal, overall),
       stock,
       grain: "length" as const,
       notes: part.notes,
@@ -488,9 +507,10 @@ export function hydrateVision(
     );
   }
 
-  // Safe infer-fill after the vision gate. Does not invent a 2-board
-  // packet; only fills unknown axes on (or twins of) sourced parts.
-  const inferred = inferFill(
+  // Safe infer-fill after the vision gate. Cannot invent a 2-board
+  // packet; may fill twins and leftover unknown axes, then re-admit
+  // those boards. Fills from this pass do not release Don't-cut.
+  const inferred = runInferFill(
     candidates.map(({ part, measured }) => ({
       name: part.name.trim(),
       role: part.role,
@@ -512,9 +532,9 @@ export function hydrateVision(
     .map((c, i) => ({
       part: {
         ...c.part,
-        instances: inferred[i]?.instances ?? c.part.instances,
+        instances: inferred.parts[i]?.instances ?? c.part.instances,
       },
-      measured: inferred[i]?.measured ?? c.measured,
+      measured: inferred.parts[i]?.measured ?? c.measured,
     }))
     .filter((c) => hasSourcedDims(c.measured));
 
@@ -603,7 +623,7 @@ export function hydrateVision(
       partsFromPhotos: true,
       scaleConfidence: scale.scaleConfidence,
       scaleNotes: scale.scaleNotes,
-      doNotCut: scale.doNotCut || stillUnknown,
+      doNotCut: scale.doNotCut || stillUnknown || inferred.filledAxes > 0,
     },
   );
 }

@@ -178,8 +178,8 @@ describe("inferFill", () => {
     ];
 
     const seat = inferFill(parts, highOverall)[0]!;
-    assert.equal(seat.measured.length.value, 18);
-    assert.equal(seat.measured.width.value, 18);
+    assert.equal(seat.measured.length.value, 15);
+    assert.equal(seat.measured.width.value, 15);
     assert.equal(seat.measured.length.source, "inferred");
     assert.equal(seat.measured.thickness.source, "unknown");
     assert.equal(seat.measured.thickness.value, null);
@@ -213,6 +213,26 @@ describe("inferFill", () => {
     });
     assert.equal(filled[0]!.measured.length.source, "unknown");
     assert.equal(filled[1]!.measured.length.source, "unknown");
+  });
+
+  it("does not compute a stretcher span from a vision-guessed 0.75 section", () => {
+    const parts: InferCandidate[] = [
+      {
+        name: "Leg",
+        role: "leg",
+        qty: 4,
+        measured: measuredOf(dim(17.25, "inferred"), dim(0.75, "inferred"), dim(0.75, "inferred")),
+      },
+      {
+        name: "Front stretcher",
+        role: "stretcher",
+        qty: 1,
+        measured: measuredOf(unknown(), dim(1.75, "inferred"), dim(0.75, "inferred")),
+      },
+    ];
+    const stretcher = inferFill(parts, highOverall)[1]!;
+    assert.equal(stretcher.measured.length.source, "unknown");
+    assert.equal(stretcher.measured.length.value, null);
   });
 
   it("places a footring from seat height without inventing stretcher stock", () => {
@@ -328,6 +348,57 @@ describe("infer fill through hydrate", () => {
     assert.equal(packet.doNotCut, true);
     assert.equal(project.doNotCut, true);
     assert.ok(packet.warnings.some((w) => /do not cut/i.test(w)));
+  });
+
+  it("keeps Don't-cut on when infer fills the last unknown axes at high scale", () => {
+    const project = hydrateVision(
+      {
+        name: "Shop stool",
+        category: "chair",
+        templateId: "side-chair",
+        interpretation: "Square stool. One front leg fully taped; the twin was occluded.",
+        confidence: 0.84,
+        overall: { w: 14, d: 14, h: 18 },
+        overallSource: "labeled",
+        scaleConfidence: "high",
+        parts: [
+          {
+            name: "Seat",
+            qty: 1,
+            role: "seat",
+            length: { value: 14, source: "measured", confidence: 0.95, photoIndex: 0 },
+            width: { value: 14, source: "measured", confidence: 0.9, photoIndex: 0 },
+            thickness: { value: 0.75, source: "measured", confidence: 0.9, photoIndex: 2 },
+          },
+          {
+            name: "Front left leg",
+            qty: 1,
+            role: "leg",
+            length: { value: 17.25, source: "measured", confidence: 0.9, photoIndex: 1 },
+            width: { value: 1.5, source: "measured", confidence: 0.85, photoIndex: 1 },
+            thickness: { value: 1.5, source: "measured", confidence: 0.85, photoIndex: 1 },
+          },
+          {
+            name: "Front right leg",
+            qty: 1,
+            role: "leg",
+            length: { value: null, source: "unknown", confidence: 0 },
+            width: { value: null, source: "unknown", confidence: 0 },
+            thickness: { value: null, source: "unknown", confidence: 0 },
+          },
+        ],
+      },
+      input,
+      [],
+    );
+    const packet = compilePacket(project, "75013");
+    const right = packet.cuts.find((c) => c.name === "Front right leg")!;
+    assert.equal(right.measured?.length.source, "inferred");
+    assert.equal(right.measured?.width.source, "inferred");
+    assert.equal(right.measured?.thickness.source, "inferred");
+    assert.equal(formatCutAxis(right, "length"), `17-1/4"`);
+    assert.equal(project.doNotCut, true);
+    assert.equal(packet.doNotCut, true);
   });
 
   it("does not promote any inferred axis to measured", () => {
