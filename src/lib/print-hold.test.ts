@@ -38,11 +38,17 @@ describe("print hold", () => {
     const drawings = read("src/components/shop-drawings.tsx");
     const studio = read("src/components/studio-view.tsx");
     assert.match(studio, /packet\.route\.name/);
+    assert.match(studio, /DONT_CUT_YET/);
+    assert.match(studio, /NO_ROUTE_NAME/);
+    assert.match(studio, /data-compile-route=\{packet\.route\.id\}/);
+    assert.match(studio, /data-picker-selected=\{pickerSelected/);
+    assert.match(studio, /data-compiled=\{compiled/);
     assert.match(drawings, /route\.name/);
     assert.match(drawings, /route\.joinery/);
-    assert.doesNotMatch(
-      studio.split("\n").find((line) => line.includes("packet.route.name")) ?? "",
-      /project\.routeId/,
-    );
+    const headerLine =
+      studio.split("\n").find((line) => line.includes("` · ${packet.route.name}`")) ??
+      "";
+    assert.match(headerLine, /packet\.route\.name/);
+    assert.doesNotMatch(headerLine, /project\.routeId/);
   });
 });

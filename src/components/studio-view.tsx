@@ -24,13 +24,14 @@ import { interpretPiece } from "@/lib/ai/interpret";
 import { fileToDataUrl } from "@/lib/image";
 import { formatInches, rankIndex } from "@/lib/format";
 import {
+  DONT_CUT_YET,
   editorAxisValue,
   formatCutAxis,
   formatCutAxisSource,
   formatDoNotCut,
 } from "@/lib/measure";
 import { RANK_META } from "@/lib/ranks";
-import { normalizeTools, SHOP_TOOL_META, statusForRoute } from "@/lib/routes";
+import { NO_ROUTE_NAME, normalizeTools, SHOP_TOOL_META, statusForRoute } from "@/lib/routes";
 import { SPECIES } from "@/lib/species";
 import { useStudio } from "@/lib/store";
 import { MAX_PHOTOS, projectPhotos, RANKS, SHOP_TOOLS } from "@/lib/types";
@@ -176,6 +177,17 @@ export function StudioView() {
               : ""}
           </p>
           <h1 className="mt-1 font-display text-3xl sm:text-4xl">{project.name}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Badge
+              tone={packet.routeRunnable ? "muted" : "warn"}
+              data-compile-route={packet.route.id}
+            >
+              {packet.route.name}
+            </Badge>
+            {!packet.routeRunnable ? (
+              <Badge tone="warn">{DONT_CUT_YET}</Badge>
+            ) : null}
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => setChatOpen(true)}>
@@ -208,7 +220,7 @@ export function StudioView() {
                 {confidencePct}% confidence
               </Badge>
               {packet.doNotCut || project.doNotCut || !packet.routeRunnable ? (
-                <Badge tone="warn">Do not cut</Badge>
+                <Badge tone="warn">{DONT_CUT_YET}</Badge>
               ) : null}
               {project.scaleConfidence === "high" ? (
                 <Badge tone="good">Scale high</Badge>
@@ -400,14 +412,17 @@ export function StudioView() {
                   project.toolsAvailable ?? toolsAvailable,
                 );
                 const status = statusForRoute(route, project.rank, benchTools);
-                const active = packet.routeRunnable
-                  ? route.id === packet.route.id
-                  : route.id === project.routeId && status.runnable;
+                const compiled =
+                  packet.routeRunnable && route.id === packet.route.id;
+                const pickerSelected = route.id === project.routeId;
                 return (
                   <button
                     key={route.id}
                     type="button"
                     disabled={!status.runnable}
+                    data-route-id={route.id}
+                    data-compiled={compiled ? "true" : "false"}
+                    data-picker-selected={pickerSelected ? "true" : "false"}
                     onClick={() => {
                       if (!status.runnable) return;
                       setRoute(route.id);
@@ -415,17 +430,19 @@ export function StudioView() {
                     className={cn(
                       "rounded-md border px-3 py-3 text-left transition-colors duration-150",
                       !status.runnable && "cursor-not-allowed opacity-60",
-                      active && status.runnable
+                      compiled
                         ? "border-accent bg-surface-2"
-                        : "border-border",
-                      status.runnable && !active && "hover:border-border-strong",
+                        : pickerSelected
+                          ? "border-border-strong"
+                          : "border-border",
+                      status.runnable && !compiled && "hover:border-border-strong",
                     )}
                   >
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{route.name}</span>
                       <Badge
                         tone={
-                          status.runnable &&
+                          compiled &&
                           rankIndex(project.rank) >=
                             rankIndex(route.recommendedRank)
                             ? "good"
@@ -441,8 +458,11 @@ export function StudioView() {
                     {!status.runnable ? (
                       <span className="mt-2 block text-sm text-warn">
                         {status.reasons.join(" · ")}
+                        {pickerSelected && !packet.routeRunnable
+                          ? ` · ${NO_ROUTE_NAME} — ${DONT_CUT_YET}`
+                          : ""}
                       </span>
-                    ) : active ? (
+                    ) : compiled ? (
                       <span className="mt-2 block text-sm text-fg/80">
                         Tradeoff: {route.tradeoffs} Hidden work:{" "}
                         {route.hiddenWork}
@@ -774,9 +794,9 @@ export function StudioView() {
                   <DoNotCutCallout
                     hold={
                       cutHold ?? {
-                        headline: "Don't cut yet",
+                        headline: DONT_CUT_YET,
                         notes: ["No construction route compiled — do not cut."],
-                        text: "Don't cut yet. No construction route compiled — do not cut.",
+                        text: `${DONT_CUT_YET}. No construction route compiled — do not cut.`,
                       }
                     }
                   />

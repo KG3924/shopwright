@@ -8,6 +8,9 @@ import type {
 } from "./types";
 import { DIM_SOURCES, SCALE_CONFIDENCES } from "./types";
 
+/** Shop hold headline when scale is weak or no route compiled. */
+export const DONT_CUT_YET = "Don't cut yet";
+
 export const VISION_SOURCE_KINDS = ["photo", "url", "blueprint"] as const;
 export type VisionSourceKind = (typeof VISION_SOURCE_KINDS)[number];
 
@@ -160,7 +163,7 @@ export function formatDoNotCut(flags: {
   if (routeHold) {
     notes.push("No construction route compiled — do not cut.");
   }
-  const headline = "Don't cut yet";
+  const headline = DONT_CUT_YET;
   const fallback =
     routeHold
       ? "No construction route compiled — do not cut."

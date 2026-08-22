@@ -125,9 +125,13 @@ export function routeStatusesFor(project: Project): RouteStatus[] {
 }
 
 /** Compiled packet label when rank/tools cannot run any route. */
+export const NO_ROUTE_ID = "none";
+export const NO_ROUTE_NAME = "No route";
+
+/** Compiled packet label when rank/tools cannot run any route. */
 export const NO_ROUTE: ConstructionRoute = {
-  id: "none",
-  name: "No route",
+  id: NO_ROUTE_ID,
+  name: NO_ROUTE_NAME,
   recommendedRank: "beginner",
   summary: "Rank and tools cannot compile a construction route.",
   joinery: "none — do not cut",
