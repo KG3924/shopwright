@@ -7,7 +7,10 @@ import { compilePacket } from "../compile";
 import { inferDrawing } from "../drawing";
 import { layoutBoxes } from "../layout";
 import {
+  editorAxisValue,
+  formatCutAxisSource,
   formatCutTriplet,
+  formatDoNotCut,
   ticketUnknownAxes,
   ticketViewLabels,
 } from "../measure";
@@ -27,6 +30,12 @@ type FixtureExpect = {
   ticketUnknownAxes: number;
   cutTriplets: Record<string, string>;
   warningsInclude?: string[];
+  dimSources?: Record<
+    string,
+    Partial<Record<"length" | "width" | "thickness", string>>
+  >;
+  cutHold?: string | null;
+  cutHoldIncludes?: string[];
 };
 
 type Fixture = {
@@ -77,6 +86,31 @@ function assertShopTruth(fixture: Fixture) {
     );
   }
 
+  if (expect.dimSources) {
+    for (const [name, axes] of Object.entries(expect.dimSources)) {
+      const cut = byName.get(name);
+      assert.ok(cut, `missing cut ${name}`);
+      for (const axis of ["length", "width", "thickness"] as const) {
+        if (axes[axis]) {
+          assert.equal(formatCutAxisSource(cut, axis), axes[axis]);
+        }
+      }
+    }
+  }
+
+  const hold = formatDoNotCut({
+    doNotCut: packet.doNotCut,
+    scaleConfidence: project.scaleConfidence,
+    scaleNotes: project.scaleNotes,
+  });
+  if (expect.cutHold === null) {
+    assert.equal(hold, null);
+  }
+  for (const needle of expect.cutHoldIncludes ?? []) {
+    assert.ok(hold, "expected don't-cut copy");
+    assert.match(hold.text, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+  }
+
   return { project, packet };
 }
 
@@ -95,6 +129,7 @@ describe("accuracy Cut B fixtures", () => {
     assert.equal(edge.y, `3/4"`);
     assert.equal(edge.unknownY, false);
     assert.ok(!/measure first/i.test(seat.fromStock));
+    assert.equal(editorAxisValue(seat, "thickness"), 0.75);
   });
 
   it("weak-scale-missing-underside-fail: unknown thickness stays ? and is not a stock fill", () => {
@@ -112,6 +147,8 @@ describe("accuracy Cut B fixtures", () => {
     assert.equal(seat.measured?.thickness.source, "unknown");
     assert.equal(seat.measured?.thickness.value, null);
     assert.notEqual(seat.thickness, 0.75);
+    assert.equal(editorAxisValue(seat, "thickness"), null);
+    assert.equal(formatCutAxisSource(seat, "thickness"), "verify before cut");
     assert.ok(/measure first/i.test(seat.fromStock));
     assert.ok(!/1×12|¾"|3\/4/.test(seat.fromStock));
 

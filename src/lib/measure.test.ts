@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  editorAxisValue,
   formatCutAxis,
+  formatCutAxisSource,
+  formatCutSources,
   formatCutTriplet,
+  formatDimSource,
+  formatDoNotCut,
   formatMeasured,
   hasSourcedDims,
   ticketUnknownAxes,
@@ -76,5 +81,68 @@ describe("measure helpers", () => {
       locked: { length: false, width: false, thickness: true, qty: false },
     } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
     assert.equal(formatCutAxis(cut, "thickness"), `7/8"`);
+    assert.equal(editorAxisValue(cut, "thickness"), 0.875);
+  });
+
+  it("does not bind a fallback inch into the editor for an unknown axis", () => {
+    const cut = {
+      length: 16,
+      width: 16,
+      thickness: 0,
+      measured: sourced,
+      locked: { length: false, width: false, thickness: false, qty: false },
+    } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
+    assert.equal(editorAxisValue(cut, "thickness"), null);
+    assert.equal(editorAxisValue(cut, "length"), 16);
+    const catalog = {
+      length: 48,
+      width: 14,
+      thickness: 0.75,
+    } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
+    assert.equal(editorAxisValue(catalog, "thickness"), 0.75);
+  });
+
+  it("labels sourced, inferred, and unknown dims in builder language", () => {
+    assert.equal(
+      formatDimSource({
+        value: 14,
+        source: "measured",
+        confidence: 0.9,
+        photoIndex: 0,
+      }),
+      "measured from photo 1",
+    );
+    assert.equal(
+      formatDimSource({ value: 14, source: "measured", confidence: 0.9 }),
+      "measured",
+    );
+    assert.equal(
+      formatDimSource({ value: 16, source: "inferred", confidence: 0.4 }),
+      "guessed — verify",
+    );
+    assert.equal(formatDimSource(unknownDim("underside not visible")), "verify before cut");
+    assert.equal(formatDimSource(undefined), "");
+  });
+
+  it("stays silent on catalog parts with no MeasuredDim", () => {
+    assert.equal(formatCutSources({}), "");
+    assert.equal(formatCutAxisSource({}, "length"), "");
+    assert.equal(formatDoNotCut({ doNotCut: false, scaleNotes: ["Tape in frame."] }), null);
+  });
+
+  it("prints don't-cut from doNotCut plus scale notes", () => {
+    const hold = formatDoNotCut({
+      doNotCut: true,
+      scaleConfidence: "low",
+      scaleNotes: [
+        "No tape or labeled dimension in frame.",
+        "Underside not visible — seat thickness unknown.",
+      ],
+    });
+    assert.ok(hold);
+    assert.equal(hold.headline, "Don't cut yet");
+    assert.match(hold.text, /Don't cut yet/);
+    assert.match(hold.text, /No tape/);
+    assert.match(hold.text, /Underside not visible/);
   });
 });

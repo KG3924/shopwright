@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { compilePacket } from "../compile";
 import { formatInches } from "../format";
-import { formatCutTriplet } from "../measure";
+import { formatCutAxisSource, formatCutTriplet, formatDoNotCut } from "../measure";
 import type { ChatMessage, Project, Rank } from "../types";
 
 type MasterInput = {
@@ -24,11 +24,19 @@ export const askMaster = createServerFn({ method: "POST" })
     }
 
     const packet = compilePacket(data.project, data.zip);
+    const cutHold = formatDoNotCut({
+      doNotCut: packet.doNotCut,
+      scaleConfidence: packet.project.scaleConfidence,
+      scaleNotes: packet.project.scaleNotes,
+    });
     const cuts = packet.cuts
-      .map(
-        (c) =>
-          `${c.letter}  ${c.qty}× ${c.name}: ${formatCutTriplet(c)}  from ${c.fromStock}`,
-      )
+      .map((c) => {
+        const sources = (["length", "width", "thickness"] as const)
+          .map((axis) => formatCutAxisSource(c, axis))
+          .filter(Boolean)
+          .join("; ");
+        return `${c.letter}  ${c.qty}× ${c.name}: ${formatCutTriplet(c)}  from ${c.fromStock}${sources ? `  (${sources})` : ""}`;
+      })
       .join("\n");
 
     const system = `You are the Master Woodworker inside Shopwright — a working furniture maker, not a chatbot. Speak plainly. Short paragraphs. No emoji. No markdown headings unless listing steps.
@@ -44,7 +52,7 @@ Current packet:
 - Species: ${packet.species.name}
 - ZIP: ${data.zip}
 - Board feet: ${packet.boardFeet.toFixed(1)} · ~${packet.weightLb} lb
-${packet.doNotCut ? "- DO NOT CUT yet. Scale is weak or a ticket still prints '?'. Tell the builder to confirm with a tape.\n" : ""}Cut list:
+${cutHold ? `- ${cutHold.text}\n` : ""}Cut list:
 ${cuts}
 
 Lumber:

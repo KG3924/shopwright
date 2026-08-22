@@ -81,6 +81,77 @@ export function formatCutTriplet(
 
 export type CutAxis = "length" | "width" | "thickness";
 
+const AXIS_LETTER: Record<CutAxis, string> = {
+  length: "L",
+  width: "W",
+  thickness: "T",
+};
+
+/**
+ * Builder-facing source for one axis. Catalog parts (no MeasuredDim) stay silent.
+ * Formatters only — does not invent a second measure truth.
+ */
+export function formatDimSource(dim: MeasuredDim | undefined): string {
+  if (!dim) return "";
+  if (dim.source === "measured") {
+    const idx = dim.photoIndex;
+    return idx != null && Number.isInteger(idx) && idx >= 0
+      ? `measured from photo ${idx + 1}`
+      : "measured";
+  }
+  if (dim.source === "inferred") return "guessed — verify";
+  return "verify before cut";
+}
+
+export function formatCutAxisSource(
+  cut: Pick<CutRow, "measured">,
+  axis: CutAxis,
+): string {
+  return formatDimSource(cut.measured?.[axis]);
+}
+
+/** Compact per-part source line. Empty when the part has no measure truth. */
+export function formatCutSources(cut: Pick<CutRow, "measured">): string {
+  if (!cut.measured) return "";
+  return (["length", "width", "thickness"] as const)
+    .map((axis) => `${AXIS_LETTER[axis]} ${formatDimSource(cut.measured![axis])}`)
+    .join(" · ");
+}
+
+export type CutHold = {
+  headline: string;
+  notes: string[];
+  text: string;
+};
+
+/**
+ * Don't-cut copy from existing doNotCut + scaleNotes / scaleConfidence.
+ * Returns null when it is safe to cut (catalog, or a high-scale pass).
+ */
+export function formatDoNotCut(flags: {
+  doNotCut?: boolean;
+  scaleConfidence?: ScaleConfidence;
+  scaleNotes?: string[];
+}): CutHold | null {
+  if (!flags.doNotCut) return null;
+  const notes = [
+    ...new Set((flags.scaleNotes ?? []).map((n) => n.trim()).filter(Boolean)),
+  ];
+  const headline = "Don't cut yet";
+  const fallback =
+    flags.scaleConfidence === "conflict"
+      ? "Scale conflict — confirm with a tape."
+      : flags.scaleConfidence === "low"
+        ? "Scale is weak — confirm with a tape."
+        : "Confirm scale and any '?' dimensions.";
+  const body = notes.length ? notes : [fallback];
+  return {
+    headline,
+    notes: body,
+    text: `${headline}. ${body.join(" ")}`,
+  };
+}
+
 export function isCutAxisUnknown(
   cut: Pick<CutRow, "measured" | "locked">,
   axis: CutAxis,
@@ -88,6 +159,20 @@ export function isCutAxisUnknown(
   if (cut.locked?.[axis]) return false;
   const measured = cut.measured?.[axis];
   return !!measured && measured.value == null;
+}
+
+/**
+ * Studio InchField binding. Unknown (unlocked) axes return null so the editor
+ * shows "?" — never a resolvePart / inferDim fallback inch. Locked overrides
+ * are authoritative and return the locked number (same as formatCutAxis).
+ */
+export function editorAxisValue(
+  cut: Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">,
+  axis: CutAxis,
+): number | null {
+  if (isCutAxisUnknown(cut, axis)) return null;
+  const n = cut[axis];
+  return Number.isFinite(n) ? n : null;
 }
 
 /** Count of ticket axes that still print `?` (not tickets, axes). */

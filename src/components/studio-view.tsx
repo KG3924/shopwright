@@ -16,14 +16,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { InchField } from "@/components/inch-field";
 import { MasterChat } from "@/components/master-chat";
-import { ShopDrawings } from "@/components/shop-drawings";
+import { DoNotCutCallout, ShopDrawings } from "@/components/shop-drawings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { interpretPiece } from "@/lib/ai/interpret";
 import { fileToDataUrl } from "@/lib/image";
 import { formatInches, rankIndex } from "@/lib/format";
-import { formatCutAxis } from "@/lib/measure";
+import {
+  editorAxisValue,
+  formatCutAxis,
+  formatCutAxisSource,
+  formatDoNotCut,
+} from "@/lib/measure";
 import { RANK_META } from "@/lib/ranks";
 import { SPECIES } from "@/lib/species";
 import { useStudio } from "@/lib/store";
@@ -91,6 +96,11 @@ export function StudioView() {
 
   const photos = projectPhotos(project);
   const confidencePct = Math.round(project.confidence * 100);
+  const cutHold = formatDoNotCut({
+    doNotCut: packet.doNotCut,
+    scaleConfidence: project.scaleConfidence,
+    scaleNotes: project.scaleNotes,
+  });
 
   async function onAddPhotos(files: FileList | null) {
     if (!files?.length || !project) return;
@@ -208,9 +218,12 @@ export function StudioView() {
                 <li key={`${i}-${src.slice(-8)}`} className="relative">
                   <img
                     src={src}
-                    alt={`Angle ${i + 1}`}
+                    alt={`Photo ${i + 1}`}
                     className="aspect-square w-full rounded-xs object-cover"
                   />
+                  <span className="pointer-events-none absolute bottom-0.5 left-0.5 rounded-xs bg-ink/75 px-1 font-mono text-[10px] text-paper">
+                    {i + 1}
+                  </span>
                   {src.startsWith("data:") ? (
                     <button
                       type="button"
@@ -429,6 +442,11 @@ export function StudioView() {
             {packet.species.name}
           </p>
         </div>
+        {cutHold && tab !== "Drawings" ? (
+          <div className="border-b border-ink/10 px-4 py-3 print:hidden sm:px-6">
+            <DoNotCutCallout hold={cutHold} />
+          </div>
+        ) : null}
         <div className="flex gap-1 overflow-x-auto px-2 pt-2 sm:px-4">
           {TABS.map((t) => {
             const Icon = TAB_ICON[t];
@@ -478,15 +496,9 @@ export function StudioView() {
                         <td className="py-1.5 pr-2 font-mono">{c.letter}</td>
                         <td className="py-1.5 pr-2">{c.name}</td>
                         <td className="py-1.5 pr-2 font-mono">{c.qty}</td>
-                        <td className="py-1.5 pr-2 font-mono">
-                          {formatCutAxis(c, "thickness")}
-                        </td>
-                        <td className="py-1.5 pr-2 font-mono">
-                          {formatCutAxis(c, "width")}
-                        </td>
-                        <td className="py-1.5 pr-2 font-mono">
-                          {formatCutAxis(c, "length")}
-                        </td>
+                        <StudioDimCell cut={c} axis="thickness" />
+                        <StudioDimCell cut={c} axis="width" />
+                        <StudioDimCell cut={c} axis="length" />
                         <td className="py-1.5 text-ink-soft">{c.fromStock}</td>
                       </tr>
                     ))}
@@ -552,25 +564,28 @@ export function StudioView() {
                       </label>
                       <InchField
                         label="Length"
-                        value={c.length}
+                        value={editorAxisValue(c, "length")}
                         locked={c.locked.length}
                         follows={c.follows.length}
+                        hint={formatCutAxisSource(c, "length") || undefined}
                         onCommit={(n) => setPartOverride(c.id, { length: n })}
                         onUnlock={() => clearPartOverride(c.id, "length")}
                       />
                       <InchField
                         label="Width"
-                        value={c.width}
+                        value={editorAxisValue(c, "width")}
                         locked={c.locked.width}
                         follows={c.follows.width}
+                        hint={formatCutAxisSource(c, "width") || undefined}
                         onCommit={(n) => setPartOverride(c.id, { width: n })}
                         onUnlock={() => clearPartOverride(c.id, "width")}
                       />
                       <InchField
                         label="Thickness"
-                        value={c.thickness}
+                        value={editorAxisValue(c, "thickness")}
                         locked={c.locked.thickness}
                         follows={c.follows.thickness}
+                        hint={formatCutAxisSource(c, "thickness") || undefined}
                         onCommit={(n) => setPartOverride(c.id, { thickness: n })}
                         onUnlock={() => clearPartOverride(c.id, "thickness")}
                       />
@@ -765,5 +780,25 @@ function Fact({ label, value }: { label: string; value: string }) {
       <dt className="text-xs uppercase tracking-wider text-ink-soft">{label}</dt>
       <dd className="mt-1 text-sm">{value}</dd>
     </div>
+  );
+}
+
+function StudioDimCell({
+  cut,
+  axis,
+}: {
+  cut: Parameters<typeof formatCutAxis>[0];
+  axis: Parameters<typeof formatCutAxisSource>[1];
+}) {
+  const source = formatCutAxisSource(cut, axis);
+  return (
+    <td className="py-1.5 pr-2 font-mono">
+      <span className="block">{formatCutAxis(cut, axis)}</span>
+      {source ? (
+        <span className="mt-0.5 block font-sans text-[10px] font-normal leading-snug text-ink-soft">
+          {source}
+        </span>
+      ) : null}
+    </td>
   );
 }
