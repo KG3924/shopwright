@@ -1,11 +1,12 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ImageUp, Link2, LoaderCircle } from "lucide-react";
+import { ImageUp, Link2, LoaderCircle, X } from "lucide-react";
 import { useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toast } from "sonner";
 import { interpretPiece } from "@/lib/ai/interpret";
 import { CATALOG } from "@/lib/catalog";
 import { fileToDataUrl } from "@/lib/image";
 import { useStudio } from "@/lib/store";
+import { MAX_PHOTOS } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
@@ -18,45 +19,64 @@ export function HomeView() {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState<"photo" | "url" | null>(null);
   const [drag, setDrag] = useState(false);
+  const [staged, setStaged] = useState<string[]>([]);
 
   function openCatalog(id: string) {
     loadCatalog(id);
     void navigate({ to: "/studio" });
   }
 
-  async function onFiles(files: FileList | null) {
-    const file = files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Drop a photo or a scan of a plan.");
+  async function stageFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const images = [...files].filter((f) => f.type.startsWith("image/"));
+    if (!images.length) {
+      toast.error("Drop photos or scans of a plan.");
       return;
     }
-    setBusy("photo");
+    const room = MAX_PHOTOS - staged.length;
+    if (room <= 0) {
+      toast.error(`Six photos is the cap. Pick the best angles.`);
+      return;
+    }
+    const take = images.slice(0, room);
+    if (images.length > room) {
+      toast.error(`Kept the first ${room}. Six photos is the cap.`);
+    }
     try {
-      const imageDataUrl = await fileToDataUrl(file);
-      const kind = /plan|blueprint|drawing|schematic/i.test(file.name)
-        ? "blueprint"
-        : "photo";
-      const result = await interpretPiece({
-        data: { imageDataUrl, kind, rank },
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      loadProject({ ...result.project, photoDataUrl: imageDataUrl });
-      void navigate({ to: "/studio" });
+      const urls = await Promise.all(
+        take.map((file) => fileToDataUrl(file, 1100, 0.68)),
+      );
+      setStaged((prev) => [...prev, ...urls].slice(0, MAX_PHOTOS));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not read that photo.");
-    } finally {
-      setBusy(null);
+      toast.error(err instanceof Error ? err.message : "Could not read those photos.");
     }
   }
 
   function onDrop(e: DragEvent) {
     e.preventDefault();
     setDrag(false);
-    void onFiles(e.dataTransfer.files);
+    void stageFiles(e.dataTransfer.files);
+  }
+
+  async function interpretStaged() {
+    if (!staged.length) return;
+    setBusy("photo");
+    try {
+      const kind = "photo";
+      const result = await interpretPiece({
+        data: { imageDataUrls: staged, kind, rank },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      loadProject({ ...result.project, photos: staged, photoDataUrl: staged[0] });
+      void navigate({ to: "/studio" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not read those photos.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function onUrl(e: FormEvent) {
@@ -66,13 +86,21 @@ export function HomeView() {
     setBusy("url");
     try {
       const result = await interpretPiece({
-        data: { url: trimmed, kind: "url", rank },
+        data: {
+          url: trimmed,
+          kind: "url",
+          rank,
+          imageDataUrls: staged.length ? staged : undefined,
+        },
       });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      loadProject(result.project);
+      loadProject({
+        ...result.project,
+        photos: staged.length ? staged : result.project.photos,
+      });
       void navigate({ to: "/studio" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not read that link.");
@@ -90,9 +118,9 @@ export function HomeView() {
         Build the piece you saw — not a clone, a shop-buildable reading of it.
       </h1>
       <p className="mt-5 max-w-xl text-muted">
-        Drop a photo. Shopwright infers the structure you cannot see, then
-        compiles a cut list, fasteners, lumber stop, and a tutorial for your
-        rank. Lock the size to the alcove. Pick how the underside goes together.
+        Drop several angles — front, side, underside, a tape in frame. Shopwright
+        compiles a cut list, shop drawings, and a tutorial. Then size every
+        board, not just the overall box.
       </p>
 
       <div
@@ -112,30 +140,80 @@ export function HomeView() {
               <ImageUp className="size-5" />
             </span>
             <div>
-              <p className="font-medium">Drop a photo or a scanned plan</p>
+              <p className="font-medium">Add photos — more angles, better reading</p>
               <p className="mt-1 max-w-md text-sm text-muted">
-                Furniture on a site, a piece in the wild, a napkin sketch with
-                numbers. Interpretation first — you confirm before you cut.
+                Front, side, back, underside, a detail, a tape. Up to six. Then
+                interpret once.
               </p>
             </div>
           </div>
           <Button
             type="button"
+            variant="ghost"
             disabled={busy !== null}
             onClick={() => inputRef.current?.click()}
           >
-            {busy === "photo" ? (
-              <LoaderCircle className="size-4 animate-spin" />
-            ) : null}
-            {busy === "photo" ? "Reading the photo" : "Upload a photo"}
+            Add photos
           </Button>
           <input
             ref={inputRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
-            onChange={(e) => void onFiles(e.target.files)}
+            onChange={(e) => {
+              void stageFiles(e.target.files);
+              e.target.value = "";
+            }}
           />
+        </div>
+
+        {staged.length ? (
+          <ul className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {staged.map((src, i) => (
+              <li key={`${i}-${src.slice(-12)}`} className="relative">
+                <img
+                  src={src}
+                  alt={`Angle ${i + 1}`}
+                  className="aspect-square w-full rounded-sm object-cover"
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove photo ${i + 1}`}
+                  onClick={() => setStaged((prev) => prev.filter((_, j) => j !== i))}
+                  className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-sm bg-bg/80 text-fg"
+                >
+                  <X className="size-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            disabled={busy !== null || staged.length === 0}
+            onClick={() => void interpretStaged()}
+          >
+            {busy === "photo" ? (
+              <LoaderCircle className="size-4 animate-spin" />
+            ) : null}
+            {busy === "photo"
+              ? "Reading the photos"
+              : staged.length
+                ? `Interpret ${staged.length} photo${staged.length === 1 ? "" : "s"}`
+                : "Interpret photos"}
+          </Button>
+          {staged.length ? (
+            <button
+              type="button"
+              className="h-11 text-sm text-muted hover:text-fg"
+              onClick={() => setStaged([])}
+            >
+              Clear photos
+            </button>
+          ) : null}
         </div>
 
         <form
@@ -166,8 +244,8 @@ export function HomeView() {
           <div>
             <h2 className="font-display text-2xl">Studio pieces</h2>
             <p className="mt-1 text-sm text-muted">
-              Start from a known form. Same packet as a photo — size, species,
-              and construction still change everything.
+              Start from a known form. Same packet — drawings, per-part sizes,
+              species, construction.
             </p>
           </div>
         </div>

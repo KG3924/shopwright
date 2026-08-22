@@ -7,6 +7,7 @@ import { techniquesFor } from "./techniques";
 import type {
   CutRow,
   Overall,
+  PartOverride,
   Project,
   ProjectTemplate,
   Rank,
@@ -21,6 +22,8 @@ export function instantiate(
     speciesId?: string;
     rank?: Rank;
     photoDataUrl?: string;
+    photos?: string[];
+    partOverrides?: Record<string, PartOverride>;
     overallSource?: Project["overallSource"];
     sourceKind?: Project["sourceKind"];
     sourceLabel?: string;
@@ -29,13 +32,22 @@ export function instantiate(
     uncertainties?: string[];
   } = {},
 ): Project {
+  const photos =
+    opts.photos ??
+    (opts.photoDataUrl
+      ? [opts.photoDataUrl]
+      : template.image
+        ? [template.image]
+        : []);
   return {
     ...template,
     overall: opts.overall ?? { ...template.overall },
     routeId: opts.routeId ?? template.defaultRoute,
     speciesId: opts.speciesId ?? template.defaultSpecies,
     rank: opts.rank ?? "beginner",
-    photoDataUrl: opts.photoDataUrl,
+    photoDataUrl: opts.photoDataUrl ?? photos[0],
+    photos,
+    partOverrides: opts.partOverrides ?? {},
     overallSource: opts.overallSource ?? "catalog",
     sourceKind: opts.sourceKind ?? "catalog",
     sourceLabel: opts.sourceLabel,
@@ -49,6 +61,7 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
   const route =
     project.routes.find((r) => r.id === project.routeId) ?? project.routes[0]!;
   const species = getSpecies(project.speciesId);
+  const overrides = project.partOverrides ?? {};
 
   const cuts: CutRow[] = project.parts
     .filter((p) => {
@@ -57,18 +70,30 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
       return true;
     })
     .map((p) => {
-      const d = resolvePart(p, project.overall);
+      const over = overrides[p.id];
+      const d = resolvePart(p, project.overall, over);
       return {
         id: p.id,
         name: p.name,
-        qty: p.qty,
+        qty: d.qty,
         length: d.length,
         width: d.width,
         thickness: d.thickness,
         stock: p.stock,
         grain: p.grain,
         notes: p.notes,
-        boardFeet: partBoardFeet(p, project.overall),
+        boardFeet: partBoardFeet(p, project.overall, over),
+        locked: {
+          length: over?.length != null,
+          width: over?.width != null,
+          thickness: over?.thickness != null,
+          qty: over?.qty != null,
+        },
+        follows: {
+          length: p.length.from,
+          width: p.width.from,
+          thickness: p.thickness.from,
+        },
       };
     });
 
@@ -110,6 +135,14 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
   if (project.overallSource !== "labeled" && project.sourceKind !== "catalog") {
     warnings.push(
       "Overall size is interpreted, not measured. Lock width, depth, and height to the space before you cut.",
+    );
+  }
+  const lockedCount = cuts.filter(
+    (c) => c.locked.length || c.locked.width || c.locked.thickness,
+  ).length;
+  if (lockedCount) {
+    warnings.push(
+      `${lockedCount} part${lockedCount === 1 ? "" : "s"} locked to a custom size and will not follow overall W/D/H. Reset a part to make it track again.`,
     );
   }
   if (species.id === "walnut" && boardFeet > 12) {

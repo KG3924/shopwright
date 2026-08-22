@@ -25,13 +25,15 @@ width:  { from: "d", offset: 0 }
 thickness: { from: "fixed", offset: 0.75 }
 ```
 
-A long apron is `{ from: "w", offset: -3 }` because two 1½" legs eat three inches. Drag the width slider; the apron follows.
+A long apron is `{ from: "w", offset: -3 }` because two 1½" legs eat three inches. Drag the width slider; the apron follows. Type 52" on the top panel and that length locks (`partOverrides`) so overall W can keep moving without dragging that board.
 
 Routes (`pocket`, `dado`, `mortise`, …) filter hardware, steps, and sometimes parts (a slab door vs. frame-and-panel).
 
+Shop drawings (elevations, exploded assembly, part tickets) are SVG compiled from the resolved cut list, so a locked part shows up on the drawing the same turn.
+
 ## Hydration from a photo
 
-The vision model returns JSON: name, overall, confidence, uncertainties, optional `templateId`. If `templateId` matches a studio piece, we **scale that template** to the inferred overall size. That is what makes a photo of a bench produce a real cut list instead of hallucinated joinery.
+The vision model returns JSON: name, overall, confidence, uncertainties, optional `templateId`. You can send up to six photos of the same piece; the first three go at high detail. If `templateId` matches a studio piece, we **scale that template** to the inferred overall size. That is what makes a photo of a bench produce a real cut list instead of hallucinated joinery.
 
 If it matches nothing, parts come back as raw inches and we infer which axis they track from the part name and proximity to overall W/D/H.
 

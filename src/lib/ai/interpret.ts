@@ -3,9 +3,11 @@ import { matchTemplate } from "../catalog";
 import { instantiate } from "../compile";
 import { inferDim } from "../parametric";
 import type { Overall, Part, Project, Rank } from "../types";
+import { MAX_PHOTOS } from "../types";
 
 type InterpretInput = {
   imageDataUrl?: string;
+  imageDataUrls?: string[];
   url?: string;
   note?: string;
   kind: "photo" | "url" | "blueprint";
@@ -48,17 +50,19 @@ function extractJson(text: string): AiJson | null {
 
 const SYSTEM = `You are Shopwright, a master furniture maker who reverse-engineers pieces into shop-buildable interpretations — not clones.
 
-Given a photo (or a product page excerpt), return ONLY JSON with this shape:
+You may receive several photos of the SAME piece from different angles (front, side, back, underside, detail, a tape in frame). Use ALL of them. Extra angles of joinery or the underside should raise confidence and shrink the uncertainty list.
+
+Return ONLY JSON with this shape:
 {
   "name": "short name",
   "category": "bench|table|case|bookcase|cabinet|chair|other",
   "templateId": "bench|console|bookcase|coffee-table|cabinet|adirondack|null",
-  "interpretation": "2-4 sentences: what it is, what you can see, what you are inferring",
+  "interpretation": "2-4 sentences: what it is, what you can see across the photos, what you are inferring",
   "confidence": 0.0-1.0,
   "overall": { "w": inches, "d": inches, "h": inches },
   "overallSource": "labeled|estimated|assumed",
   "speciesGuess": "maple|walnut|white-oak|red-oak|pine|cedar|poplar|plywood-oak",
-  "uncertainties": ["what is not visible, especially underside/joinery"],
+  "uncertainties": ["what is still not visible after all photos"],
   "suggestedRouteId": "pocket|dado|mortise|dovetail|screwed|frame|dowel|adjustable|plugged",
   "parts": optional array if it does NOT match a templateId. Each: {name, qty, lengthIn, widthIn, thicknessIn, stock}
 }
@@ -66,11 +70,11 @@ Given a photo (or a product page excerpt), return ONLY JSON with this shape:
 Rules:
 - This is an INTERPRETATION a competent shop would build, not a factory reproduction.
 - If dimensions are labeled on a blueprint or product graphic, use them (overallSource: labeled).
-- If not, estimate from typical furniture proportions (estimated) or assume a common size (assumed) and say so.
+- If a tape, ruler, or known object is in frame, prefer that scale.
 - Call out hidden construction. Never invent cam-locks or exact factory joinery as fact.
 - Prefer templateId when the piece is clearly a bench, console/credenza/nightstand, bookcase, coffee table, wall cabinet, or Adirondack.
 - Inches, not mm. Typical stock: 0.75, 0.5, 0.25, 1.5.
-- confidence < 0.7 if you cannot see the underside or joinery.`;
+- confidence < 0.7 if you still cannot see the underside or joinery after every photo.`;
 
 async function grokChat(messages: unknown[], maxTokens: number): Promise<string> {
   const apiKey = process.env.XAI_API_KEY;
@@ -99,7 +103,7 @@ async function grokChat(messages: unknown[], maxTokens: number): Promise<string>
   return body.choices[0]?.message.content ?? "";
 }
 
-function hydrate(ai: AiJson, input: InterpretInput): Project {
+function hydrate(ai: AiJson, input: InterpretInput, photos: string[]): Project {
   const template = matchTemplate(ai.templateId ?? ai.category, ai.name);
   const overall: Overall = {
     w: clamp(ai.overall?.w ?? template?.overall.w ?? 36, 8, 120),
@@ -127,6 +131,7 @@ function hydrate(ai: AiJson, input: InterpretInput): Project {
       overall,
       rank: input.rank,
       speciesId,
+      photos,
       routeId: ai.suggestedRouteId && template.routes.some((r) => r.id === ai.suggestedRouteId)
         ? ai.suggestedRouteId
         : template.defaultRoute,
@@ -160,11 +165,11 @@ function hydrate(ai: AiJson, input: InterpretInput): Project {
       id: "custom",
       name: ai.name ?? "Interpreted piece",
       category: ai.category ?? "other",
-      blurb: "Interpreted from a photo.",
+      blurb: "Interpreted from photos.",
       image: "",
       overall,
       parts: parts.length ? parts : fallback.parts,
-      interpretation: ai.interpretation ?? "Interpreted from the photo.",
+      interpretation: ai.interpretation ?? "Interpreted from the photos.",
       confidence: ai.confidence ?? 0.55,
       uncertainties: ai.uncertainties ?? [
         "Custom interpretation — verify every dimension.",
@@ -174,6 +179,7 @@ function hydrate(ai: AiJson, input: InterpretInput): Project {
       overall,
       rank: input.rank,
       speciesId,
+      photos,
       overallSource: ai.overallSource ?? "estimated",
       sourceKind: input.kind,
       sourceLabel: input.url,
@@ -184,6 +190,14 @@ function hydrate(ai: AiJson, input: InterpretInput): Project {
 function clamp(n: number, min: number, max: number) {
   if (!Number.isFinite(n)) return min;
   return Math.min(max, Math.max(min, n));
+}
+
+function collectPhotos(data: InterpretInput): string[] {
+  const list = [
+    ...(data.imageDataUrls ?? []),
+    ...(data.imageDataUrl ? [data.imageDataUrl] : []),
+  ].filter(Boolean);
+  return [...new Set(list)].slice(0, MAX_PHOTOS);
 }
 
 async function fetchUrlExcerpt(url: string): Promise<{ title: string; text: string; image?: string }> {
@@ -215,8 +229,9 @@ export const interpretPiece = createServerFn({ method: "POST" })
       if (!process.env.XAI_API_KEY) {
         return { ok: false as const, error: "AI is not available in this environment" };
       }
-      if (data.imageDataUrl && data.imageDataUrl.length > 1_800_000) {
-        return { ok: false as const, error: "Photo is too large. Try a smaller image." };
+      const photos = collectPhotos(data);
+      if (photos.some((p) => p.length > 1_400_000)) {
+        return { ok: false as const, error: "A photo is too large. Try a smaller image." };
       }
 
       const userContent: unknown[] = [];
@@ -226,7 +241,7 @@ export const interpretPiece = createServerFn({ method: "POST" })
         try {
           const page = await fetchUrlExcerpt(data.url);
           pageNote = `Product page title: ${page.title}\nExcerpt: ${page.text}`;
-          if (page.image && !data.imageDataUrl) {
+          if (page.image && photos.length === 0) {
             userContent.push({
               type: "image_url",
               image_url: { url: page.image, detail: "high" },
@@ -240,17 +255,19 @@ export const interpretPiece = createServerFn({ method: "POST" })
         }
       }
 
-      if (data.imageDataUrl) {
+      photos.forEach((url, i) => {
         userContent.push({
           type: "image_url",
-          image_url: { url: data.imageDataUrl, detail: "high" },
+          image_url: { url, detail: i < 3 ? "high" : "low" },
         });
-      }
+      });
 
       const prompt = [
         data.kind === "blueprint"
-          ? "This is a dimensioned plan or blueprint. Prefer labeled measurements."
-          : "This is a photograph of a piece of furniture. Interpret a shop-buildable version.",
+          ? "These are dimensioned plans or blueprint scans. Prefer labeled measurements."
+          : photos.length > 1
+            ? `These are ${photos.length} photographs of the same piece from different angles. Combine them. Photo 1 is the primary view; later photos are additional angles (side, back, underside, detail, tape).`
+            : "This is a photograph of a piece of furniture. Interpret a shop-buildable version.",
         data.note ? `Builder note: ${data.note}` : "",
         pageNote,
         "Return JSON only.",
@@ -271,8 +288,7 @@ export const interpretPiece = createServerFn({ method: "POST" })
       if (!ai) {
         return { ok: false as const, error: "Could not parse an interpretation. Try another photo." };
       }
-      const project = hydrate(ai, data);
-      if (data.imageDataUrl) project.photoDataUrl = data.imageDataUrl;
+      const project = hydrate(ai, data, photos);
       return { ok: true as const, project };
     } catch (err) {
       return {

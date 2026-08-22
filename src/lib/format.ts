@@ -26,6 +26,24 @@ export function formatDimTriplet(l: number, w: number, t: number): string {
   return `${formatInches(l)} × ${formatInches(w)} × ${formatInches(t)}`;
 }
 
+export function parseInches(raw: string): number | null {
+  const t = raw.trim().replace(/["″]/g, "").replace(/,/g, "");
+  if (!t) return null;
+  const mixed = t.match(/^(-?\d+(?:\.\d+)?)\s*[- ]\s*(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) {
+    const whole = Number(mixed[1]);
+    const sign = whole < 0 ? -1 : 1;
+    return round32(whole + sign * (Number(mixed[2]) / Number(mixed[3])));
+  }
+  const frac = t.match(/^(-)?(\d+)\s*\/\s*(\d+)$/);
+  if (frac) {
+    return round32((frac[1] ? -1 : 1) * (Number(frac[2]) / Number(frac[3])));
+  }
+  const n = Number(t);
+  if (!Number.isFinite(n)) return null;
+  return round32(n);
+}
+
 export function rankIndex(rank: Rank): number {
   return RANKS.indexOf(rank);
 }

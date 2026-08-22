@@ -12,6 +12,8 @@ export type Axis = "w" | "d" | "h" | "fixed";
 
 export type Stock = "solid" | "plywood" | "hardwood-ply" | "dowel";
 
+export const MAX_PHOTOS = 6;
+
 export type Dim = {
   from: Axis;
   /** If `from` is an overall axis, result = overall[axis] + offset. If fixed, offset is the inch value. */
@@ -28,6 +30,14 @@ export type Part = {
   stock: Stock;
   grain: "length" | "width";
   notes?: string;
+};
+
+/** Locks a part so it no longer follows overall W/D/H. */
+export type PartOverride = {
+  length?: number;
+  width?: number;
+  thickness?: number;
+  qty?: number;
 };
 
 export type ConstructionRoute = {
@@ -84,6 +94,8 @@ export type ProjectTemplate = {
 
 export type Project = ProjectTemplate & {
   photoDataUrl?: string;
+  photos: string[];
+  partOverrides: Record<string, PartOverride>;
   overallSource: "catalog" | "labeled" | "estimated" | "assumed";
   sourceKind: "catalog" | "photo" | "url" | "blueprint";
   sourceLabel?: string;
@@ -103,6 +115,17 @@ export type CutRow = {
   grain: "length" | "width";
   notes?: string;
   boardFeet: number;
+  locked: {
+    length: boolean;
+    width: boolean;
+    thickness: boolean;
+    qty: boolean;
+  };
+  follows: {
+    length: Axis;
+    width: Axis;
+    thickness: Axis;
+  };
 };
 
 export type ShopPacket = {
@@ -158,3 +181,10 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
+
+export function projectPhotos(project: Project): string[] {
+  if (project.photos?.length) return project.photos;
+  if (project.photoDataUrl) return [project.photoDataUrl];
+  if (project.image) return [project.image];
+  return [];
+}

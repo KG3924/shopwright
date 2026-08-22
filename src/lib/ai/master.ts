@@ -46,6 +46,12 @@ Current packet:
 Cut list:
 ${cuts}
 
+${
+  packet.cuts.some((c) => c.locked.length || c.locked.width || c.locked.thickness)
+    ? "Some parts are locked to custom sizes and will not follow overall W/D/H until unlocked."
+    : "Unlocked parts follow overall W/D/H."
+}
+
 Species notes: ${packet.species.indoor} ${packet.species.stain} ${packet.species.weather}
 
 Answer the builder's actual question. If they want a different size, tell them which parts move. If they want a different joint, compare routes. If something is unsafe at their rank, say so and offer the lumberyard or a simpler method. Cap the answer at ~220 words.`;

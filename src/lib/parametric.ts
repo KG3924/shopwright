@@ -1,4 +1,4 @@
-import type { Dim, Overall, Part } from "./types";
+import type { Dim, Overall, Part, PartOverride } from "./types";
 import { boardFeet, round32 } from "./format";
 
 export function resolveDim(dim: Dim, overall: Overall): number {
@@ -9,17 +9,23 @@ export function resolveDim(dim: Dim, overall: Overall): number {
 export function resolvePart(
   part: Part,
   overall: Overall,
-): { length: number; width: number; thickness: number } {
+  override?: PartOverride,
+): { length: number; width: number; thickness: number; qty: number } {
   return {
-    length: resolveDim(part.length, overall),
-    width: resolveDim(part.width, overall),
-    thickness: resolveDim(part.thickness, overall),
+    length: override?.length ?? resolveDim(part.length, overall),
+    width: override?.width ?? resolveDim(part.width, overall),
+    thickness: override?.thickness ?? resolveDim(part.thickness, overall),
+    qty: override?.qty ?? part.qty,
   };
 }
 
-export function partBoardFeet(part: Part, overall: Overall): number {
-  const d = resolvePart(part, overall);
-  return boardFeet(d.length, d.width, d.thickness, part.qty);
+export function partBoardFeet(
+  part: Part,
+  overall: Overall,
+  override?: PartOverride,
+): number {
+  const d = resolvePart(part, overall, override);
+  return boardFeet(d.length, d.width, d.thickness, d.qty);
 }
 
 const W = (offset = 0): Dim => ({ from: "w", offset });

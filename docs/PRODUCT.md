@@ -10,8 +10,9 @@ Most people will never own a clean set of dimensioned plans. They will photograp
 2. **The graph is the product.** Tutorials are compiled from parts, joints, hardware, and a route — not written as a one-off essay per photo.
 3. **Uncertainty is a first-class object.** If the underside is invisible, the builder picks a construction route. Confidence is visible. Warnings are visible.
 4. **Rank changes the packet, not the piece.** A beginner Shaker bench is still that bench. Pocket holes replace mortises; overall size stays.
-5. **Size is parametric.** An alcove that is 62" wide is a slider, not a new design. Dependent parts move.
-6. **Wood has consequences.** Species is not a stain swatch. It is weight, movement, weather, fasteners, and a lumber stop.
+5. **Size is parametric.** An alcove that is 62" wide is a slider, not a new design. Dependent parts move. A single board can be typed and locked so it no longer follows.
+6. **Drawings come from the graph.** Elevations, exploded assembly, and part tickets are compiled from the same cut list the saw will use — not a separate picture.
+7. **Wood has consequences.** Species is not a stain swatch. It is weight, movement, weather, fasteners, and a lumber stop.
 
 ## The builder
 
