@@ -14,7 +14,7 @@
       "Seat": {
         "length": "guessed — verify",
         "width": "guessed — verify",
-        "thickness": "unknown — measure"
+        "thickness": "verify before cut"
       },
       "Leg": {
         "length": "guessed — verify",
@@ -22,7 +22,7 @@
         "thickness": "guessed — verify"
       }
     },
-    "cutHoldIncludes": ["Do not cut yet", "No tape", "Underside not visible"]
+    "cutHoldIncludes": ["Don't cut yet", "No tape", "Underside not visible"]
   },
   "ai": {
     "name": "Guessed stool",

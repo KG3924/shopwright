@@ -100,7 +100,7 @@ describe("measure helpers", () => {
       formatDimSource({ value: 16, source: "inferred", confidence: 0.4 }),
       "guessed — verify",
     );
-    assert.equal(formatDimSource(unknownDim("underside not visible")), "unknown — measure");
+    assert.equal(formatDimSource(unknownDim("underside not visible")), "verify before cut");
     assert.equal(formatDimSource(undefined), "");
   });
 
@@ -120,8 +120,8 @@ describe("measure helpers", () => {
       ],
     });
     assert.ok(hold);
-    assert.equal(hold.headline, "Do not cut yet");
-    assert.match(hold.text, /Do not cut yet/);
+    assert.equal(hold.headline, "Don't cut yet");
+    assert.match(hold.text, /Don't cut yet/);
     assert.match(hold.text, /No tape/);
     assert.match(hold.text, /Underside not visible/);
   });

@@ -100,7 +100,7 @@ export function formatDimSource(dim: MeasuredDim | undefined): string {
       : "measured";
   }
   if (dim.source === "inferred") return "guessed — verify";
-  return "unknown — measure";
+  return "verify before cut";
 }
 
 export function formatCutAxisSource(
@@ -137,7 +137,7 @@ export function formatDoNotCut(flags: {
   const notes = [
     ...new Set((flags.scaleNotes ?? []).map((n) => n.trim()).filter(Boolean)),
   ];
-  const headline = "Do not cut yet";
+  const headline = "Don't cut yet";
   const fallback =
     flags.scaleConfidence === "conflict"
       ? "Scale conflict — confirm with a tape."
