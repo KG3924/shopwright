@@ -26,7 +26,7 @@ export const askMaster = createServerFn({ method: "POST" })
     const cuts = packet.cuts
       .map(
         (c) =>
-          `${c.qty}× ${c.name}: ${formatDimTriplet(c.length, c.width, c.thickness)}`,
+          `${c.letter}  ${c.qty}× ${c.name}: ${formatDimTriplet(c.length, c.width, c.thickness)}  from ${c.fromStock}`,
       )
       .join("\n");
 
@@ -45,6 +45,9 @@ Current packet:
 - Board feet: ${packet.boardFeet.toFixed(1)} · ~${packet.weightLb} lb
 Cut list:
 ${cuts}
+
+Lumber:
+${packet.boards.map((b) => `${b.label} ${b.stock} — ${b.yields}`).join("\n")}
 
 ${
   packet.cuts.some((c) => c.locked.length || c.locked.width || c.locked.thickness)

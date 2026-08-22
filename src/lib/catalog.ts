@@ -1,3 +1,4 @@
+import { feederTemplate } from "./pieces/feeder";
 import type { BuildStep, HardwareItem, Part, ProjectTemplate } from "./types";
 import { dim } from "./parametric";
 
@@ -20,6 +21,7 @@ const benchHardware: HardwareItem[] = [
     qty: 24,
     spec: "1¼\" fine-thread, #8, square drive",
     aisle: "Kreg / wood joinery",
+    where: "Two per apron end, inside face, into the legs.",
     forRoutes: ["pocket"],
   },
   {
@@ -28,6 +30,7 @@ const benchHardware: HardwareItem[] = [
     qty: 1,
     spec: "Titebond II, 8 oz (I indoors) or III (damp shop)",
     aisle: "Adhesives",
+    where: "Every apron-to-leg joint and the top glue-up. Not the top-to-apron joint — that must float.",
   },
   {
     id: "figure8",
@@ -35,6 +38,7 @@ const benchHardware: HardwareItem[] = [
     qty: 6,
     spec: "Zinc, with #6 × ⅝\" screws",
     aisle: "Tabletop hardware",
+    where: "Shallow mortises in the apron edge, 6 around the top. Front can be tight; back must slot.",
     forRoutes: ["pocket", "mortise"],
   },
   {
@@ -43,6 +47,7 @@ const benchHardware: HardwareItem[] = [
     qty: 16,
     spec: "⅜\" × 1½\"",
     aisle: "Joinery",
+    where: "Two per apron end into the leg. Offset so they can't spin.",
     forRoutes: ["dowel"],
   },
 ];
@@ -190,6 +195,7 @@ const consoleSteps: BuildStep[] = [
 ];
 
 export const CATALOG: ProjectTemplate[] = [
+  feederTemplate,
   {
     id: "bench",
     name: "Shaker bench",
@@ -241,10 +247,10 @@ export const CATALOG: ProjectTemplate[] = [
       },
     ],
     parts: [
-      part({ id: "top", name: "Top panel", qty: 1, length: W(0), width: D(0), thickness: F(0.75), notes: "Glue up from 5–6\" boards, then cut to size." }),
-      part({ id: "leg", name: "Leg", qty: 4, length: H(-0.75), width: F(1.5), thickness: F(1.5), notes: "Leave extra and batch-cut to identical length." }),
-      part({ id: "apron-l", name: "Long apron", qty: 2, length: W(-3), width: F(3.5), thickness: F(0.75), notes: "Between 1½\" legs." }),
-      part({ id: "apron-s", name: "Short apron", qty: 2, length: D(-3), width: F(3.5), thickness: F(0.75) }),
+      part({ id: "top", letter: "A", name: "Top panel", qty: 1, length: W(0), width: D(0), thickness: F(0.75), fromStock: "1×6 glue-up, then rip and crosscut", notes: "Glue up from 5–6\" boards, then cut to size." }),
+      part({ id: "leg", letter: "B", name: "Leg", qty: 4, length: H(-0.75), width: F(1.5), thickness: F(1.5), fromStock: "1½\" square · mill or glue-up", notes: "Leave extra and batch-cut to identical length." }),
+      part({ id: "apron-l", letter: "C", name: "Long apron", qty: 2, length: W(-3), width: F(3.5), thickness: F(0.75), fromStock: "1×4", notes: "Between 1½\" legs." }),
+      part({ id: "apron-s", letter: "D", name: "Short apron", qty: 2, length: D(-3), width: F(3.5), thickness: F(0.75), fromStock: "1×4" }),
     ],
     hardware: benchHardware,
     steps: benchSteps,
@@ -691,6 +697,10 @@ export function matchTemplate(
     ["cabinet", "cupboard"],
     ["adirondack", "adirondack"],
     ["adirondack", "chair"],
+    ["feeder", "feeder"],
+    ["feeder", "birdhouse"],
+    ["feeder", "bird feeder"],
+    ["feeder", "hopper"],
   ];
   for (const [id, needle] of hits) {
     if (blob.includes(needle)) return getTemplate(id);

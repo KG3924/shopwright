@@ -4,6 +4,7 @@ import { resolvePart, partBoardFeet } from "./parametric";
 import { getSpecies } from "./species";
 import { sourcesForZip } from "./sourcing";
 import { techniquesFor } from "./techniques";
+import { compileYield, inferFromStock, nextLetter } from "./yield";
 import type {
   CutRow,
   Overall,
@@ -69,11 +70,14 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
       if (p.id === "door" && route.id === "frame") return false;
       return true;
     })
-    .map((p) => {
+    .map((p, i) => {
       const over = overrides[p.id];
       const d = resolvePart(p, project.overall, over);
+      const fromStock =
+        p.fromStock ?? inferFromStock(p.stock, d.thickness, d.width);
       return {
         id: p.id,
+        letter: p.letter ?? nextLetter(i),
         name: p.name,
         qty: d.qty,
         length: d.length,
@@ -82,7 +86,9 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
         stock: p.stock,
         grain: p.grain,
         notes: p.notes,
-        boardFeet: partBoardFeet(p, project.overall, over),
+        fromStock,
+        boardFeet:
+          p.stock === "sheet" ? 0 : partBoardFeet(p, project.overall, over),
         locked: {
           length: over?.length != null,
           width: over?.width != null,
@@ -125,6 +131,7 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
     techIds.push("outdoor-finish");
   }
   const techniques = techniquesFor(techIds, project.rank);
+  const yieldPack = compileYield(project, cuts);
 
   const warnings: string[] = [];
   if (!project.indoor && !species.outdoorOk) {
@@ -160,6 +167,18 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
       "Shelves over ~32\" want a thicker mid-span or a center divider if they're loaded with books.",
     );
   }
+  const catalog = CATALOG.find((t) => t.id === project.id);
+  if (
+    project.buyBoards?.length &&
+    catalog &&
+    (catalog.overall.w !== project.overall.w ||
+      catalog.overall.d !== project.overall.d ||
+      catalog.overall.h !== project.overall.h)
+  ) {
+    warnings.push(
+      "The board-by-board lumber list was written for the original labeled size. Recheck yield after you change overall W / D / H.",
+    );
+  }
 
   return {
     project,
@@ -173,6 +192,7 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
     species,
     sources: sourcesForZip(zip),
     warnings,
+    ...yieldPack,
   };
 }
 

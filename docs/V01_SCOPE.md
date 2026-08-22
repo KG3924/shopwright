@@ -5,15 +5,17 @@ Shipped in this cut:
 - Photo upload → interpretation → studio
 - Up to six photos of the same piece (front, side, underside, tape) in one reading
 - Product URL fetch + interpretation
-- Six studio pieces with photographs
+- Seven studio pieces (the cedar hopper feeder is the shop-plan quality bar)
+- Lettered cut list with a FROM column
+- Board-by-board lumber yield, still-buy / do-not-buy
+- Fasteners with where each one goes
+- Printable shop packet: elevations, stack, lumber, cut list, fasteners, exploded, part tickets
 - Three-ish construction routes per piece
 - Parametric W/D/H with live cut list
 - Per-part size lock — any board’s L / W / T can be typed; it stops following overall
-- Printable shop drawings: elevations, exploded assembly, part tickets
 - Five ranks with gated technique modules
 - Eight species with stain / weather / movement / weight
-- Lumber sourcing biased to Allen / DFW, national big-box fallback
-- Fastener buy lists per route
+- Lumber sourcing for Allen / DFW and Prairieville / Gonzales (70769), national big-box fallback
 - Master Woodworker chat against the current packet
 - Explicit confidence and uncertainty list
 

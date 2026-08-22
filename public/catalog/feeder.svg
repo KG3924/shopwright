@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Cedar hopper feeder">
+  <rect width="800" height="600" fill="#e2d9c6"/>
+  <g transform="translate(400 -30) scale(1.22)">
+    <polygon points="0,20 -210,250 210,250" fill="#d9d0bc" stroke="#1a1714" stroke-width="3"/>
+    <g stroke="#1a1714" stroke-width="1.6" fill="none">
+      <path d="M-28 52 L28 52"/>
+      <path d="M-55 85 L55 85"/>
+      <path d="M-82 118 L82 118"/>
+      <path d="M-110 151 L110 151"/>
+      <path d="M-138 184 L138 184"/>
+      <path d="M-166 217 L166 217"/>
+      <path d="M-194 240 L194 240"/>
+    </g>
+    <rect x="-130" y="250" width="260" height="18" fill="#cfc3ab" stroke="#1a1714" stroke-width="2.5"/>
+    <rect x="-78" y="268" width="28" height="118" fill="#8f7358" stroke="#1a1714" stroke-width="2.5"/>
+    <rect x="50" y="268" width="28" height="118" fill="#8f7358" stroke="#1a1714" stroke-width="2.5"/>
+    <rect x="-50" y="268" width="100" height="108" fill="#d7e0e2" stroke="#1a1714" stroke-width="2.2"/>
+    <path d="M-118 386 L118 386 L118 424 Q0 408 -118 424 Z" fill="#cfc3ab" stroke="#1a1714" stroke-width="2.5"/>
+    <rect x="-150" y="424" width="300" height="28" fill="#8f7358" stroke="#1a1714" stroke-width="3"/>
+    <rect x="-14" y="452" width="28" height="70" fill="#cfc3ab" stroke="#1a1714" stroke-width="2.2"/>
+    <circle cx="0" cy="20" r="7" fill="#8f7358" stroke="#1a1714" stroke-width="2"/>
+  </g>
+</svg>

@@ -77,6 +77,21 @@ export const TECHNIQUES: Technique[] = [
     safety: "Oily rags can spontaneously combust. Water can, lid on, outside.",
   },
   {
+    id: "resaw",
+    name: "Resaw a 1-by into clapboard",
+    autoUntil: "apprentice",
+    tools: ["Table saw", "thin-kerf blade", "tall fence", "push stick", "featherboard"],
+    body: "Do not stand the 1×12 on edge. Rip first, board flat, fence at finished slat width. Then resaw each strip on edge against a tall fence — two passes that meet in the middle, same face on the fence both times. A ¾\" strip minus an ⅛\" kerf split in half is about 5/16\". That is the look. If the kerfs don't meet, raise 1/16\" and go again. A paper-thin web in the middle is fine — snap it and plane the resawn face. Do not force a cut that wants to kick back.",
+    safety: "Unplug to screw a 6–8\" tall scrap of plywood to the fence. Riving knife ON. No loose offcut. Slow.",
+  },
+  {
+    id: "hip-cleat",
+    name: "Hip cleat inside a plywood pyramid",
+    autoUntil: "apprentice",
+    tools: ["Tape", "drill", "#6 screws", "sander or saw"],
+    body: "Two pieces of ½\" plywood cannot pass through each other. At each hip the edges just push together. A hairline gap is fine. Copper and the wooden hip cap cover the outside. The ¾×¾ cleat inside is what actually holds it. Tape the pyramid, flip it, nest a cleat in the valley. If it rocks, knock one corner off until it sits on both inner faces. Four screws per hip, staggered, two through each triangle into the cleat.",
+  },
+  {
     id: "finish-paint",
     name: "Painted casework",
     autoUntil: "novice",

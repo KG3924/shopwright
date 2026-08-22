@@ -19,7 +19,7 @@ npm run dev
 
 Then open [http://localhost:8080](http://localhost:8080). Always start with `npm run dev` — not `vite` directly. The npm script loads app env the rest of the toolchain expects.
 
-The six **studio pieces** (bench, console, bookcase, coffee table, wall cabinet, Adirondack) work with no extra setup. Click one, change size / rank / species, and read the packet.
+The seven **studio pieces** (bench, console, bookcase, coffee table, wall cabinet, Adirondack, cedar hopper feeder) work with no extra setup. Click one, change size / rank / species, and read the packet.
 
 ### Photo, links, and the Master Woodworker
 
@@ -49,7 +49,8 @@ Do not commit the key. Do not put it in a tracked `.env`.
 
 - **Several photos** — up to six angles of the same piece (front, side, underside, a tape in frame). One interpret pass uses all of them.
 - **Product URL** — fetches the page, reads dimensions and images when it can
-- **Studio catalog** — six pieces you can open without a photo
+- **Studio catalog** — seven pieces you can open without a photo, including a full hip-roof hopper feeder
+- **Shop packet** — lettered cut list, board-by-board lumber, fasteners with where they go, printable elevations
 - **Shop drawings** — elevations, exploded assembly, and a part ticket for every board. Print them. They follow the sizes you set.
 - **Per-part size** — overall W / D / H still drive the piece. Type a length on one board to lock it so it no longer follows.
 - **Construction routes** — when the underside is unclear, you pick pocket holes vs. dados vs. dovetails

@@ -372,8 +372,8 @@ export function StudioView() {
             placeholder="75013"
           />
           <p className="mt-2 text-sm text-muted">
-            Allen / North Dallas is mapped in detail. Other ZIPs fall back to
-            big-box.
+            Allen / North Dallas is mapped in detail. 70769 names Gonzales HD
+            and Lowe's. Other ZIPs fall back to big-box.
           </p>
         </div>
       </section>
@@ -421,9 +421,44 @@ export function StudioView() {
           {tab === "Cut list" ? (
             <div className="space-y-4">
               <p className="text-sm text-ink-soft">
-                Edit any board. That size locks and no longer follows overall W /
-                D / H. Unlock to track the piece again.
+                Letter, thickness, width, length, and which board it comes from.
+                Edit any size to lock it. Unlock to track overall W / D / H
+                again.
               </p>
+              <div className="overflow-x-auto print:hidden">
+                <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-ink/20 font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+                      <th className="py-2 pr-2 font-normal">#</th>
+                      <th className="py-2 pr-2 font-normal">Part</th>
+                      <th className="py-2 pr-2 font-normal">Qty</th>
+                      <th className="py-2 pr-2 font-normal">T</th>
+                      <th className="py-2 pr-2 font-normal">W</th>
+                      <th className="py-2 pr-2 font-normal">L</th>
+                      <th className="py-2 font-normal">From</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {packet.cuts.map((c) => (
+                      <tr key={`sum-${c.id}`} className="border-b border-ink/10">
+                        <td className="py-1.5 pr-2 font-mono">{c.letter}</td>
+                        <td className="py-1.5 pr-2">{c.name}</td>
+                        <td className="py-1.5 pr-2 font-mono">{c.qty}</td>
+                        <td className="py-1.5 pr-2 font-mono">
+                          {formatInches(c.thickness)}
+                        </td>
+                        <td className="py-1.5 pr-2 font-mono">
+                          {formatInches(c.width)}
+                        </td>
+                        <td className="py-1.5 pr-2 font-mono">
+                          {formatInches(c.length)}
+                        </td>
+                        <td className="py-1.5 text-ink-soft">{c.fromStock}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <ul className="space-y-4">
                 {packet.cuts.map((c) => (
                   <li
@@ -432,10 +467,18 @@ export function StudioView() {
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <p className="font-medium">{c.name}</p>
+                        <p className="font-medium">
+                          <span className="mr-2 font-mono text-ink-soft">
+                            {c.letter}
+                          </span>
+                          {c.name}
+                        </p>
                         {c.notes ? (
                           <p className="mt-0.5 text-xs text-ink-soft">{c.notes}</p>
                         ) : null}
+                        <p className="mt-1 font-mono text-xs text-ink-soft">
+                          From {c.fromStock}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs capitalize text-ink-soft">
@@ -507,37 +550,102 @@ export function StudioView() {
           {tab === "Hardware" ? (
             <ul className="space-y-3">
               {packet.hardware.map((h) => (
-                <li key={h.id} className="flex gap-4 border-b border-ink/10 pb-3">
-                  <span className="font-mono tabular-nums text-ink-soft">
-                    {h.qty}×
-                  </span>
-                  <span>
-                    <span className="block font-medium">{h.name}</span>
-                    <span className="text-sm text-ink-soft">
-                      {h.spec} · {h.aisle}
+                <li key={h.id} className="border-b border-ink/10 pb-3">
+                  <span className="flex gap-4">
+                    <span className="font-mono tabular-nums text-ink-soft">
+                      {h.qty}×
+                    </span>
+                    <span>
+                      <span className="block font-medium">{h.name}</span>
+                      <span className="text-sm text-ink-soft">
+                        {h.spec} · {h.aisle}
+                      </span>
                     </span>
                   </span>
+                  {h.where ? (
+                    <p className="mt-2 pl-10 text-sm leading-relaxed">
+                      {h.where}
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ul>
           ) : null}
 
           {tab === "Lumber" ? (
-            <ul className="space-y-3">
-              {packet.sources.map((s) => (
-                <li key={s.id} className="border-b border-ink/10 pb-3">
-                  <p className="font-medium">
-                    {s.name}
-                    <span className="ml-2 font-sans text-sm font-normal text-ink-soft">
-                      {s.city}
-                      {s.miles ? ` · ${s.miles} mi` : ""}
-                    </span>
+            <div className="space-y-6">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+                  Your lumber
+                </p>
+                <p className="mt-1 text-sm text-ink-soft">
+                  {packet.boards.reduce((s, b) => s + b.bdft, 0).toFixed(1)} nom.
+                  bd ft on the rack · {packet.boardFeet.toFixed(1)} net in the
+                  parts.
+                </p>
+                <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {packet.boards.map((b) => (
+                    <li
+                      key={b.id}
+                      className="rounded-sm border border-ink/10 p-3"
+                    >
+                      <p className="flex flex-wrap items-baseline justify-between gap-2 font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+                        <span>{b.label}</span>
+                        <span>
+                          {b.stock}
+                          {b.spare ? " · spare" : ""}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-sm font-medium">{b.role}</p>
+                      <p className="mt-1 font-mono text-xs text-ink-soft">
+                        {b.yields}
+                      </p>
+                      <p className="mt-2 text-sm leading-relaxed">{b.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {packet.stillBuy.length ? (
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+                    Still buy
                   </p>
-                  <p className="text-sm text-ink-soft">{s.carries}</p>
-                  <p className="mt-1 text-sm">{s.note}</p>
-                </li>
-              ))}
-            </ul>
+                  <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
+                    {packet.stillBuy.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {packet.doNotBuy.length ? (
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+                    Do not buy
+                  </p>
+                  <p className="mt-2 text-sm">{packet.doNotBuy.join(" · ")}</p>
+                </div>
+              ) : null}
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+                  Yards for this ZIP
+                </p>
+                <ul className="mt-3 space-y-3">
+                  {packet.sources.map((s) => (
+                    <li key={s.id} className="border-b border-ink/10 pb-3">
+                      <p className="font-medium">
+                        {s.name}
+                        <span className="ml-2 font-sans text-sm font-normal text-ink-soft">
+                          {s.city}
+                          {s.miles ? ` · ${s.miles} mi` : ""}
+                        </span>
+                      </p>
+                      <p className="text-sm text-ink-soft">{s.carries}</p>
+                      <p className="mt-1 text-sm">{s.note}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           ) : null}
 
           {tab === "Build" ? (

@@ -1,6 +1,6 @@
 import type { LumberSource } from "./types";
 
-/** v0.1: Allen / North Dallas is the home region. Other ZIPs fall back to national big-box. */
+/** v0.1: Allen / North Dallas plus Prairieville / Gonzales. Other ZIPs fall back to national big-box. */
 export const SOURCES: LumberSource[] = [
   {
     id: "hd-allen",
@@ -63,6 +63,48 @@ export const SOURCES: LumberSource[] = [
     regions: ["75002", "75013", "dfw"],
   },
   {
+    id: "hd-gonzales",
+    name: "Home Depot Gonzales",
+    kind: "big-box",
+    city: "Gonzales, LA",
+    miles: 4,
+    carries:
+      "Dimensional lumber, cedar, ½\" project panels, stainless screws, Titebond III, floor flanges, Penofin",
+    note: "2740 S Cajun Ave · (225) 644-5670. Buy the 24×48 × ½\" panel, not 24×24. Stainless, glue, flange, oil.",
+    regions: [
+      "70769",
+      "70737",
+      "70734",
+      "70726",
+      "70809",
+      "70810",
+      "70816",
+      "70817",
+      "br",
+    ],
+  },
+  {
+    id: "lowes-gonzales",
+    name: "Lowe's Gonzales",
+    kind: "big-box",
+    city: "Gonzales, LA",
+    miles: 6,
+    carries:
+      "Cedar, poplar, sheet goods, copper roll flashing, stainless, Titebond",
+    note: "12484 Airline Hwy · (225) 644-0929. Copper flashing 8\"×20' lives here. Backup for HD on screws, flange, oil.",
+    regions: [
+      "70769",
+      "70737",
+      "70734",
+      "70726",
+      "70809",
+      "70810",
+      "70816",
+      "70817",
+      "br",
+    ],
+  },
+  {
     id: "hd-national",
     name: "Home Depot (local)",
     kind: "big-box",
@@ -87,8 +129,12 @@ export const SOURCES: LumberSource[] = [
 export function sourcesForZip(zip: string): LumberSource[] {
   const z = zip.trim();
   const dfw = /^(75|76)\d{3}$/.test(z);
+  const br = /^(707|708)\d{2}$/.test(z);
   const local = SOURCES.filter(
-    (s) => s.regions.includes(z) || (dfw && s.regions.includes("dfw")),
+    (s) =>
+      s.regions.includes(z) ||
+      (dfw && s.regions.includes("dfw")) ||
+      (br && s.regions.includes("br")),
   );
   if (local.length) {
     return local.sort((a, b) => a.miles - b.miles);

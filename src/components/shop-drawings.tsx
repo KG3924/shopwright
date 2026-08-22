@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Printer } from "lucide-react";
 import { formatDimTriplet, formatInches } from "@/lib/format";
 import { RANK_META } from "@/lib/ranks";
-import type { CutRow, Project, ShopPacket } from "@/lib/types";
+import type { CutRow, HardwareItem, Project, ShopPacket } from "@/lib/types";
 import { Button } from "./ui/button";
 
 const INK = "var(--color-ink)";
@@ -19,9 +19,9 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
     <div className="shop-drawings space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <p className="max-w-xl text-sm text-ink-soft">
-          Shop drawings for this packet. Do not scale the pictures — cut to the
-          numbers. Unlocked parts follow overall W / D / H; locked parts stay
-          put. Print landscape if you take them to the saw.
+          Full shop packet. Do not scale the pictures — cut to the numbers.
+          Unlocked parts follow overall W / D / H; locked parts stay put. Print
+          landscape; every sheet below goes to the printer.
         </p>
         <Button
           type="button"
@@ -31,7 +31,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
           onClick={() => window.print()}
         >
           <Printer className="size-4" />
-          Print drawings
+          Print shop packet
         </Button>
       </div>
 
@@ -43,22 +43,52 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         <p className="mb-4 max-w-2xl text-sm text-ink-soft">
           {project.interpretation}
         </p>
+        <StackList stack={packet.stack} />
         <Elevations packet={packet} family={family} />
+        {project.uncertainties.length ? (
+          <div className="mt-5 rounded-sm border border-ink/10 bg-paper p-3">
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+              What is inferred
+            </p>
+            <ul className="mt-2 space-y-1 text-sm text-ink-soft">
+              {project.uncertainties.map((u) => (
+                <li key={u}>{u}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <p className="mt-4 font-mono text-xs text-ink-soft">
           Scale: not to scale. Confirm plywood thickness before cutting dados.
-          Grain on tops and shelves runs the length unless a part ticket says
+          Grain on tops and shelves runs the length unless a ticket says
           otherwise.
         </p>
       </Sheet>
 
       <Sheet
-        title="Exploded assembly"
+        title="Your lumber"
         sheet="2"
+        meta={`${packet.boards.reduce((s, b) => s + b.bdft, 0).toFixed(1)} nom. bd ft on the rack  ·  ${packet.boardFeet.toFixed(1)} net in the parts`}
+      >
+        <LumberSheet packet={packet} />
+      </Sheet>
+
+      <Sheet
+        title="Cut list + every fastener"
+        sheet="3"
+        meta="Shop order is the page order. Fastener table is what to buy and where each one goes."
+      >
+        <CutListTable cuts={cuts} />
+        <FastenerTable hardware={packet.hardware} />
+      </Sheet>
+
+      <Sheet
+        title="Exploded assembly"
+        sheet="4"
         meta={`${cuts.length} parts  ·  ${route.joinery}`}
       >
         <Exploded packet={packet} family={family} />
         <ol className="mt-5 grid gap-3 sm:grid-cols-2">
-          {packet.steps.slice(0, 6).map((step, i) => (
+          {packet.steps.map((step, i) => (
             <li key={step.id} className="border-t border-ink/10 pt-2">
               <p className="font-mono text-[10px] text-ink-soft">
                 {String(i + 1).padStart(2, "0")} · assembly
@@ -74,21 +104,32 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
 
       <Sheet
         title="Part tickets"
-        sheet="3"
+        sheet="5"
         meta={`${cuts.length} parts  ·  ${packet.boardFeet.toFixed(1)} bd ft  ·  ~${packet.weightLb} lb`}
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          {cuts.map((cut, i) => (
-            <PartTicket key={cut.id} cut={cut} index={i + 1} />
+          {cuts.map((cut) => (
+            <PartTicket key={cut.id} cut={cut} />
           ))}
         </div>
       </Sheet>
+
+      {family === "feeder" ? (
+        <Sheet
+          title="Joinery — posts, hips, resaw"
+          sheet="6"
+          meta="The two faces butt. They do not cross."
+        >
+          <FeederJoinery />
+        </Sheet>
+      ) : null}
     </div>
   );
 }
 
-function drawingFamily(project: Project): "table" | "case" | "chair" {
+function drawingFamily(project: Project): "table" | "case" | "chair" | "feeder" {
   const { category, id } = project;
+  if (id === "feeder" || category === "feeder") return "feeder";
   if (id === "adirondack" || category === "chair") return "chair";
   if (
     category === "bookcase" ||
@@ -135,15 +176,163 @@ function Sheet({
   );
 }
 
+function StackList({ stack }: { stack: string[] }) {
+  if (!stack.length) return null;
+  return (
+    <div className="mb-5 rounded-sm border border-ink/15 bg-paper p-3">
+      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+        Stack (locked)
+      </p>
+      <ul className="mt-2 columns-1 gap-x-8 text-sm sm:columns-2">
+        {stack.map((line) => (
+          <li key={line} className="break-inside-avoid py-0.5">
+            {line}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function LumberSheet({ packet }: { packet: ShopPacket }) {
+  const spare = packet.boards.filter((b) => b.spare);
+  const work = packet.boards.filter((b) => !b.spare);
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-ink-soft">
+        Cut the working boards first. Spare stays on the rack until you blow a
+        cut. Net in the parts is {packet.boardFeet.toFixed(1)} bd ft.
+      </p>
+      <ul className="grid gap-3 sm:grid-cols-2">
+        {work.map((b) => (
+          <li key={b.id} className="rounded-sm border border-ink/15 p-3">
+            <p className="flex flex-wrap items-baseline justify-between gap-2 font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+              <span>{b.label}</span>
+              <span>
+                {b.stock} · {b.bdft} nom. bd ft
+              </span>
+            </p>
+            <p className="mt-1 text-sm font-medium">{b.role}</p>
+            <p className="mt-1 font-mono text-xs text-ink-soft">{b.yields}</p>
+            <p className="mt-2 text-sm leading-relaxed text-ink-soft">{b.body}</p>
+          </li>
+        ))}
+      </ul>
+      {spare.length ? (
+        <p className="text-sm text-ink-soft">
+          Spare on the rack: {spare.map((b) => `${b.label} ${b.stock}`).join(" · ")}.
+          Do not cut until the working boards are done.
+        </p>
+      ) : null}
+      {packet.stillBuy.length ? (
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+            Still buy
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
+            {packet.stillBuy.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {packet.doNotBuy.length ? (
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+            Do not buy
+          </p>
+          <p className="mt-2 text-sm text-ink-soft">{packet.doNotBuy.join(" · ")}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CutListTable({ cuts }: { cuts: CutRow[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
+        <thead>
+          <tr className="border-b border-ink/20 font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+            <th className="py-2 pr-2 font-normal">#</th>
+            <th className="py-2 pr-2 font-normal">Part</th>
+            <th className="py-2 pr-2 font-normal">Qty</th>
+            <th className="py-2 pr-2 font-normal">T</th>
+            <th className="py-2 pr-2 font-normal">W</th>
+            <th className="py-2 pr-2 font-normal">L</th>
+            <th className="py-2 font-normal">From</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cuts.map((c) => (
+            <tr key={c.id} className="border-b border-ink/10 align-top">
+              <td className="py-2 pr-2 font-mono">{c.letter}</td>
+              <td className="py-2 pr-2">
+                {c.name}
+                {c.locked.length || c.locked.width || c.locked.thickness ? (
+                  <span className="ml-1 text-xs text-ink-soft">locked</span>
+                ) : null}
+              </td>
+              <td className="py-2 pr-2 font-mono">{c.qty}</td>
+              <td className="py-2 pr-2 font-mono">{formatInches(c.thickness)}</td>
+              <td className="py-2 pr-2 font-mono">{formatInches(c.width)}</td>
+              <td className="py-2 pr-2 font-mono">{formatInches(c.length)}</td>
+              <td className="py-2 text-ink-soft">{c.fromStock}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function FastenerTable({ hardware }: { hardware: HardwareItem[] }) {
+  return (
+    <div className="mt-6">
+      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+        Fasteners — buy these, used here
+      </p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
+          <thead>
+            <tr className="border-b border-ink/20 font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+              <th className="py-2 pr-2 font-normal">Buy</th>
+              <th className="py-2 pr-2 font-normal">Qty</th>
+              <th className="py-2 font-normal">Where they go</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hardware.map((h) => (
+              <tr key={h.id} className="border-b border-ink/10 align-top">
+                <td className="py-2 pr-2">
+                  <span className="block font-medium">{h.name}</span>
+                  <span className="text-xs text-ink-soft">
+                    {h.spec} · {h.aisle}
+                  </span>
+                </td>
+                <td className="py-2 pr-2 font-mono">{h.qty}</td>
+                <td className="py-2 text-ink-soft">{h.where ?? "See assembly."}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function Elevations({
   packet,
   family,
 }: {
   packet: ShopPacket;
-  family: "table" | "case" | "chair";
+  family: "table" | "case" | "chair" | "feeder";
 }) {
   const { project, cuts } = packet;
   const { w, d, h } = project.overall;
+  if (family === "feeder") {
+    return <FeederElevations packet={packet} />;
+  }
   if (family === "chair") {
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
@@ -503,7 +692,7 @@ function PlanView({
 }: {
   w: number;
   d: number;
-  family: "table" | "case" | "chair";
+  family: "table" | "case" | "chair" | "feeder";
   cuts: CutRow[];
 }) {
   const leg = findCut(cuts, /(^leg$|\bleg\b)/i);
@@ -565,10 +754,13 @@ function Exploded({
   family,
 }: {
   packet: ShopPacket;
-  family: "table" | "case" | "chair";
+  family: "table" | "case" | "chair" | "feeder";
 }) {
   const { project, cuts } = packet;
   const { w, d, h } = project.overall;
+  if (family === "feeder") {
+    return <FeederExploded cuts={cuts} w={w} d={d} h={h} />;
+  }
   if (family === "chair") {
     return <ChairExploded cuts={cuts} w={w} d={d} h={h} />;
   }
@@ -683,7 +875,7 @@ function TableExploded({
   const explode = Math.max(w, d, h) * 0.22;
   const idx = (id?: string) => {
     const i = cuts.findIndex((c) => c.id === id);
-    return i >= 0 ? String(i + 1).padStart(2, "0") : undefined;
+    return i >= 0 ? cuts[i]!.letter : undefined;
   };
   const boxes: IsoSpec[] = [
     { x: -explode * 0.2, y: -explode * 0.2, z: 0, w: legW, d: legW, h: h - topT, mark: idx(leg?.id) },
@@ -751,7 +943,7 @@ function CaseExploded({
   const explode = Math.max(w, h) * 0.16;
   const idx = (id?: string) => {
     const i = cuts.findIndex((c) => c.id === id);
-    return i >= 0 ? String(i + 1).padStart(2, "0") : undefined;
+    return i >= 0 ? cuts[i]!.letter : undefined;
   };
   const nShelves = Math.min(shelf?.qty ?? 3, 5);
   const boxes: IsoSpec[] = [
@@ -819,7 +1011,7 @@ function ChairExploded({
       w: Math.min(c.length, w * 0.48),
       d: Math.max(Math.min(c.width, 6), 1.5),
       h: Math.max(c.thickness * 4, 1.2),
-      mark: String(i + 1).padStart(2, "0"),
+      mark: c.letter,
     };
   });
   return (
@@ -833,9 +1025,9 @@ function ChairExploded({
 function Legend({ cuts }: { cuts: CutRow[] }) {
   return (
     <ol className="space-y-1.5 font-mono text-xs text-ink">
-      {cuts.map((c, i) => (
+      {cuts.map((c) => (
         <li key={c.id} className="flex gap-2">
-          <span className="w-6 shrink-0 text-ink-soft">{String(i + 1).padStart(2, "0")}</span>
+          <span className="w-6 shrink-0 text-ink-soft">{c.letter}</span>
           <span>
             <span className="block font-sans text-sm font-medium">{c.name}</span>
             <span className="text-ink-soft">
@@ -849,7 +1041,7 @@ function Legend({ cuts }: { cuts: CutRow[] }) {
   );
 }
 
-function PartTicket({ cut, index }: { cut: CutRow; index: number }) {
+function PartTicket({ cut }: { cut: CutRow }) {
   const max = Math.max(cut.length, cut.width, 1);
   const w = (cut.length / max) * 78 + 8;
   const h = Math.max((cut.width / max) * 32, 10);
@@ -859,7 +1051,7 @@ function PartTicket({ cut, index }: { cut: CutRow; index: number }) {
   return (
     <article className="rounded-sm border border-ink/15 p-3">
       <p className="flex items-baseline justify-between gap-2 font-mono text-xs text-ink-soft">
-        <span>P{String(index).padStart(2, "0")}</span>
+        <span>{cut.letter}</span>
         <span>
           qty {cut.qty}
           {locked ? " · locked" : ""}
@@ -909,7 +1101,225 @@ function PartTicket({ cut, index }: { cut: CutRow; index: number }) {
         {formatDimTriplet(cut.length, cut.width, cut.thickness)} · {cut.stock}
         {cut.grain === "length" ? " · grain long" : " · grain across"}
       </p>
+      <p className="mt-1 font-mono text-xs text-ink-soft">From {cut.fromStock}</p>
       {cut.notes ? <p className="mt-1 text-xs text-ink-soft">{cut.notes}</p> : null}
     </article>
+  );
+}
+
+function FeederElevations({ packet }: { packet: ShopPacket }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <FeederFront packet={packet} />
+      <FeederPlan packet={packet} />
+    </div>
+  );
+}
+
+function FeederFront({ packet }: { packet: ShopPacket }) {
+  const { cuts, project } = packet;
+  const eave = project.overall.w;
+  const h = project.overall.h;
+  const post = findCut(cuts, /^post$|corner post/i);
+  const tray = findCut(cuts, /tray floor|^tray$/i);
+  const postH = post?.length ?? 7.5;
+  const trayT = (tray?.thickness ?? 0.75) + 0.4;
+  const roofH = Math.max(h - postH - trayT, 6);
+  return (
+    <figure>
+      <svg viewBox="0 0 120 130" className="h-auto w-full" aria-hidden>
+        <rect x="0.5" y="0.5" width="119" height="129" fill={PAPER} stroke={INK} strokeWidth="0.6" />
+        <text x="8" y="12" fontSize="4.2" fill={INK} fontFamily="IBM Plex Mono, monospace" letterSpacing="0.4">
+          FRONT ELEVATION
+        </text>
+        {/* roof */}
+        <polygon points="18,52 60,14 102,52" fill={WOOD} stroke={INK} strokeWidth="0.9" />
+        {Array.from({ length: 6 }, (_, i) => {
+          const y = 20 + i * 5.2;
+          const t = i / 6;
+          const half = 42 * t;
+          return (
+            <path
+              key={i}
+              d={`M ${60 - half} ${y} L ${60 + half} ${y}`}
+              stroke={INK}
+              strokeWidth="0.45"
+            />
+          );
+        })}
+        {/* soffit */}
+        <rect x="28" y="52" width="64" height="4" fill={WOOD_DK} stroke={INK} strokeWidth="0.7" />
+        {/* posts + hopper */}
+        <rect x="38" y="56" width="6" height="28" fill={WOOD_DK} stroke={INK} strokeWidth="0.7" />
+        <rect x="76" y="56" width="6" height="28" fill={WOOD_DK} stroke={INK} strokeWidth="0.7" />
+        <rect x="44" y="56" width="32" height="26" fill={PAPER} stroke={INK} strokeWidth="0.6" />
+        <text x="60" y="71" textAnchor="middle" fontSize="3.4" fill={INK} fontFamily="IBM Plex Mono, monospace">
+          {formatInches(7)} PETG
+        </text>
+        {/* apron */}
+        <path
+          d="M 32 82 L 88 82 L 88 90 Q 60 86 32 90 Z"
+          fill={WOOD}
+          stroke={INK}
+          strokeWidth="0.7"
+        />
+        {/* tray */}
+        <rect x="24" y="90" width="72" height="6" fill={WOOD_DK} stroke={INK} strokeWidth="0.8" />
+        {/* pole */}
+        <rect x="57" y="96" width="6" height="14" fill={WOOD} stroke={INK} strokeWidth="0.6" />
+        {/* dims */}
+        <path d="M 18 52 L 18 14" stroke={INK} strokeWidth="0.4" />
+        <text x="16" y="34" textAnchor="end" fontSize="3.6" fill={INK} fontFamily="IBM Plex Mono, monospace">
+          {formatInches(roofH)} rise
+        </text>
+        <path d="M 18 52 L 102 52" stroke={INK} strokeWidth="0.35" strokeDasharray="1.5 1" />
+        <text x="60" y="50" textAnchor="middle" fontSize="3.6" fill={INK} fontFamily="IBM Plex Mono, monospace">
+          {formatInches(eave)} eave
+        </text>
+        <text x="108" y="72" fontSize="3.4" fill={INK} fontFamily="IBM Plex Mono, monospace">
+          {formatInches(postH)} posts
+        </text>
+        <text x="60" y="118" textAnchor="middle" fontSize="3.6" fill={INK} fontFamily="IBM Plex Mono, monospace">
+          {formatInches(tray?.length ?? 13.5)} tray · 1" NPT flange
+        </text>
+      </svg>
+      <figcaption className="mt-1 text-center font-mono text-xs text-ink-soft">
+        Front · lift-off roof · PETG slides out the top
+      </figcaption>
+    </figure>
+  );
+}
+
+function FeederPlan({ packet }: { packet: ShopPacket }) {
+  const tray = findCut(packet.cuts, /tray floor|^tray$/i);
+  const eave = packet.project.overall.w;
+  const trayW = tray?.length ?? 13.5;
+  return (
+    <figure>
+      <svg viewBox="0 0 120 130" className="h-auto w-full" aria-hidden>
+        <rect x="0.5" y="0.5" width="119" height="129" fill={PAPER} stroke={INK} strokeWidth="0.6" />
+        <text x="8" y="12" fontSize="4.2" fill={INK} fontFamily="IBM Plex Mono, monospace" letterSpacing="0.4">
+          PLAN (roof dashed)
+        </text>
+        <rect x="18" y="28" width="84" height="84" fill="none" stroke={INK} strokeWidth="0.5" strokeDasharray="2 1.4" />
+        <rect x="26" y="36" width="68" height="68" fill={WOOD} stroke={INK} strokeWidth="0.9" />
+        <rect x="34" y="44" width="52" height="52" fill={PAPER} stroke={INK} strokeWidth="0.7" />
+        <rect x="38" y="48" width="8" height="8" fill={WOOD_DK} stroke={INK} strokeWidth="0.6" />
+        <rect x="74" y="48" width="8" height="8" fill={WOOD_DK} stroke={INK} strokeWidth="0.6" />
+        <rect x="38" y="84" width="8" height="8" fill={WOOD_DK} stroke={INK} strokeWidth="0.6" />
+        <rect x="74" y="84" width="8" height="8" fill={WOOD_DK} stroke={INK} strokeWidth="0.6" />
+        <rect x="46" y="56" width="28" height="28" fill="none" stroke={INK} strokeWidth="0.6" />
+        <circle cx="60" cy="70" r="4" fill={WOOD_DK} stroke={INK} strokeWidth="0.6" />
+        <text x="60" y="122" textAnchor="middle" fontSize="3.6" fill={INK} fontFamily="IBM Plex Mono, monospace">
+          {formatInches(eave)} eave · {formatInches(trayW)} tray · 10" frame
+        </text>
+      </svg>
+      <figcaption className="mt-1 text-center font-mono text-xs text-ink-soft">
+        Plan · four posts · flange on center
+      </figcaption>
+    </figure>
+  );
+}
+
+function FeederExploded({
+  cuts,
+  w,
+  d,
+  h,
+}: {
+  cuts: CutRow[];
+  w: number;
+  d: number;
+  h: number;
+}) {
+  const tray = findCut(cuts, /tray floor|^tray$/i);
+  const post = findCut(cuts, /^post$|corner post/i);
+  const roof = findCut(cuts, /triangle|roof/i);
+  const soffit = findCut(cuts, /soffit/i);
+  const plug = findCut(cuts, /plug/i);
+  const letter = (id?: string) => cuts.find((c) => c.id === id)?.letter;
+  const trayT = tray?.thickness ?? 0.75;
+  const postW = post?.width ?? 1;
+  const postH = post?.length ?? 7.5;
+  const explode = 4;
+  const boxes: IsoSpec[] = [
+    { x: 0, y: 0, z: 0, w: w - 1, d: d - 1, h: trayT, mark: letter(tray?.id) },
+    { x: 1.5, y: 1.5, z: trayT + explode * 0.3, w: postW, d: postW, h: postH, mark: letter(post?.id) },
+    { x: w - 3.5, y: 1.5, z: trayT + explode * 0.3, w: postW, d: postW, h: postH },
+    { x: 1.5, y: d - 3.5, z: trayT + explode * 0.3, w: postW, d: postW, h: postH },
+    { x: w - 3.5, y: d - 3.5, z: trayT + explode * 0.3, w: postW, d: postW, h: postH },
+    {
+      x: 1.2,
+      y: 1.2,
+      z: trayT + postH + explode,
+      w: 12,
+      d: 12,
+      h: soffit?.thickness ?? 0.5,
+      mark: letter(soffit?.id),
+    },
+    {
+      x: 0,
+      y: 0,
+      z: trayT + postH + explode * 2.2,
+      w: w,
+      d: d,
+      h: 0.6,
+      mark: letter(roof?.id),
+    },
+    {
+      x: w / 2 - 3.3,
+      y: d / 2 - 3.3,
+      z: trayT + postH + explode * 0.7,
+      w: 6.6,
+      d: 6.6,
+      h: plug?.thickness ?? 0.75,
+      mark: letter(plug?.id),
+    },
+  ];
+  void h;
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr_14rem]">
+      <IsoScene boxes={boxes} />
+      <Legend cuts={cuts} />
+    </div>
+  );
+}
+
+function FeederJoinery() {
+  return (
+    <div className="grid gap-6 sm:grid-cols-2">
+      <figure>
+        <svg viewBox="0 0 100 80" className="h-auto w-full" aria-hidden>
+          <rect x="18" y="18" width="44" height="44" fill={WOOD_DK} stroke={INK} strokeWidth="1" />
+          <rect x="58" y="22" width="8" height="14" fill={PAPER} stroke={INK} strokeWidth="0.8" />
+          <rect x="22" y="10" width="14" height="8" fill={PAPER} stroke={INK} strokeWidth="0.8" />
+          <text x="50" y="74" textAnchor="middle" fontSize="4" fill={INK} fontFamily="IBM Plex Mono, monospace">
+            F 1×1 post · glue OUT · ¼×¼ grooves
+          </text>
+        </svg>
+        <figcaption className="text-sm text-ink-soft">
+          Glue line on the outside. Grooves in solid wood. ½" inner roundover. PETG 7×7 with ¼" radius notches.
+        </figcaption>
+      </figure>
+      <figure>
+        <svg viewBox="0 0 100 80" className="h-auto w-full" aria-hidden>
+          <rect x="42" y="28" width="16" height="28" fill={WOOD_DK} stroke={INK} strokeWidth="0.9" />
+          <path d="M 18 18 L 42 36 L 42 62 L 18 48 Z" fill={WOOD} stroke={INK} strokeWidth="0.9" />
+          <path d="M 82 18 L 58 36 L 58 62 L 82 48 Z" fill={WOOD} stroke={INK} strokeWidth="0.9" />
+          <text x="50" y="74" textAnchor="middle" fontSize="4" fill={INK} fontFamily="IBM Plex Mono, monospace">
+            Hip · edges butt · R cleat inside
+          </text>
+        </svg>
+        <figcaption className="text-sm text-ink-soft">
+          Two faces of ½" plywood cannot pass through each other. A hairline gap is fine. The ¾×¾ cleat is what holds the pyramid. Copper and the wooden cap cover the outside.
+        </figcaption>
+      </figure>
+      <div className="sm:col-span-2 rounded-sm border border-ink/10 bg-paper p-3 text-sm leading-relaxed text-ink-soft">
+        Resaw: board FLAT, fence 1¾", rip six strips. Then strip ON EDGE against a tall fence, two
+        passes that meet in the middle, same face on the fence both times. ¾" minus ~⅛" kerf split
+        in half is ~5/16". Do not stand the 1×12 on edge. Hang slats long, nail high, trim to the
+        hip. They lap — they are not stacked end to end.
+      </div>
+    </div>
   );
 }

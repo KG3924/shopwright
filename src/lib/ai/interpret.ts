@@ -55,8 +55,8 @@ You may receive several photos of the SAME piece from different angles (front, s
 Return ONLY JSON with this shape:
 {
   "name": "short name",
-  "category": "bench|table|case|bookcase|cabinet|chair|other",
-  "templateId": "bench|console|bookcase|coffee-table|cabinet|adirondack|null",
+  "category": "bench|table|case|bookcase|cabinet|chair|feeder|other",
+  "templateId": "bench|console|bookcase|coffee-table|cabinet|adirondack|feeder|null",
   "interpretation": "2-4 sentences: what it is, what you can see across the photos, what you are inferring",
   "confidence": 0.0-1.0,
   "overall": { "w": inches, "d": inches, "h": inches },
@@ -72,7 +72,7 @@ Rules:
 - If dimensions are labeled on a blueprint or product graphic, use them (overallSource: labeled).
 - If a tape, ruler, or known object is in frame, prefer that scale.
 - Call out hidden construction. Never invent cam-locks or exact factory joinery as fact.
-- Prefer templateId when the piece is clearly a bench, console/credenza/nightstand, bookcase, coffee table, wall cabinet, or Adirondack.
+- Prefer templateId when the piece is clearly a bench, console/credenza/nightstand, bookcase, coffee table, wall cabinet, Adirondack, or hip-roof bird feeder.
 - Inches, not mm. Typical stock: 0.75, 0.5, 0.25, 1.5.
 - confidence < 0.7 if you still cannot see the underside or joinery after every photo.`;
 

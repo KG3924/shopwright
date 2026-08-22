@@ -10,7 +10,7 @@ export type Rank = (typeof RANKS)[number];
 
 export type Axis = "w" | "d" | "h" | "fixed";
 
-export type Stock = "solid" | "plywood" | "hardwood-ply" | "dowel";
+export type Stock = "solid" | "plywood" | "hardwood-ply" | "dowel" | "sheet";
 
 export const MAX_PHOTOS = 6;
 
@@ -30,6 +30,10 @@ export type Part = {
   stock: Stock;
   grain: "length" | "width";
   notes?: string;
+  /** Shop letter on the cut list (A, B, F…). Inferred if omitted. */
+  letter?: string;
+  /** Which board or sheet this is cut from. */
+  fromStock?: string;
 };
 
 /** Locks a part so it no longer follows overall W/D/H. */
@@ -57,6 +61,8 @@ export type HardwareItem = {
   qty: number;
   spec: string;
   aisle: string;
+  /** Where each fastener actually goes. Shop-plan quality. */
+  where?: string;
   forRoutes?: string[];
 };
 
@@ -68,6 +74,17 @@ export type BuildStep = {
   minRank?: Rank;
   skipAtAndAbove?: Rank;
   forRoutes?: string[];
+};
+
+export type BuyBoard = {
+  id: string;
+  label: string;
+  stock: string;
+  bdft: number;
+  role: string;
+  yields: string;
+  body: string;
+  spare?: boolean;
 };
 
 export type Overall = { w: number; d: number; h: number };
@@ -90,6 +107,12 @@ export type ProjectTemplate = {
   parts: Part[];
   hardware: HardwareItem[];
   steps: BuildStep[];
+  /** Locked dimension stack, shop-plan style. */
+  stack?: string[];
+  /** Explicit lumber to buy. Inferred from the cut list if omitted. */
+  buyBoards?: BuyBoard[];
+  stillBuy?: string[];
+  doNotBuy?: string[];
 };
 
 export type Project = ProjectTemplate & {
@@ -106,6 +129,7 @@ export type Project = ProjectTemplate & {
 
 export type CutRow = {
   id: string;
+  letter: string;
   name: string;
   qty: number;
   length: number;
@@ -114,6 +138,7 @@ export type CutRow = {
   stock: Stock;
   grain: "length" | "width";
   notes?: string;
+  fromStock: string;
   boardFeet: number;
   locked: {
     length: boolean;
@@ -140,6 +165,10 @@ export type ShopPacket = {
   species: Species;
   sources: LumberSource[];
   warnings: string[];
+  boards: BuyBoard[];
+  stillBuy: string[];
+  doNotBuy: string[];
+  stack: string[];
 };
 
 export type Technique = {
