@@ -14,19 +14,33 @@ import { SHOP_TOOLS } from "./types";
 
 export const SHOP_TOOL_META: Record<ShopTool, string> = {
   drill: "Drill",
-  miter: "Miter saw",
-  kreg: "Kreg jig",
+  "miter-saw": "Miter saw",
+  "kreg-jig": "Kreg jig",
+  clamps: "Clamps",
+  sander: "Sander",
   "table-saw": "Table saw",
-  mortiser: "Chisels / mortiser",
+  mortiser: "Mortiser",
+  chisels: "Chisels",
+  "tenon-saw": "Tenon saw",
+  "marking-gauge": "Marking gauge",
+  plane: "Plane",
+};
+
+export type RouteGate = {
+  minRank: Rank;
+  /** Every listed tool must be on the bench. */
+  tools?: ShopTool[];
+  /** At least one of these must be on the bench. */
+  anyOf?: ShopTool[];
 };
 
 /** Hard gates by route id. Piece graphs can override via minRank / requiredTools. */
-export const ROUTE_GATES: Record<string, { minRank: Rank; tools: ShopTool[] }> = {
-  pocket: { minRank: "beginner", tools: ["kreg"] },
-  mortise: { minRank: "apprentice", tools: ["mortiser"] },
+export const ROUTE_GATES: Record<string, RouteGate> = {
+  pocket: { minRank: "beginner", tools: ["kreg-jig"] },
+  mortise: { minRank: "apprentice", anyOf: ["mortiser", "chisels"] },
   dowel: { minRank: "novice", tools: ["drill"] },
   dado: { minRank: "novice", tools: ["table-saw"] },
-  dovetail: { minRank: "craftsman", tools: ["mortiser"] },
+  dovetail: { minRank: "craftsman", anyOf: ["chisels", "mortiser"] },
   frame: { minRank: "apprentice", tools: ["table-saw"] },
   screwed: { minRank: "beginner", tools: ["drill"] },
   plugged: { minRank: "novice", tools: ["drill"] },
@@ -37,7 +51,7 @@ export const POCKET_CUT_NOTE =
   "Pocket / butt — cut the listed length. Do not invent tenon length.";
 
 export const MORTISE_CUT_NOTE =
-  "Tenon shoulders — cut the listed length. Do not invent extra stock (no silent ¾″ horns).";
+  "Mortise / tenon shoulders — cut the listed length. Do not invent extra stock (no silent ¾″ horns).";
 
 const JOINERY_NOTE_ROLES = new Set<PartRole>([
   "leg",
@@ -63,14 +77,12 @@ export function toolsAvailableOf(
   return normalizeTools(project.toolsAvailable);
 }
 
-export function gateFor(route: ConstructionRoute): {
-  minRank: Rank;
-  tools: ShopTool[];
-} {
+export function gateFor(route: ConstructionRoute): RouteGate {
   const table = ROUTE_GATES[route.id];
   return {
     minRank: route.minRank ?? table?.minRank ?? route.recommendedRank,
     tools: route.requiredTools ?? table?.tools ?? [],
+    anyOf: table?.anyOf,
   };
 }
 
@@ -84,12 +96,27 @@ export function statusForRoute(
   if (rankIndex(rank) < rankIndex(gate.minRank)) {
     reasons.push(`Needs ${RANK_META[gate.minRank].label} rank`);
   }
-  for (const tool of gate.tools) {
+  for (const tool of gate.tools ?? []) {
     if (!tools.includes(tool)) {
       reasons.push(`Needs ${SHOP_TOOL_META[tool]}`);
     }
   }
+  if (gate.anyOf?.length && !gate.anyOf.some((tool) => tools.includes(tool))) {
+    reasons.push(
+      `Needs ${gate.anyOf.map((tool) => SHOP_TOOL_META[tool]).join(" or ")}`,
+    );
+  }
   return { id: route.id, runnable: reasons.length === 0, reasons };
+}
+
+export function offeredAndHidden(statuses: RouteStatus[]): {
+  routesOffered: string[];
+  routesHidden: string[];
+} {
+  return {
+    routesOffered: statuses.filter((s) => s.runnable).map((s) => s.id),
+    routesHidden: statuses.filter((s) => !s.runnable).map((s) => s.id),
+  };
 }
 
 export function routeStatusesFor(project: Project): RouteStatus[] {

@@ -2,7 +2,12 @@ import { CATALOG } from "./catalog";
 import { inferRole } from "./layout";
 import { rankIndex } from "./format";
 import { resolvePart, partBoardFeet } from "./parametric";
-import { compileCutNotes, normalizeTools, resolveConstructionRoute } from "./routes";
+import {
+  compileCutNotes,
+  normalizeTools,
+  offeredAndHidden,
+  resolveConstructionRoute,
+} from "./routes";
 import { getSpecies } from "./species";
 import { sourcesForZip } from "./sourcing";
 import { techniquesFor } from "./techniques";
@@ -255,6 +260,7 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
     route,
     routeRunnable: resolved.runnable,
     routeStatuses: resolved.statuses,
+    ...offeredAndHidden(resolved.statuses),
     cuts,
     boardFeet,
     weightLb,

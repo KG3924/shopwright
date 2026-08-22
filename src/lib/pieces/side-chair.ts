@@ -103,7 +103,7 @@ export const sideChairTemplate: ProjectTemplate = {
       routeNotes: {
         pocket: "Pocket / butt — cut the listed length. Do not invent tenon length.",
         mortise:
-          "Mortise for stretcher tenons. Tenon shoulders live on the stretcher tickets — do not invent extra length here.",
+          "Mortise the legs for stretcher tenons. Tenon shoulders live on the stretcher tickets — do not invent extra length here.",
       },
     },
     {

@@ -11,10 +11,16 @@ export type Rank = (typeof RANKS)[number];
 /** Tools the builder says are on the bench. Gates which construction routes can compile. */
 export const SHOP_TOOLS = [
   "drill",
-  "miter",
-  "kreg",
+  "miter-saw",
+  "kreg-jig",
+  "clamps",
+  "sander",
   "table-saw",
   "mortiser",
+  "chisels",
+  "tenon-saw",
+  "marking-gauge",
+  "plane",
 ] as const;
 
 export type ShopTool = (typeof SHOP_TOOLS)[number];
@@ -287,6 +293,8 @@ export type ShopPacket = {
   /** False when rank/tools cannot run any route — hardware/steps stay route-agnostic. */
   routeRunnable: boolean;
   routeStatuses: RouteStatus[];
+  routesOffered: string[];
+  routesHidden: string[];
   cuts: CutRow[];
   boardFeet: number;
   weightLb: number;
