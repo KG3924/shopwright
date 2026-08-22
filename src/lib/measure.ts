@@ -8,6 +8,9 @@ import type {
 } from "./types";
 import { DIM_SOURCES, SCALE_CONFIDENCES } from "./types";
 
+/** Shop hold headline when scale is weak or no route compiled. */
+export const DONT_CUT_YET = "Don't cut yet";
+
 export const VISION_SOURCE_KINDS = ["photo", "url", "blueprint"] as const;
 export type VisionSourceKind = (typeof VISION_SOURCE_KINDS)[number];
 
@@ -148,20 +151,27 @@ export type CutHold = {
  */
 export function formatDoNotCut(flags: {
   doNotCut?: boolean;
+  routeRunnable?: boolean;
   scaleConfidence?: ScaleConfidence;
   scaleNotes?: string[];
 }): CutHold | null {
-  if (!flags.doNotCut) return null;
+  const routeHold = flags.routeRunnable === false;
+  if (!flags.doNotCut && !routeHold) return null;
   const notes = [
     ...new Set((flags.scaleNotes ?? []).map((n) => n.trim()).filter(Boolean)),
   ];
-  const headline = "Don't cut yet";
+  if (routeHold) {
+    notes.push("No construction route compiled — do not cut.");
+  }
+  const headline = DONT_CUT_YET;
   const fallback =
-    flags.scaleConfidence === "conflict"
-      ? "Scale conflict — confirm with a tape."
-      : flags.scaleConfidence === "low"
-        ? "Scale is weak — confirm with a tape."
-        : "Confirm scale and any '?' dimensions.";
+    routeHold
+      ? "No construction route compiled — do not cut."
+      : flags.scaleConfidence === "conflict"
+        ? "Scale conflict — confirm with a tape."
+        : flags.scaleConfidence === "low"
+          ? "Scale is weak — confirm with a tape."
+          : "Confirm scale and any '?' dimensions.";
   const body = notes.length ? notes : [fallback];
   return {
     headline,

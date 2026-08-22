@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  DONT_CUT_YET,
   editorAxisValue,
   formatCutAxis,
   formatCutAxisSource,
@@ -174,6 +175,18 @@ describe("measure helpers", () => {
     assert.equal(formatDoNotCut({ doNotCut: false, scaleNotes: ["Tape in frame."] }), null);
   });
 
+  it("prints a route-refuse hold even without scale notes", () => {
+    const hold = formatDoNotCut({
+      doNotCut: true,
+      routeRunnable: false,
+    });
+    assert.ok(hold);
+    assert.equal(hold.headline, DONT_CUT_YET);
+    assert.match(hold.text, /Don't cut yet/);
+    assert.match(hold.text, /No construction route compiled/);
+    assert.doesNotMatch(hold.text, /mortise|pocket/i);
+  });
+
   it("prints don't-cut from doNotCut plus scale notes", () => {
     const hold = formatDoNotCut({
       doNotCut: true,
@@ -184,7 +197,7 @@ describe("measure helpers", () => {
       ],
     });
     assert.ok(hold);
-    assert.equal(hold.headline, "Don't cut yet");
+    assert.equal(hold.headline, DONT_CUT_YET);
     assert.match(hold.text, /Don't cut yet/);
     assert.match(hold.text, /No tape/);
     assert.match(hold.text, /Underside not visible/);

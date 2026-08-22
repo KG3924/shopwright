@@ -257,7 +257,10 @@ describe("catalog path", () => {
   it("stays unchanged for sourceKind catalog", () => {
     const bench = getTemplate("bench");
     assert.ok(bench);
-    const project = instantiate(bench, { rank: "beginner" });
+    const project = instantiate(bench, {
+      rank: "beginner",
+      toolsAvailable: ["drill", "miter-saw", "kreg-jig", "clamps"],
+    });
     assert.equal(project.sourceKind, "catalog");
     assert.equal(project.doNotCut, undefined);
     assert.ok(project.parts.some((p) => p.id === "apron-l"));

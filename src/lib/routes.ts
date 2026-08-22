@@ -124,6 +124,22 @@ export function routeStatusesFor(project: Project): RouteStatus[] {
   return project.routes.map((route) => statusForRoute(route, project.rank, tools));
 }
 
+/** Compiled packet label when rank/tools cannot run any route. */
+export const NO_ROUTE_ID = "none";
+export const NO_ROUTE_NAME = "No route";
+
+/** Compiled packet label when rank/tools cannot run any route. */
+export const NO_ROUTE: ConstructionRoute = {
+  id: NO_ROUTE_ID,
+  name: NO_ROUTE_NAME,
+  recommendedRank: "beginner",
+  summary: "Rank and tools cannot compile a construction route.",
+  joinery: "none — do not cut",
+  tools: [],
+  tradeoffs: "",
+  hiddenWork: "",
+};
+
 export type ResolvedRoute = {
   route: ConstructionRoute;
   runnable: boolean;
@@ -138,16 +154,7 @@ export function resolveConstructionRoute(project: Project): ResolvedRoute {
     project.routes.find((r) => r.id === project.routeId) ?? project.routes[0];
   if (!requested) {
     return {
-      route: {
-        id: "none",
-        name: "No route",
-        recommendedRank: "beginner",
-        summary: "",
-        joinery: "",
-        tools: [],
-        tradeoffs: "",
-        hiddenWork: "",
-      },
+      route: NO_ROUTE,
       runnable: false,
       steered: false,
       statuses,
@@ -184,7 +191,7 @@ export function resolveConstructionRoute(project: Project): ResolvedRoute {
   }
 
   return {
-    route: requested,
+    route: NO_ROUTE,
     runnable: false,
     steered: false,
     statuses,
