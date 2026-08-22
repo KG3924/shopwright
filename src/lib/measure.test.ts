@@ -165,6 +165,24 @@ describe("measure helpers", () => {
       formatDimSource({ value: 16, source: "inferred", confidence: 0.4 }),
       "guessed — verify",
     );
+    assert.equal(
+      formatDimSource({
+        value: 17.5,
+        source: "inferred",
+        confidence: 0.45,
+        note: "guessed from seat height — verify",
+      }),
+      "guessed from seat height — verify",
+    );
+    assert.equal(
+      formatDimSource({
+        value: 15,
+        source: "inferred",
+        confidence: 0.45,
+        note: "guessed from the clear span — verify",
+      }),
+      "guessed from the clear span — verify",
+    );
     assert.equal(formatDimSource(unknownDim("underside not visible")), "verify before cut");
     assert.equal(formatDimSource(undefined), "");
   });

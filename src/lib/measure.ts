@@ -117,7 +117,13 @@ export function formatDimSource(dim: MeasuredDim | undefined): string {
   if (dim.source === "measured" && hasPhotoIndex(dim)) {
     return `measured from photo ${dim.photoIndex + 1}`;
   }
-  if (dim.source === "measured" || dim.source === "inferred") return "guessed — verify";
+  if (dim.source === "inferred") {
+    if (dim.note && /^guessed(?: from .+)? — verify$/.test(dim.note)) {
+      return dim.note;
+    }
+    return "guessed — verify";
+  }
+  if (dim.source === "measured") return "guessed — verify";
   return "verify before cut";
 }
 

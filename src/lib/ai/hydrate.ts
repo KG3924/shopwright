@@ -13,6 +13,7 @@ import {
   weakScale,
 } from "../measure";
 import { inferDim } from "../parametric";
+import { inferFill, partHasUnknownCutAxis } from "./infer";
 import { normalizeTools } from "../routes";
 import type {
   Axis3,
@@ -470,22 +471,52 @@ export function hydrateVision(
   const candidates = (ai.parts ?? [])
     .filter((p) => p && typeof p.name === "string" && p.name.trim())
     .map((part) => ({ part, measured: measuredOf(part) }));
-  const sourced = candidates.filter((c) => hasSourcedDims(c.measured));
+  const visionSourced = candidates.filter((c) => hasSourcedDims(c.measured));
 
-  if (sourced.length < 2) {
+  if (visionSourced.length < 2) {
     throw new InterpretError(
       "incomplete_parts",
       "Could not source measurements for at least two boards. Add a side, underside, or a tape in frame — we will not substitute a stock cut list.",
     );
   }
 
-  const overall = deriveOverall(ai, sourced);
+  const overall = deriveOverall(ai, visionSourced);
   if (!overall) {
     throw new InterpretError(
       "missing_overall",
       "The reading did not include overall width, depth, and height, and the boards were not placed in space. Add a tape or a labeled plan and try again.",
     );
   }
+
+  // Safe infer-fill after the vision gate. Does not invent a 2-board
+  // packet; only fills unknown axes on (or twins of) sourced parts.
+  const inferred = inferFill(
+    candidates.map(({ part, measured }) => ({
+      name: part.name.trim(),
+      role: part.role,
+      qty: Math.max(1, Math.round(Number(part.qty) || 1) || 1),
+      measured,
+      instances: part.instances,
+    })),
+    {
+      overall,
+      overallSource: ai.overallSource,
+      scaleConfidence: ai.scaleConfidence,
+      name: ai.name,
+      category: ai.category,
+      interpretation: ai.interpretation,
+      drawing: ai.drawing,
+    },
+  );
+  const sourced = candidates
+    .map((c, i) => ({
+      part: {
+        ...c.part,
+        instances: inferred[i]?.instances ?? c.part.instances,
+      },
+      measured: inferred[i]?.measured ?? c.measured,
+    }))
+    .filter((c) => hasSourcedDims(c.measured));
 
   const rawOverall = {
     w: ai.overall?.w ?? overall.w,
@@ -501,6 +532,7 @@ export function hydrateVision(
   }
 
   const scale = resolveScale(ai, sourced, overall);
+  const stillUnknown = sourced.some((c) => partHasUnknownCutAxis(c.measured));
   const speciesId =
     ai.speciesGuess &&
     [
@@ -571,7 +603,7 @@ export function hydrateVision(
       partsFromPhotos: true,
       scaleConfidence: scale.scaleConfidence,
       scaleNotes: scale.scaleNotes,
-      doNotCut: scale.doNotCut,
+      doNotCut: scale.doNotCut || stillUnknown,
     },
   );
 }
