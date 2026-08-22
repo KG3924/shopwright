@@ -1,4 +1,5 @@
-import type { BackStyle, DrawingSpec, Project, ProjectTemplate } from "./types";
+import type { BackStyle, DrawingSpec, Overall, Part, Project, ProjectTemplate } from "./types";
+import { isKnownDim } from "./measure";
 
 const ADIRONDACK = /\b(adirondack|westport|muskoka)\b/;
 const LATTICE = /\b(lattice|chippendale|criss[- ]?cross|diamond back)\b/;
@@ -35,11 +36,47 @@ function backFromBlob(blob: string): BackStyle {
   return "lattice";
 }
 
+function partsBlob(parts: { name: string; role?: string }[] | undefined): string {
+  return (parts ?? [])
+    .map((p) => `${p.role ?? ""} ${p.name}`)
+    .join(" ")
+    .toLowerCase();
+}
+
+/** A back exists only when we saw back parts or the reading named a back style. */
+export function hasBackEvidence(
+  project: Pick<Project, "name" | "interpretation" | "parts"> & {
+    drawing?: Partial<DrawingSpec>;
+  },
+): boolean {
+  const blob = blobOf(project);
+  const parts = partsBlob(project.parts);
+  if (project.drawing?.backStyle && project.drawing.backStyle !== "none") return true;
+  if (LATTICE.test(blob) || XBACK.test(blob) || SPLAT.test(blob)) return true;
+  if (/\b(slat|fan back|picket|solid back|panel back)\b/.test(blob)) return true;
+  return /\b(back|stile|rail|splat|slat|lattice)\b/.test(parts);
+}
+
+function seatHeightFromParts(
+  parts: Part[] | undefined,
+  overall: Overall | undefined,
+): number | undefined {
+  if (!parts?.length || !overall?.h) return undefined;
+  const seat = parts.find((p) => p.role === "seat" || /\bseat\b/i.test(p.name));
+  const inst = seat?.instances?.find((p) => Number.isFinite(p.z));
+  if (!inst) return undefined;
+  const thickness = seat?.measured?.thickness;
+  const t = isKnownDim(thickness) ? thickness.value : 0;
+  const top = inst.z + t;
+  if (top <= 0) return undefined;
+  return Math.min(1, Math.max(0.2, top / overall.h));
+}
+
 export function inferDrawing(
   project: Pick<
     Project,
     "id" | "category" | "name" | "parts" | "interpretation"
-  > & { drawing?: DrawingSpec },
+  > & { drawing?: DrawingSpec; overall?: Overall },
 ): DrawingSpec {
   const blob = blobOf(project);
   const fromPhoto = project.drawing;
@@ -79,15 +116,21 @@ export function inferDrawing(
 
   if (isChair) {
     const hasArmPart = (project.parts ?? []).some((p) => /\barm\b/i.test(p.name));
+    const hasBack = hasBackEvidence(project);
+    const hasFootringPart = (project.parts ?? []).some((p) =>
+      /\b(footring|foot rail|stretcher)\b/i.test(p.name),
+    );
+    const fromParts = seatHeightFromParts(project.parts, project.overall);
     return {
       family: "chair",
-      backStyle: fromPhoto?.backStyle ?? backFromBlob(blob),
+      backStyle: fromPhoto?.backStyle ?? (hasBack ? backFromBlob(blob) : "none"),
       hasArms: fromPhoto?.hasArms ?? hasArmPart,
-      hasFootring: fromPhoto?.hasFootring ?? STOOL.test(blob),
+      hasFootring: fromPhoto?.hasFootring ?? hasFootringPart,
       seatShape: fromPhoto?.seatShape ?? (/round|circular/.test(blob) ? "round" : "square"),
       reclined: fromPhoto?.reclined ?? false,
-      seatHeightRatio:
-        fromPhoto?.seatHeightRatio ?? (STOOL.test(blob) ? 0.61 : 0.48),
+      // Do not fill counter-height / dining stock ratios when the photos
+      // did not give a seat height or a back that needs one.
+      seatHeightRatio: fromPhoto?.seatHeightRatio ?? fromParts,
     };
   }
 

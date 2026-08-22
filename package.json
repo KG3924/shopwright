@@ -14,7 +14,7 @@
     "preview": "node scripts/with-app-env.mjs vite preview",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --import tsx --test src/lib/measure.test.ts src/lib/ai/hydrate.test.ts && node --test 'scripts/**/*.test.mjs'",
+    "test": "node --import tsx --test 'src/**/*.test.ts' && node --test 'scripts/**/*.test.mjs'",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

@@ -6,7 +6,7 @@ import { getSpecies } from "./species";
 import { sourcesForZip } from "./sourcing";
 import { techniquesFor } from "./techniques";
 import { compileYield, inferFromStock, nextLetter } from "./yield";
-import { formatCutAxis, weakScale } from "./measure";
+import { formatCutAxis, isCutAxisUnknown, weakScale } from "./measure";
 import type {
   CutRow,
   Overall,
@@ -84,8 +84,20 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
     .map((p, i) => {
       const over = overrides[p.id];
       const d = resolvePart(p, project.overall, over);
+      const locked = {
+        length: over?.length != null,
+        width: over?.width != null,
+        thickness: over?.thickness != null,
+        qty: over?.qty != null,
+      };
+      const cutMeasure = { measured: p.measured, locked };
+      const inventStock =
+        isCutAxisUnknown(cutMeasure, "thickness") || isCutAxisUnknown(cutMeasure, "width");
       const fromStock =
-        p.fromStock ?? inferFromStock(p.stock, d.thickness, d.width);
+        p.fromStock ??
+        (inventStock
+          ? "measure first — stock unknown"
+          : inferFromStock(p.stock, d.thickness, d.width));
       return {
         id: p.id,
         letter: p.letter ?? nextLetter(i),
@@ -106,12 +118,7 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
             ? 0
             : partBoardFeet(p, project.overall, over),
         measured: p.measured,
-        locked: {
-          length: over?.length != null,
-          width: over?.width != null,
-          thickness: over?.thickness != null,
-          qty: over?.qty != null,
-        },
+        locked,
         follows: {
           length: p.length.from,
           width: p.width.from,

@@ -4,7 +4,7 @@ import { LatticeJoinery } from "@/components/chair-drawings";
 import { inferDrawing } from "@/lib/drawing";
 import { formatInches } from "@/lib/format";
 import { layoutBoxes, type WorldBox } from "@/lib/layout";
-import { formatCutAxis, formatCutTriplet } from "@/lib/measure";
+import { formatCutAxis, formatCutTriplet, ticketViewLabels } from "@/lib/measure";
 import { RANK_META } from "@/lib/ranks";
 import type { CutRow, HardwareItem, Overall, ShopPacket } from "@/lib/types";
 import { projectPhotos } from "@/lib/types";
@@ -476,6 +476,8 @@ function ProjectedView({
           letter: b.letter,
           role: b.role,
           area: b.w * b.h,
+          unknownW: !!b.unknown?.w,
+          unknownH: !!b.unknown?.h,
         };
       }
       if (mode === "side") {
@@ -488,6 +490,8 @@ function ProjectedView({
           letter: b.letter,
           role: b.role,
           area: b.d * b.h,
+          unknownW: !!b.unknown?.d,
+          unknownH: !!b.unknown?.h,
         };
       }
       return {
@@ -499,9 +503,11 @@ function ProjectedView({
         letter: b.letter,
         role: b.role,
         area: b.w * b.d,
+        unknownW: !!b.unknown?.w,
+        unknownH: !!b.unknown?.d,
       };
     })
-    .filter((r) => r.w > 0.04 && r.h > 0.04)
+    .filter((r) => r.unknownW || r.unknownH || (r.w > 0.04 && r.h > 0.04))
     .sort((a, b) => a.depth - b.depth);
 
   const areaMin = worldW * worldH * 0.06;
@@ -511,9 +517,10 @@ function ProjectedView({
       {(s, ox, oy) => (
         <g>
           {rects.map((r, i) => {
+            const unknown = r.unknownW || r.unknownH;
             const rw = Math.max(r.w * s, 1.15);
             const rh = Math.max(r.h * s, 1.15);
-            const showLetter = r.area >= areaMin;
+            const showLetter = r.area >= areaMin && !unknown;
             return (
               <g key={`${r.letter}-${i}`}>
                 <rect
@@ -521,9 +528,10 @@ function ProjectedView({
                   y={oy + r.y * s}
                   width={rw}
                   height={rh}
-                  fill={fillFor(r.role)}
+                  fill={unknown ? "none" : fillFor(r.role)}
                   stroke={INK}
                   strokeWidth="0.6"
+                  strokeDasharray={unknown ? "2 1.4" : undefined}
                 />
                 {showLetter ? (
                   <text
@@ -592,6 +600,8 @@ function IsoScene({ boxes }: { boxes: WorldBox[] }) {
     <svg viewBox={`0 0 ${VW} ${VH}`} className="h-auto w-full" aria-hidden>
       <rect x="0.5" y="0.5" width={VW - 1} height={VH - 1} fill={PAPER} stroke={INK} strokeWidth="0.6" />
       {sorted.map((b) => {
+        const unknown = !!(b.unknown?.w || b.unknown?.d || b.unknown?.h);
+        const dash = unknown ? "2.2 1.6" : undefined;
         const p = (dx: number, dy: number, dz: number) => P(b.x + dx, b.y + dy, b.z + dz);
         const top = `${p(0, 0, b.h)} ${p(b.w, 0, b.h)} ${p(b.w, b.d, b.h)} ${p(0, b.d, b.h)}`;
         const right = `${p(b.w, 0, 0)} ${p(b.w, b.d, 0)} ${p(b.w, b.d, b.h)} ${p(b.w, 0, b.h)}`;
@@ -601,9 +611,9 @@ function IsoScene({ boxes }: { boxes: WorldBox[] }) {
           .map(Number);
         return (
           <g key={b.id}>
-            <polygon points={right} fill={WOOD_DK} stroke={INK} strokeWidth="0.85" />
-            <polygon points={front} fill={fillFor(b.role)} stroke={INK} strokeWidth="0.85" />
-            <polygon points={top} fill={PAPER} stroke={INK} strokeWidth="0.85" />
+            <polygon points={right} fill={unknown ? "none" : WOOD_DK} stroke={INK} strokeWidth="0.85" strokeDasharray={dash} />
+            <polygon points={front} fill={unknown ? "none" : fillFor(b.role)} stroke={INK} strokeWidth="0.85" strokeDasharray={dash} />
+            <polygon points={top} fill={unknown ? "none" : PAPER} stroke={INK} strokeWidth="0.85" strokeDasharray={dash} />
             <g>
               <circle cx={cx} cy={cy - 6} r="5.4" fill={PAPER} stroke={INK} strokeWidth="0.8" />
               <text
@@ -649,6 +659,10 @@ function BoardView({
   y,
   xName,
   yName,
+  xLabel,
+  yLabel,
+  unknownX,
+  unknownY,
   grain,
 }: {
   label: string;
@@ -656,25 +670,42 @@ function BoardView({
   y: number;
   xName: string;
   yName: string;
+  xLabel: string;
+  yLabel: string;
+  unknownX?: boolean;
+  unknownY?: boolean;
   grain?: "length" | "width" | false;
 }) {
-  const max = Math.max(x, y, 0.25);
-  const w = (x / max) * 70;
-  const h = Math.max((y / max) * 42, 8);
+  // Hairline only — never a typical ¾" fill when the axis is unknown.
+  const drawX = Math.max(x, unknownX ? 0.35 : 0.25);
+  const drawY = Math.max(y, unknownY ? 0.35 : 0.25);
+  const max = Math.max(drawX, drawY, 0.25);
+  const w = (drawX / max) * 70;
+  const h = Math.max((drawY / max) * 42, 8);
   const ox = (100 - w) / 2;
   const oy = (58 - h) / 2 + 2;
+  const unknown = !!(unknownX || unknownY);
   return (
     <figure>
       <svg viewBox="0 0 100 72" className="h-auto w-full" aria-hidden>
-        <rect x={ox} y={oy} width={w} height={h} fill="#e7dfcf" stroke={INK} strokeWidth="1" />
-        {grain === "length" ? (
+        <rect
+          x={ox}
+          y={oy}
+          width={w}
+          height={h}
+          fill={unknown ? "none" : "#e7dfcf"}
+          stroke={INK}
+          strokeWidth="1"
+          strokeDasharray={unknown ? "2.4 1.6" : undefined}
+        />
+        {grain === "length" && !unknown ? (
           <path
             d={`M ${ox + 4} ${oy + h / 2} L ${ox + w - 4} ${oy + h / 2}`}
             stroke={INK}
             strokeWidth="0.4"
             strokeDasharray="1.5 1.2"
           />
-        ) : grain === "width" ? (
+        ) : grain === "width" && !unknown ? (
           <path
             d={`M ${ox + w / 2} ${oy + 3} L ${ox + w / 2} ${oy + h - 3}`}
             stroke={INK}
@@ -692,7 +723,7 @@ function BoardView({
           fill={INK}
           fontFamily="IBM Plex Mono, monospace"
         >
-          {xName} {formatInches(x)}
+          {xName} {xLabel}
         </text>
         <text
           x={Math.max(ox - 7, 5)}
@@ -703,7 +734,7 @@ function BoardView({
           fontFamily="IBM Plex Mono, monospace"
           transform={`rotate(-90 ${Math.max(ox - 7, 5)} ${oy + h / 2})`}
         >
-          {yName} {formatInches(y)}
+          {yName} {yLabel}
         </text>
       </svg>
       <figcaption className="text-center font-mono text-[10px] uppercase tracking-wider text-ink-soft">
@@ -715,6 +746,9 @@ function BoardView({
 
 function PartTicket({ cut }: { cut: CutRow }) {
   const locked = cut.locked.length || cut.locked.width || cut.locked.thickness;
+  const face = ticketViewLabels(cut, "face");
+  const edge = ticketViewLabels(cut, "edge");
+  const end = ticketViewLabels(cut, "end");
   return (
     <article className="rounded-sm border border-ink/15 p-3">
       <p className="flex items-baseline justify-between gap-2 font-mono text-xs text-ink-soft">
@@ -732,10 +766,34 @@ function PartTicket({ cut }: { cut: CutRow }) {
           y={cut.width}
           xName="L"
           yName="W"
+          xLabel={face.x}
+          yLabel={face.y}
+          unknownX={face.unknownX}
+          unknownY={face.unknownY}
           grain={cut.grain}
         />
-        <BoardView label="Edge" x={cut.length} y={cut.thickness} xName="L" yName="T" />
-        <BoardView label="End" x={cut.width} y={cut.thickness} xName="W" yName="T" />
+        <BoardView
+          label="Edge"
+          x={cut.length}
+          y={cut.thickness}
+          xName="L"
+          yName="T"
+          xLabel={edge.x}
+          yLabel={edge.y}
+          unknownX={edge.unknownX}
+          unknownY={edge.unknownY}
+        />
+        <BoardView
+          label="End"
+          x={cut.width}
+          y={cut.thickness}
+          xName="W"
+          yName="T"
+          xLabel={end.x}
+          yLabel={end.y}
+          unknownX={end.unknownX}
+          unknownY={end.unknownY}
+        />
       </div>
       <p className="mt-2 font-mono text-xs text-ink">
         {formatCutTriplet(cut)} · {cut.stock}

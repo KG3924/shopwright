@@ -1,5 +1,5 @@
-import { formatDimTriplet, formatInches } from "./format";
-import { formatCutTriplet } from "./measure";
+import { formatInches } from "./format";
+import { formatCutTriplet, isCutAxisUnknown } from "./measure";
 import type { BuyBoard, CutRow, Project, Stock } from "./types";
 
 export function oneByLabel(width: number): string {
@@ -40,6 +40,9 @@ function nominalWidthInches(label: string): number {
 function groupKey(c: CutRow): string {
   if (c.fromStock && !c.fromStock.startsWith("1×") && c.stock !== "solid") {
     return c.fromStock;
+  }
+  if (isCutAxisUnknown(c, "thickness") || isCutAxisUnknown(c, "width")) {
+    return "measure first — stock unknown";
   }
   return inferFromStock(c.stock, c.thickness, c.width);
 }
@@ -100,7 +103,7 @@ export function inferBoards(cuts: CutRow[]): BuyBoard[] {
       body: `From this: ${g.parts
         .map(
           (p) =>
-            `${p.qty}× ${p.name} at ${formatDimTriplet(p.length, p.width, p.thickness)}`,
+            `${p.qty}× ${p.name} at ${formatCutTriplet(p)}`,
         )
         .join(". ")}. Leftover is spare — don't cut it until the listed parts are done.`,
     });

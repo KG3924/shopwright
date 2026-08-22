@@ -79,6 +79,51 @@ export function formatCutTriplet(
   return `${formatCutAxis(cut, "length")} × ${formatCutAxis(cut, "width")} × ${formatCutAxis(cut, "thickness")}`;
 }
 
+export type CutAxis = "length" | "width" | "thickness";
+
+export function isCutAxisUnknown(
+  cut: Pick<CutRow, "measured" | "locked">,
+  axis: CutAxis,
+): boolean {
+  if (cut.locked?.[axis]) return false;
+  const measured = cut.measured?.[axis];
+  return !!measured && measured.value == null;
+}
+
+/** Count of ticket axes that still print `?` (not tickets, axes). */
+export function ticketUnknownAxes(
+  cuts: Array<Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">>,
+): number {
+  let n = 0;
+  for (const cut of cuts) {
+    for (const axis of ["length", "width", "thickness"] as const) {
+      if (formatCutAxis(cut, axis) === "?") n += 1;
+    }
+  }
+  return n;
+}
+
+export type TicketView = "face" | "edge" | "end";
+
+/** Face / edge / end labels bound to MeasuredDim — unknown axes stay `?`. */
+export function ticketViewLabels(
+  cut: Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">,
+  view: TicketView,
+): { x: string; y: string; unknownX: boolean; unknownY: boolean } {
+  const axis =
+    view === "face"
+      ? (["length", "width"] as const)
+      : view === "edge"
+        ? (["length", "thickness"] as const)
+        : (["width", "thickness"] as const);
+  return {
+    x: formatCutAxis(cut, axis[0]),
+    y: formatCutAxis(cut, axis[1]),
+    unknownX: isCutAxisUnknown(cut, axis[0]),
+    unknownY: isCutAxisUnknown(cut, axis[1]),
+  };
+}
+
 export function clampInch(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
   return Math.min(max, Math.max(min, n));

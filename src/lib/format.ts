@@ -19,7 +19,8 @@ export function formatInches(n: number): string {
   if (thirtyseconds === 32) return `${sign}${whole + 1}"`;
   const g = gcd(thirtyseconds, 32);
   const frac = `${thirtyseconds / g}/${32 / g}`;
-  return whole === 0 ? `${sign}${frac}"` : `${sign}${whole} ${frac}"`;
+  // Shop tickets use a hyphen on mixed numbers: 17-1/4", not 17 1/4".
+  return whole === 0 ? `${sign}${frac}"` : `${sign}${whole}-${frac}"`;
 }
 
 export function formatDimTriplet(l: number, w: number, t: number): string {

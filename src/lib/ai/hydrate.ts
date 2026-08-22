@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getTemplate, matchTemplate } from "../catalog";
 import { instantiate } from "../compile";
-import { inferDrawing, isAdirondackReading, isUprightChair, mergeDrawing } from "../drawing";
+import { inferDrawing, isAdirondackReading, isUprightChair } from "../drawing";
 import { inferRole, isPartRole } from "../layout";
 import {
   clampInch,
@@ -511,10 +511,17 @@ export function hydrateVision(
       ? ai.speciesGuess
       : (joinery.defaultSpecies ?? "maple");
 
-  const drawing = mergeDrawing(
-    joinery.drawing ?? inferDrawing(joinery),
-    ai.drawing as Partial<DrawingSpec> | undefined,
-  );
+  // Draw the boards we read — do not start from the joinery template's
+  // silhouette (lattice-back / counter-height stock sizes).
+  const drawing = inferDrawing({
+    id: `${joinery.id}-read`,
+    category: ai.category ?? joinery.category,
+    name: ai.name ?? joinery.name,
+    interpretation: ai.interpretation ?? joinery.interpretation,
+    parts,
+    overall,
+    drawing: ai.drawing as DrawingSpec | undefined,
+  });
 
   return instantiate(
     {
