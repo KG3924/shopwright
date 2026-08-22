@@ -119,7 +119,7 @@ export function formatDimSource(dim: MeasuredDim | undefined): string {
 }
 
 export function formatCutAxisSource(
-  cut: Pick<CutRow, "measured" | "locked">,
+  cut: Pick<CutRow, "measured"> & { locked?: CutRow["locked"] },
   axis: CutAxis,
 ): string {
   if (cut.locked?.[axis]) return cut.measured ? "locked — your tape" : "";
@@ -127,7 +127,9 @@ export function formatCutAxisSource(
 }
 
 /** Compact per-part source line. Empty when the part has no measure truth. */
-export function formatCutSources(cut: Pick<CutRow, "measured" | "locked">): string {
+export function formatCutSources(
+  cut: Pick<CutRow, "measured"> & { locked?: CutRow["locked"] },
+): string {
   if (!cut.measured) return "";
   return (["length", "width", "thickness"] as const)
     .map((axis) => `${AXIS_LETTER[axis]} ${formatCutAxisSource(cut, axis)}`)
