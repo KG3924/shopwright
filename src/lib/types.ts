@@ -8,6 +8,23 @@ export const RANKS = [
 
 export type Rank = (typeof RANKS)[number];
 
+/** Tools the builder says are on the bench. Gates which construction routes can compile. */
+export const SHOP_TOOLS = [
+  "drill",
+  "miter-saw",
+  "kreg-jig",
+  "clamps",
+  "sander",
+  "table-saw",
+  "mortiser",
+  "chisels",
+  "tenon-saw",
+  "marking-gauge",
+  "plane",
+] as const;
+
+export type ShopTool = (typeof SHOP_TOOLS)[number];
+
 export type Axis = "w" | "d" | "h" | "fixed";
 
 export type Axis3 = "x" | "y" | "z";
@@ -94,6 +111,8 @@ export type Part = {
   stock: Stock;
   grain: "length" | "width";
   notes?: string;
+  /** Route-specific cut-list notes. Compiler writes these onto the ticket. */
+  routeNotes?: Record<string, string>;
   /** Shop letter on the cut list (A, B, F…). Inferred if omitted. */
   letter?: string;
   /** Which board or sheet this is cut from. */
@@ -117,9 +136,13 @@ export type ConstructionRoute = {
   id: string;
   name: string;
   recommendedRank: Rank;
+  /** Hard gate. Defaults to the route-id table, then recommendedRank. */
+  minRank?: Rank;
   summary: string;
   joinery: string;
   tools: string[];
+  /** Shop-tool enum this route must have. Defaults to the route-id table. */
+  requiredTools?: ShopTool[];
   tradeoffs: string;
   hiddenWork: string;
 };
@@ -218,6 +241,8 @@ export type Project = ProjectTemplate & {
   routeId: string;
   speciesId: string;
   rank: Rank;
+  /** Empty means no tool-gated route can run — rank alone never invents joinery. */
+  toolsAvailable: ShopTool[];
   /** True when the cut list came from the photos, not a stock template. */
   partsFromPhotos?: boolean;
   /** Piece-level scale quality from a tape, label, or conflicting cues. */
@@ -256,9 +281,20 @@ export type CutRow = {
   measured?: PartMeasured;
 };
 
+export type RouteStatus = {
+  id: string;
+  runnable: boolean;
+  reasons: string[];
+};
+
 export type ShopPacket = {
   project: Project;
   route: ConstructionRoute;
+  /** False when rank/tools cannot run any route — hardware/steps stay route-agnostic. */
+  routeRunnable: boolean;
+  routeStatuses: RouteStatus[];
+  routesOffered: string[];
+  routesHidden: string[];
   cuts: CutRow[];
   boardFeet: number;
   weightLb: number;

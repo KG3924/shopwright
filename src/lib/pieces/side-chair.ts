@@ -100,6 +100,11 @@ export const sideChairTemplate: ProjectTemplate = {
       fromStock: "8/4 ripped to 1¾\" square, or glue-up",
       notes:
         "Batch-cut to identical length. A chair with one short leg rocks forever. Optional light taper on the two inside faces, top 4\" stays full.",
+      routeNotes: {
+        pocket: "Pocket / butt — cut the listed length. Do not invent tenon length.",
+        mortise:
+          "Mortise the legs for stretcher tenons. Tenon shoulders live on the stretcher tickets — do not invent extra length here.",
+      },
     },
     {
       id: "back-leg",
@@ -127,6 +132,11 @@ export const sideChairTemplate: ProjectTemplate = {
       grain: "length",
       fromStock: "1×3",
       notes: "Between the legs, ~8\" off the floor. This is the footring on the sides.",
+      routeNotes: {
+        pocket: "Pocket / butt — cut the listed length. Do not invent tenon length.",
+        mortise:
+          "Tenon shoulders — cut the listed length. Do not invent extra stock (no silent ¾″ horns).",
+      },
     },
     {
       id: "front-stretcher",
@@ -140,6 +150,11 @@ export const sideChairTemplate: ProjectTemplate = {
       grain: "length",
       fromStock: "1×3",
       notes: "The footring you actually put your feet on. Same height as the sides.",
+      routeNotes: {
+        pocket: "Pocket / butt — cut the listed length. Do not invent tenon length.",
+        mortise:
+          "Tenon shoulders — cut the listed length. Do not invent extra stock (no silent ¾″ horns).",
+      },
     },
     {
       id: "rear-stretcher",
@@ -153,6 +168,11 @@ export const sideChairTemplate: ProjectTemplate = {
       grain: "length",
       fromStock: "1×3",
       notes: "Closes the box. Same height. Don't skip it — the frame racks without it.",
+      routeNotes: {
+        pocket: "Pocket / butt — cut the listed length. Do not invent tenon length.",
+        mortise:
+          "Tenon shoulders — cut the listed length. Do not invent extra stock (no silent ¾″ horns).",
+      },
     },
     {
       id: "top-rail",

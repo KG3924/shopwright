@@ -29,6 +29,7 @@ export function HomeView() {
   const loadCatalog = useStudio((s) => s.loadCatalog);
   const loadProject = useStudio((s) => s.loadProject);
   const rank = useStudio((s) => s.rank);
+  const toolsAvailable = useStudio((s) => s.toolsAvailable);
   const inputRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState<"photo" | "url" | null>(null);
@@ -78,7 +79,7 @@ export function HomeView() {
     try {
       const kind = "photo";
       const result = await interpretPiece({
-        data: { imageDataUrls: staged, kind, rank },
+        data: { imageDataUrls: staged, kind, rank, toolsAvailable },
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -104,6 +105,7 @@ export function HomeView() {
           url: trimmed,
           kind: "url",
           rank,
+          toolsAvailable,
           imageDataUrls: staged.length ? staged : undefined,
         },
       });

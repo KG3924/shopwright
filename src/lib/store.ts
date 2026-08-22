@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { CATALOG } from "./catalog";
 import { compilePacket, instantiate } from "./compile";
+import { normalizeTools, toggleTool } from "./routes";
 import { defaultZip } from "./sourcing";
 import type {
   ChatMessage,
@@ -10,15 +11,19 @@ import type {
   Project,
   Rank,
   ShopPacket,
+  ShopTool,
 } from "./types";
 import { MAX_PHOTOS } from "./types";
 
 type StudioState = {
   rank: Rank;
   zip: string;
+  toolsAvailable: ShopTool[];
   project: Project | null;
   chat: ChatMessage[];
   setRank: (rank: Rank) => void;
+  setToolsAvailable: (tools: ShopTool[]) => void;
+  toggleToolAvailable: (tool: ShopTool) => void;
   setZip: (zip: string) => void;
   setSpecies: (id: string) => void;
   setRoute: (id: string) => void;
@@ -45,11 +50,28 @@ export const useStudio = create<StudioState>()(
     (set, get) => ({
       rank: "beginner",
       zip: defaultZip(),
+      toolsAvailable: [],
       project: null,
       chat: [],
       setRank: (rank) => {
         const project = get().project;
         set({ rank, project: project ? { ...project, rank } : null });
+      },
+      setToolsAvailable: (tools) => {
+        const toolsAvailable = normalizeTools(tools);
+        const project = get().project;
+        set({
+          toolsAvailable,
+          project: project ? { ...project, toolsAvailable } : null,
+        });
+      },
+      toggleToolAvailable: (tool) => {
+        const toolsAvailable = toggleTool(get().toolsAvailable, tool);
+        const project = get().project;
+        set({
+          toolsAvailable,
+          project: project ? { ...project, toolsAvailable } : null,
+        });
       },
       setZip: (zip) => set({ zip }),
       setSpecies: (id) => {
@@ -125,9 +147,9 @@ export const useStudio = create<StudioState>()(
       loadCatalog: (id) => {
         const template = CATALOG.find((p) => p.id === id);
         if (!template) return;
-        const { rank } = get();
+        const { rank, toolsAvailable } = get();
         set({
-          project: instantiate(template, { rank }),
+          project: instantiate(template, { rank, toolsAvailable }),
           chat: [],
         });
       },
@@ -137,6 +159,9 @@ export const useStudio = create<StudioState>()(
             ...project,
             photos: project.photos ?? (project.photoDataUrl ? [project.photoDataUrl] : []),
             partOverrides: project.partOverrides ?? {},
+            toolsAvailable: normalizeTools(
+              project.toolsAvailable ?? get().toolsAvailable,
+            ),
           },
           chat: [],
         }),
@@ -144,21 +169,48 @@ export const useStudio = create<StudioState>()(
       addChat: (msg) => set({ chat: [...get().chat, msg] }),
       clearChat: () => set({ chat: [] }),
       packet: () => {
-        const { project, zip } = get();
+        const { project, zip, toolsAvailable, rank } = get();
         if (!project) return null;
-        return compilePacket(project, zip);
+        return compilePacket(
+          {
+            ...project,
+            rank: project.rank ?? rank,
+            toolsAvailable: normalizeTools(project.toolsAvailable ?? toolsAvailable),
+          },
+          zip,
+        );
       },
     }),
     {
       name: "shopwright-v02",
+      merge: (persisted, current) => {
+        const raw = (persisted ?? {}) as Partial<StudioState>;
+        const toolsAvailable = normalizeTools(raw.toolsAvailable);
+        const project = raw.project
+          ? {
+              ...raw.project,
+              toolsAvailable: normalizeTools(
+                raw.project.toolsAvailable ?? toolsAvailable,
+              ),
+            }
+          : current.project;
+        return {
+          ...current,
+          ...raw,
+          toolsAvailable,
+          project,
+        };
+      },
       partialize: (s) => ({
         rank: s.rank,
         zip: s.zip,
+        toolsAvailable: normalizeTools(s.toolsAvailable),
         project: s.project
           ? {
               ...s.project,
               photoDataUrl: undefined,
               photos: (s.project.photos ?? []).filter((p) => !p.startsWith("data:")),
+              toolsAvailable: normalizeTools(s.project.toolsAvailable ?? s.toolsAvailable),
             }
           : null,
       }),

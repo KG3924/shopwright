@@ -13,6 +13,7 @@ import {
   weakScale,
 } from "../measure";
 import { inferDim } from "../parametric";
+import { normalizeTools } from "../routes";
 import type {
   Axis3,
   DrawingSpec,
@@ -24,6 +25,7 @@ import type {
   Project,
   Rank,
   ScaleConfidence,
+  ShopTool,
 } from "../types";
 
 export const INTERPRET_ERROR_CODES = [
@@ -51,6 +53,7 @@ export type InterpretInput = {
   note?: string;
   kind: "photo" | "url" | "blueprint";
   rank: Rank;
+  toolsAvailable?: ShopTool[];
 };
 
 const MeasuredDimInputSchema = z.union([
@@ -549,6 +552,7 @@ export function hydrateVision(
     {
       overall,
       rank: input.rank,
+      toolsAvailable: normalizeTools(input.toolsAvailable),
       speciesId,
       photos,
       routeId:
