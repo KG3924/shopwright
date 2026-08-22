@@ -64,6 +64,11 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
 
   return (
     <div className="shop-drawings space-y-8">
+      {cutHold ? (
+        <div className="shop-print-hold mb-4">
+          <DoNotCutCallout hold={cutHold} />
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <p className="max-w-xl text-sm text-ink-soft">
           {fromPhotos
@@ -87,11 +92,6 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         sheet="1"
         meta={`${formatInches(overall.w)} W × ${formatInches(overall.d)} D × ${formatInches(overall.h)} H  ·  ${species.name}  ·  ${route.name}  ·  ${RANK_META[project.rank].label}`}
       >
-        {cutHold ? (
-          <div className="mb-4">
-            <DoNotCutCallout hold={cutHold} />
-          </div>
-        ) : null}
         <PhotoStrip photos={photos} fromPhotos={!!fromPhotos} />
         <p className="mb-4 max-w-2xl text-sm text-ink-soft">
           {project.interpretation}

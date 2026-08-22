@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { compilePacket, instantiate } from "../compile";
-import { formatCutAxis, formatCutSources, formatCutTriplet, formatDoNotCut } from "../measure";
+import {
+  formatCutAxis,
+  formatCutAxisSource,
+  formatCutSources,
+  formatCutTriplet,
+  formatDoNotCut,
+} from "../measure";
 import { getTemplate } from "../catalog";
 import {
   hydrateVision,
@@ -160,6 +166,41 @@ describe("hydrateVision", () => {
     assert.equal(project.parts[0]?.measured?.thickness.value, null);
     const packet = compilePacket(project, "75013");
     assert.equal(formatCutAxis(packet.cuts[0]!, "thickness"), "?");
+    assert.equal(packet.doNotCut, true);
+  });
+
+  it("does not treat a measured dim without photoIndex as a tape reading", () => {
+    const project = hydrateVision(
+      twoBoards({
+        scaleConfidence: undefined,
+        overallSource: "estimated",
+        parts: [
+          {
+            name: "Photo seat",
+            qty: 1,
+            length: { value: 16, source: "measured", confidence: 0.9 },
+            width: { value: 16, source: "measured", confidence: 0.9 },
+            thickness: { value: 0.75, source: "measured", confidence: 0.9 },
+            role: "seat",
+          },
+          {
+            name: "Photo leg",
+            qty: 4,
+            length: { value: 17.25, source: "inferred", confidence: 0.5 },
+            width: { value: 1.5, source: "inferred", confidence: 0.4 },
+            thickness: { value: 1.5, source: "inferred", confidence: 0.4 },
+            role: "leg",
+          },
+        ],
+      }),
+      input,
+      [],
+    );
+    assert.equal(project.parts[0]?.measured?.length.source, "measured");
+    assert.notEqual(project.scaleConfidence, "high");
+    const packet = compilePacket(project, "75013");
+    assert.equal(formatCutAxisSource(packet.cuts[0]!, "length"), "guessed — verify");
+    assert.equal(formatCutAxisSource(packet.cuts[0]!, "thickness"), "guessed — verify");
     assert.equal(packet.doNotCut, true);
   });
 

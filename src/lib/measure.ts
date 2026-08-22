@@ -36,6 +36,20 @@ export function isKnownDim(
   return !!dim && dim.source !== "unknown" && dim.value != null && Number.isFinite(dim.value);
 }
 
+export function hasPhotoIndex(
+  dim: MeasuredDim | undefined,
+): dim is MeasuredDim & { photoIndex: number } {
+  const idx = dim?.photoIndex;
+  return idx != null && Number.isInteger(idx) && idx >= 0;
+}
+
+/** Tape reading with provenance — not a bare `measured` claim. */
+export function isTapeMeasured(
+  dim: MeasuredDim | undefined,
+): dim is MeasuredDim & { value: number } {
+  return isKnownDim(dim) && dim.source === "measured" && hasPhotoIndex(dim);
+}
+
 export function sourcedAxisCount(measured: PartMeasured): number {
   return (["length", "width", "thickness"] as const).filter((axis) =>
     isKnownDim(measured[axis]),
@@ -90,31 +104,33 @@ const AXIS_LETTER: Record<CutAxis, string> = {
 /**
  * Builder-facing source for one axis. Catalog parts (no MeasuredDim) stay silent.
  * Formatters only — does not invent a second measure truth.
+ *
+ * Never say "measured" without a photo index. Null / unknown axes never
+ * borrow a photo or guess label that implies a cut-ready size.
  */
 export function formatDimSource(dim: MeasuredDim | undefined): string {
   if (!dim) return "";
-  if (dim.source === "measured") {
-    const idx = dim.photoIndex;
-    return idx != null && Number.isInteger(idx) && idx >= 0
-      ? `measured from photo ${idx + 1}`
-      : "measured";
+  if (dim.source === "unknown" || dim.value == null) return "verify before cut";
+  if (dim.source === "measured" && hasPhotoIndex(dim)) {
+    return `measured from photo ${dim.photoIndex + 1}`;
   }
-  if (dim.source === "inferred") return "guessed — verify";
+  if (dim.source === "measured" || dim.source === "inferred") return "guessed — verify";
   return "verify before cut";
 }
 
 export function formatCutAxisSource(
-  cut: Pick<CutRow, "measured">,
+  cut: Pick<CutRow, "measured" | "locked">,
   axis: CutAxis,
 ): string {
+  if (cut.locked?.[axis]) return cut.measured ? "locked — your tape" : "";
   return formatDimSource(cut.measured?.[axis]);
 }
 
 /** Compact per-part source line. Empty when the part has no measure truth. */
-export function formatCutSources(cut: Pick<CutRow, "measured">): string {
+export function formatCutSources(cut: Pick<CutRow, "measured" | "locked">): string {
   if (!cut.measured) return "";
   return (["length", "width", "thickness"] as const)
-    .map((axis) => `${AXIS_LETTER[axis]} ${formatDimSource(cut.measured![axis])}`)
+    .map((axis) => `${AXIS_LETTER[axis]} ${formatCutAxisSource(cut, axis)}`)
     .join(" · ");
 }
 

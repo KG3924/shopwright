@@ -447,7 +447,7 @@ export function StudioView() {
             <DoNotCutCallout hold={cutHold} />
           </div>
         ) : null}
-        <div className="flex gap-1 overflow-x-auto px-2 pt-2 sm:px-4">
+        <div className="flex gap-1 overflow-x-auto px-2 pt-2 print:hidden sm:px-4">
           {TABS.map((t) => {
             const Icon = TAB_ICON[t];
             return (
@@ -468,7 +468,14 @@ export function StudioView() {
         </div>
 
         <div className="p-4 sm:p-6">
-          {tab === "Drawings" ? <ShopDrawings packet={packet} /> : null}
+          <div
+            className={cn(
+              "shop-print-packet",
+              tab !== "Drawings" && "hidden print:block",
+            )}
+          >
+            <ShopDrawings packet={packet} />
+          </div>
 
           {tab === "Cut list" ? (
             <div className="space-y-4">

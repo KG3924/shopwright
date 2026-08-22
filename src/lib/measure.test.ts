@@ -84,6 +84,46 @@ describe("measure helpers", () => {
     assert.equal(editorAxisValue(cut, "thickness"), 0.875);
   });
 
+  it("does not hint a cut-ready photo or guess size on locked or unknown axes", () => {
+    const measured = {
+      ...sourced,
+      length: { value: 48, source: "measured" as const, confidence: 0.9, photoIndex: 0 },
+    };
+    const lockedUnknown = {
+      length: 48,
+      width: 14,
+      thickness: 0.875,
+      measured,
+      locked: { length: false, width: false, thickness: true, qty: false },
+    } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
+    assert.equal(formatCutAxisSource(lockedUnknown, "thickness"), "locked — your tape");
+    assert.equal(formatCutAxisSource(lockedUnknown, "length"), "measured from photo 1");
+    assert.match(formatCutSources(lockedUnknown), /T locked — your tape/);
+    assert.doesNotMatch(formatCutSources(lockedUnknown), /T verify before cut/);
+
+    const unlockedUnknown = {
+      length: 16,
+      width: 16,
+      thickness: 0,
+      measured: sourced,
+      locked: { length: false, width: false, thickness: false, qty: false },
+    } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
+    assert.equal(formatCutAxisSource(unlockedUnknown, "thickness"), "verify before cut");
+    assert.doesNotMatch(formatCutAxisSource(unlockedUnknown, "thickness"), /measured|guessed/);
+
+    const claimedMeasuredButNull = {
+      length: 16,
+      width: 16,
+      thickness: 0,
+      measured: {
+        ...sourced,
+        thickness: { value: null, source: "measured" as const, confidence: 0.9, photoIndex: 0 },
+      },
+      locked: { length: false, width: false, thickness: false, qty: false },
+    } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
+    assert.equal(formatCutAxisSource(claimedMeasuredButNull, "thickness"), "verify before cut");
+  });
+
   it("does not bind a fallback inch into the editor for an unknown axis", () => {
     const cut = {
       length: 16,
@@ -114,7 +154,11 @@ describe("measure helpers", () => {
     );
     assert.equal(
       formatDimSource({ value: 14, source: "measured", confidence: 0.9 }),
-      "measured",
+      "guessed — verify",
+    );
+    assert.equal(
+      formatDimSource({ value: null, source: "measured", confidence: 0.9, photoIndex: 0 }),
+      "verify before cut",
     );
     assert.equal(
       formatDimSource({ value: 16, source: "inferred", confidence: 0.4 }),
