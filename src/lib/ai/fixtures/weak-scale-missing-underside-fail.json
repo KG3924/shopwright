@@ -9,7 +9,20 @@
       "Seat": "16\" × 16\" × ?",
       "Leg": "17\" × 1-1/2\" × 1-1/2\""
     },
-    "warningsInclude": ["do not cut", "?", "scale"]
+    "warningsInclude": ["do not cut", "?", "scale"],
+    "dimSources": {
+      "Seat": {
+        "length": "guessed — verify",
+        "width": "guessed — verify",
+        "thickness": "unknown — measure"
+      },
+      "Leg": {
+        "length": "guessed — verify",
+        "width": "guessed — verify",
+        "thickness": "guessed — verify"
+      }
+    },
+    "cutHoldIncludes": ["Do not cut yet", "No tape", "Underside not visible"]
   },
   "ai": {
     "name": "Guessed stool",

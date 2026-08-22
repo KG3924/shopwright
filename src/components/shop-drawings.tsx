@@ -4,7 +4,16 @@ import { LatticeJoinery } from "@/components/chair-drawings";
 import { inferDrawing } from "@/lib/drawing";
 import { formatInches } from "@/lib/format";
 import { layoutBoxes, type WorldBox } from "@/lib/layout";
-import { formatCutAxis, formatCutTriplet, ticketViewLabels } from "@/lib/measure";
+import {
+  formatCutAxis,
+  formatCutAxisSource,
+  formatCutSources,
+  formatCutTriplet,
+  formatDoNotCut,
+  ticketViewLabels,
+  type CutAxis,
+  type CutHold,
+} from "@/lib/measure";
 import { RANK_META } from "@/lib/ranks";
 import type { CutRow, HardwareItem, Overall, ShopPacket } from "@/lib/types";
 import { projectPhotos } from "@/lib/types";
@@ -14,6 +23,19 @@ const INK = "var(--color-ink)";
 const PAPER = "var(--color-paper)";
 const WOOD = "var(--color-paper-2)";
 const WOOD_DK = "#cfc3ab";
+
+export function DoNotCutCallout({ hold }: { hold: CutHold }) {
+  return (
+    <aside className="rounded-sm border border-ink/40 bg-paper px-3 py-3">
+      <p className="font-display text-lg text-ink">{hold.headline}</p>
+      <ul className="mt-2 space-y-1 text-sm text-ink-soft">
+        {hold.notes.map((n) => (
+          <li key={n}>{n}</li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
 
 export function ShopDrawings({ packet }: { packet: ShopPacket }) {
   const { project, cuts, route, species } = packet;
@@ -25,6 +47,11 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
     project.sourceKind === "url" ||
     project.sourceKind === "blueprint" ||
     project.partsFromPhotos;
+  const cutHold = formatDoNotCut({
+    doNotCut: packet.doNotCut,
+    scaleConfidence: project.scaleConfidence,
+    scaleNotes: project.scaleNotes,
+  });
   const boxes = layoutBoxes(overall, cuts, {
     seatHeightRatio: spec.seatHeightRatio,
   });
@@ -39,11 +66,9 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
     <div className="shop-drawings space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <p className="max-w-xl text-sm text-ink-soft">
-          {packet.doNotCut
-            ? "Do not cut yet. Scale is weak or a ticket still prints '?'. Confirm with a tape first."
-            : fromPhotos
-              ? "Compiled from the boards we read in the photos — the same inches as the cut list. Not a stock silhouette. Do not scale the pictures; cut to the tickets."
-              : "Compiled from this piece’s parts. Do not scale the pictures — cut to the numbers. Unlocked parts follow overall W / D / H."}
+          {fromPhotos
+            ? "Compiled from the boards we read in the photos — the same inches as the cut list. Not a stock silhouette. Do not scale the pictures; cut to the tickets."
+            : "Compiled from this piece’s parts. Do not scale the pictures — cut to the numbers. Unlocked parts follow overall W / D / H."}
         </p>
         <Button
           type="button"
@@ -62,6 +87,11 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         sheet="1"
         meta={`${formatInches(overall.w)} W × ${formatInches(overall.d)} D × ${formatInches(overall.h)} H  ·  ${species.name}  ·  ${route.name}  ·  ${RANK_META[project.rank].label}`}
       >
+        {cutHold ? (
+          <div className="mb-4">
+            <DoNotCutCallout hold={cutHold} />
+          </div>
+        ) : null}
         <PhotoStrip photos={photos} fromPhotos={!!fromPhotos} />
         <p className="mb-4 max-w-2xl text-sm text-ink-soft">
           {project.interpretation}
@@ -182,9 +212,12 @@ function PhotoStrip({
           <li key={`${i}-${src.slice(-10)}`} className="shrink-0">
             <img
               src={src}
-              alt=""
+              alt={`Photo ${i + 1}`}
               className="h-16 w-16 rounded-sm object-cover sm:h-20 sm:w-24"
             />
+            <p className="mt-1 text-center font-mono text-[10px] text-ink-soft">
+              {i + 1}
+            </p>
           </li>
         ))}
       </ul>
@@ -318,15 +351,29 @@ function CutListTable({ cuts }: { cuts: CutRow[] }) {
                 ) : null}
               </td>
               <td className="py-2 pr-2 font-mono">{c.qty}</td>
-              <td className="py-2 pr-2 font-mono">{formatCutAxis(c, "thickness")}</td>
-              <td className="py-2 pr-2 font-mono">{formatCutAxis(c, "width")}</td>
-              <td className="py-2 pr-2 font-mono">{formatCutAxis(c, "length")}</td>
+              <DimCell cut={c} axis="thickness" />
+              <DimCell cut={c} axis="width" />
+              <DimCell cut={c} axis="length" />
               <td className="py-2 text-ink-soft">{c.fromStock}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function DimCell({ cut, axis }: { cut: CutRow; axis: CutAxis }) {
+  const source = formatCutAxisSource(cut, axis);
+  return (
+    <td className="py-2 pr-2 font-mono">
+      <span className="block">{formatCutAxis(cut, axis)}</span>
+      {source ? (
+        <span className="mt-0.5 block font-sans text-[10px] font-normal leading-snug text-ink-soft">
+          {source}
+        </span>
+      ) : null}
+    </td>
   );
 }
 
@@ -646,6 +693,11 @@ function Legend({ cuts }: { cuts: CutRow[] }) {
               {c.qty}× {formatCutTriplet(c)}
               {c.locked.length || c.locked.width || c.locked.thickness ? " · locked" : ""}
             </span>
+            {formatCutSources(c) ? (
+              <span className="mt-0.5 block text-[10px] leading-snug text-ink-soft">
+                {formatCutSources(c)}
+              </span>
+            ) : null}
           </span>
         </li>
       ))}
@@ -799,6 +851,11 @@ function PartTicket({ cut }: { cut: CutRow }) {
         {formatCutTriplet(cut)} · {cut.stock}
         {cut.grain === "length" ? " · grain long" : " · grain across"}
       </p>
+      {formatCutSources(cut) ? (
+        <p className="mt-1 text-[11px] leading-snug text-ink-soft">
+          {formatCutSources(cut)}
+        </p>
+      ) : null}
       <p className="mt-1 font-mono text-xs text-ink-soft">From {cut.fromStock}</p>
       {cut.notes ? <p className="mt-1 text-xs text-ink-soft">{cut.notes}</p> : null}
     </article>

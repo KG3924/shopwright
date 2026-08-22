@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   formatCutAxis,
+  formatCutAxisSource,
+  formatCutSources,
   formatCutTriplet,
+  formatDimSource,
+  formatDoNotCut,
   formatMeasured,
   hasSourcedDims,
   ticketUnknownAxes,
@@ -76,5 +80,49 @@ describe("measure helpers", () => {
       locked: { length: false, width: false, thickness: true, qty: false },
     } as Pick<CutRow, "length" | "width" | "thickness" | "measured" | "locked">;
     assert.equal(formatCutAxis(cut, "thickness"), `7/8"`);
+  });
+
+  it("labels sourced, inferred, and unknown dims in builder language", () => {
+    assert.equal(
+      formatDimSource({
+        value: 14,
+        source: "measured",
+        confidence: 0.9,
+        photoIndex: 0,
+      }),
+      "measured from photo 1",
+    );
+    assert.equal(
+      formatDimSource({ value: 14, source: "measured", confidence: 0.9 }),
+      "measured",
+    );
+    assert.equal(
+      formatDimSource({ value: 16, source: "inferred", confidence: 0.4 }),
+      "guessed — verify",
+    );
+    assert.equal(formatDimSource(unknownDim("underside not visible")), "unknown — measure");
+    assert.equal(formatDimSource(undefined), "");
+  });
+
+  it("stays silent on catalog parts with no MeasuredDim", () => {
+    assert.equal(formatCutSources({}), "");
+    assert.equal(formatCutAxisSource({}, "length"), "");
+    assert.equal(formatDoNotCut({ doNotCut: false, scaleNotes: ["Tape in frame."] }), null);
+  });
+
+  it("prints don't-cut from doNotCut plus scale notes", () => {
+    const hold = formatDoNotCut({
+      doNotCut: true,
+      scaleConfidence: "low",
+      scaleNotes: [
+        "No tape or labeled dimension in frame.",
+        "Underside not visible — seat thickness unknown.",
+      ],
+    });
+    assert.ok(hold);
+    assert.equal(hold.headline, "Do not cut yet");
+    assert.match(hold.text, /Do not cut yet/);
+    assert.match(hold.text, /No tape/);
+    assert.match(hold.text, /Underside not visible/);
   });
 });

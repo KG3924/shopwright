@@ -9,6 +9,7 @@ export function InchField({
   locked,
   follows,
   onUnlock,
+  hint,
   className,
 }: {
   label: string;
@@ -17,6 +18,8 @@ export function InchField({
   locked?: boolean;
   follows?: string;
   onUnlock?: () => void;
+  /** Builder-facing measure source. Catalog fields omit this. */
+  hint?: string;
   className?: string;
 }) {
   const [raw, setRaw] = useState(String(value));
@@ -55,6 +58,11 @@ export function InchField({
           <span>fixed</span>
         )}
       </span>
+      {hint ? (
+        <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-ink-soft">
+          {hint}
+        </span>
+      ) : null}
       <input
         type="text"
         inputMode="decimal"

@@ -8,7 +8,20 @@
     "cutTriplets": {
       "Seat": "14\" × 14\" × 3/4\"",
       "Leg": "17-1/4\" × 1-1/2\" × 1-1/2\""
-    }
+    },
+    "dimSources": {
+      "Seat": {
+        "length": "measured from photo 1",
+        "width": "measured from photo 1",
+        "thickness": "measured from photo 3"
+      },
+      "Leg": {
+        "length": "measured from photo 2",
+        "width": "measured from photo 2",
+        "thickness": "measured from photo 2"
+      }
+    },
+    "cutHold": null
   },
   "ai": {
     "name": "Shop stool",

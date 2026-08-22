@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { compilePacket, instantiate } from "../compile";
-import { formatCutAxis, formatCutTriplet } from "../measure";
+import { formatCutAxis, formatCutSources, formatCutTriplet, formatDoNotCut } from "../measure";
 import { getTemplate } from "../catalog";
 import {
   hydrateVision,
@@ -227,5 +227,14 @@ describe("catalog path", () => {
     assert.ok(top);
     assert.equal(formatCutAxis(top, "length"), `48"`);
     assert.equal(formatCutTriplet(top).includes("?"), false);
+    assert.equal(formatCutSources(top), "");
+    assert.equal(
+      formatDoNotCut({
+        doNotCut: packet.doNotCut,
+        scaleConfidence: project.scaleConfidence,
+        scaleNotes: project.scaleNotes,
+      }),
+      null,
+    );
   });
 });

@@ -7,7 +7,9 @@ import { compilePacket } from "../compile";
 import { inferDrawing } from "../drawing";
 import { layoutBoxes } from "../layout";
 import {
+  formatCutAxisSource,
   formatCutTriplet,
+  formatDoNotCut,
   ticketUnknownAxes,
   ticketViewLabels,
 } from "../measure";
@@ -27,6 +29,12 @@ type FixtureExpect = {
   ticketUnknownAxes: number;
   cutTriplets: Record<string, string>;
   warningsInclude?: string[];
+  dimSources?: Record<
+    string,
+    Partial<Record<"length" | "width" | "thickness", string>>
+  >;
+  cutHold?: string | null;
+  cutHoldIncludes?: string[];
 };
 
 type Fixture = {
@@ -75,6 +83,31 @@ function assertShopTruth(fixture: Fixture) {
       packet.warnings.some((w) => w.toLowerCase().includes(needle.toLowerCase())),
       `expected a warning including ${JSON.stringify(needle)}, got ${JSON.stringify(packet.warnings)}`,
     );
+  }
+
+  if (expect.dimSources) {
+    for (const [name, axes] of Object.entries(expect.dimSources)) {
+      const cut = byName.get(name);
+      assert.ok(cut, `missing cut ${name}`);
+      for (const axis of ["length", "width", "thickness"] as const) {
+        if (axes[axis]) {
+          assert.equal(formatCutAxisSource(cut, axis), axes[axis]);
+        }
+      }
+    }
+  }
+
+  const hold = formatDoNotCut({
+    doNotCut: packet.doNotCut,
+    scaleConfidence: project.scaleConfidence,
+    scaleNotes: project.scaleNotes,
+  });
+  if (expect.cutHold === null) {
+    assert.equal(hold, null);
+  }
+  for (const needle of expect.cutHoldIncludes ?? []) {
+    assert.ok(hold, "expected don't-cut copy");
+    assert.match(hold.text, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
   }
 
   return { project, packet };
