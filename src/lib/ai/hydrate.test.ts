@@ -9,6 +9,8 @@ import {
   formatDoNotCut,
 } from "../measure";
 import { getTemplate } from "../catalog";
+import { drawingCaption } from "../drawing";
+import { isRectilinearOutline } from "../silhouette";
 import {
   hydrateVision,
   InterpretError,
@@ -250,6 +252,86 @@ describe("hydrateVision", () => {
     assert.equal(project.parts[0]?.measured?.length.source, "inferred");
     assert.equal(project.parts[0]?.measured?.length.value, 40);
     assert.notEqual(project.parts[0]?.id, "top");
+  });
+
+  it("does not hydrate a named saddle as a flat square slab", () => {
+    const boxed = twoBoards({
+      name: "Leola low-back side chair",
+      interpretation:
+        "Saddled solid-wood seat with a waterfall front and tapered splay legs. Not a rectangular slab.",
+      visibleDetails: ["saddle seat, ~3/8 dish", "waterfall front"],
+      drawing: {
+        family: "chair",
+        seatShape: "square",
+        seatProfile: "flat",
+        seatFront: "square",
+        legStyle: "straight",
+        sideOutline: [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 1],
+        ],
+      },
+      parts: [
+        {
+          name: "Seat",
+          qty: 1,
+          length: { value: 17.5, source: "inferred", confidence: 0.5 },
+          width: { value: 16, source: "inferred", confidence: 0.45 },
+          thickness: { value: null, source: "unknown", confidence: 0 },
+          role: "seat",
+        },
+        {
+          name: "Leg",
+          qty: 4,
+          length: { value: 17.25, source: "inferred", confidence: 0.5 },
+          width: { value: 1.75, source: "inferred", confidence: 0.4 },
+          thickness: { value: 1.75, source: "inferred", confidence: 0.4 },
+          role: "leg",
+        },
+      ],
+    });
+    const raw = parseVisionJson(JSON.stringify(boxed));
+    assert.equal(raw.drawing?.seatProfile, "flat");
+    const project = hydrateVision(raw, input, []);
+    assert.equal(project.drawing?.seatProfile, "saddled");
+    assert.notEqual(project.drawing?.seatProfile, "flat");
+    assert.equal(isRectilinearOutline(project.drawing?.sideOutline), false);
+    assert.match(drawingCaption(project.drawing!), /saddled/i);
+    assert.ok(
+      project.uncertainties.some((u) => /kept that profile instead of a flat square slab/i.test(u)),
+    );
+    const seat = project.parts.find((p) => p.role === "seat");
+    assert.match(seat?.notes ?? "", /saddled/i);
+    assert.equal(seat?.measured?.thickness.source, "unknown");
+  });
+
+  it("accepts seatProfile alias 'saddle' and does not drop outlines", () => {
+    const text = JSON.stringify(
+      twoBoards({
+        drawing: {
+          family: "chair",
+          seatProfile: "saddle" as unknown as "saddled",
+          seatShape: "rounded-rect",
+          sideOutline: [
+            [0.1, 0],
+            [0.12, 0.48],
+            [0.05, 0.52],
+            [0.4, 0.46],
+            [0.75, 0.55],
+            [0.8, 0.9],
+            [0.7, 0],
+          ],
+        },
+      }),
+    );
+    const ai = parseVisionJson(text);
+    assert.equal(ai.drawing?.seatProfile, "saddle");
+    assert.ok((ai.drawing?.sideOutline?.length ?? 0) >= 6);
+    const project = hydrateVision(ai, input, []);
+    assert.equal(project.drawing?.seatProfile, "saddled");
+    assert.equal(isRectilinearOutline(project.drawing?.sideOutline), false);
   });
 });
 

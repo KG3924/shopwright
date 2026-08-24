@@ -9,6 +9,7 @@ import {
   asSeatFront,
   asSeatProfile,
   asSeatShape,
+  recoverFormLanguage,
   sanitizeOutline,
 } from "../silhouette";
 import {
@@ -108,47 +109,36 @@ const OverallSchema = z.object({
   h: z.number().finite(),
 });
 
+const BACK_STYLES = ["lattice", "x-back", "splat", "slat-fan", "solid", "none"] as const;
+const DRAWING_FAMILIES = ["table", "case", "chair", "feeder"] as const;
+const maybeStr = z.union([z.string(), z.null()]).optional();
+const maybeNum = z.union([z.number().finite(), z.null()]).optional();
+const maybeBool = z.union([z.boolean(), z.null()]).optional();
+const maybeOutline = z.array(z.any()).nullish();
+
 const DrawingSchema = z
   .object({
-    family: z.enum(["table", "case", "chair", "feeder"]).optional(),
-    backStyle: z
-      .enum(["lattice", "x-back", "splat", "slat-fan", "solid", "none"])
-      .optional(),
-    hasArms: z.boolean().optional(),
-    hasFootring: z.boolean().optional(),
-    seatShape: z
-      .enum([
-        "square",
-        "round",
-        "horseshoe",
-        "D",
-        "shield",
-        "trapezoid",
-        "rounded-rect",
-        "irregular",
-      ])
-      .optional(),
-    seatProfile: z
-      .enum(["flat", "saddled", "dished", "scooped", "waterfall", "tractor", "sculpted"])
-      .optional(),
-    seatFront: z.enum(["square", "rounded", "waterfall", "rolled", "bullnose"]).optional(),
-    seatDishIn: z.number().finite().optional(),
-    legStyle: z
-      .enum(["straight", "tapered", "splayed", "tapered-splay", "cabriole", "saber", "turned"])
-      .optional(),
-    legTaperToIn: z.number().finite().optional(),
-    legSplayDeg: z.number().finite().optional(),
-    backProfile: z
-      .enum(["upright", "reclined", "curved", "hoop", "windsor", "ladder"])
-      .optional(),
-    seatHeightRatio: z.number().finite().optional(),
-    reclined: z.boolean().optional(),
-    constructionConfidence: z.number().finite().optional(),
-    visibleDetails: z.array(z.string()).optional(),
-    sideOutline: z.array(z.any()).optional(),
-    frontOutline: z.array(z.any()).optional(),
-    planOutline: z.array(z.any()).optional(),
+    family: maybeStr,
+    backStyle: maybeStr,
+    hasArms: maybeBool,
+    hasFootring: maybeBool,
+    seatShape: maybeStr,
+    seatProfile: maybeStr,
+    seatFront: maybeStr,
+    seatDishIn: maybeNum,
+    legStyle: maybeStr,
+    legTaperToIn: maybeNum,
+    legSplayDeg: maybeNum,
+    backProfile: maybeStr,
+    seatHeightRatio: maybeNum,
+    reclined: maybeBool,
+    constructionConfidence: maybeNum,
+    visibleDetails: z.array(z.string()).nullish(),
+    sideOutline: maybeOutline,
+    frontOutline: maybeOutline,
+    planOutline: maybeOutline,
   })
+  .passthrough()
   .optional();
 
 export const AiJsonSchema = z.object({
@@ -239,7 +229,8 @@ function coerceMeasured(
 }
 
 function pickTemplate(ai: AiJson) {
-  const reading = { ...ai, templateId: ai.templateId ?? undefined };
+  const drawing = drawingFromAi(ai);
+  const reading = { ...ai, templateId: ai.templateId ?? undefined, drawing };
   if (isUprightChair(reading)) return getTemplate("side-chair");
   if (isAdirondackReading(reading)) return getTemplate("adirondack");
   return matchTemplate(ai.templateId ?? ai.category ?? undefined, ai.name);
@@ -456,30 +447,57 @@ function drawingFromAi(ai: AiJson): DrawingSpec | undefined {
     .map((s) => String(s).trim())
     .filter(Boolean)
     .slice(0, 10);
+  const familyRaw = typeof d?.family === "string" ? d.family.toLowerCase() : undefined;
+  const backRaw = typeof d?.backStyle === "string" ? d.backStyle.toLowerCase() : undefined;
   return {
-    family: d?.family,
-    backStyle: d?.backStyle,
-    hasArms: d?.hasArms,
-    hasFootring: d?.hasFootring,
-    reclined: d?.reclined,
-    seatHeightRatio: d?.seatHeightRatio,
-    seatShape: asSeatShape(d?.seatShape) ?? d?.seatShape,
+    family: (DRAWING_FAMILIES as readonly string[]).includes(familyRaw ?? "")
+      ? (familyRaw as DrawingSpec["family"])
+      : undefined,
+    backStyle: (BACK_STYLES as readonly string[]).includes(backRaw ?? "")
+      ? (backRaw as DrawingSpec["backStyle"])
+      : undefined,
+    hasArms: typeof d?.hasArms === "boolean" ? d.hasArms : undefined,
+    hasFootring: typeof d?.hasFootring === "boolean" ? d.hasFootring : undefined,
+    reclined: typeof d?.reclined === "boolean" ? d.reclined : undefined,
+    seatHeightRatio: typeof d?.seatHeightRatio === "number" ? d.seatHeightRatio : undefined,
+    seatShape: asSeatShape(d?.seatShape),
     seatProfile: asSeatProfile(d?.seatProfile),
     seatFront: asSeatFront(d?.seatFront),
-    seatDishIn: d?.seatDishIn,
+    seatDishIn: typeof d?.seatDishIn === "number" ? d.seatDishIn : undefined,
     legStyle: asLegStyle(d?.legStyle),
-    legTaperToIn: d?.legTaperToIn,
-    legSplayDeg: d?.legSplayDeg,
+    legTaperToIn: typeof d?.legTaperToIn === "number" ? d.legTaperToIn : undefined,
+    legSplayDeg: typeof d?.legSplayDeg === "number" ? d.legSplayDeg : undefined,
     backProfile: asBackProfile(d?.backProfile),
     constructionConfidence:
       typeof ai.constructionConfidence === "number"
         ? ai.constructionConfidence
-        : d?.constructionConfidence,
+        : (d?.constructionConfidence ?? undefined),
     visibleDetails: details.length ? details : undefined,
     sideOutline: sanitizeOutline(d?.sideOutline),
     frontOutline: sanitizeOutline(d?.frontOutline),
     planOutline: sanitizeOutline(d?.planOutline),
   } as DrawingSpec;
+}
+
+function formHonestyNote(ai: AiJson, drawing: DrawingSpec): string | undefined {
+  const blob = [
+    ai.name,
+    ai.interpretation,
+    ...(ai.visibleDetails ?? []),
+    ...(drawing.visibleDetails ?? []),
+    ...(ai.parts ?? []).map((p) => `${p.name} ${p.notes ?? ""}`),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const recovered = recoverFormLanguage(blob);
+  const namedCurve = recovered.seatProfile && recovered.seatProfile !== "flat";
+  const rawProfile = asSeatProfile(ai.drawing?.seatProfile);
+  const rawWasBox = !rawProfile || rawProfile === "flat";
+  if (namedCurve && (rawWasBox || drawing.seatProfile === "flat")) {
+    return "Seat curve was named in the reading — we kept that profile instead of a flat square slab.";
+  }
+  return undefined;
 }
 
 /**
@@ -588,6 +606,7 @@ export function hydrateVision(
   // Safe infer-fill after the vision gate. Cannot invent a 2-board
   // packet; may fill twins and leftover unknown axes, then re-admit
   // those boards. Fills from this pass do not release Don't-cut.
+  const drawingIn = drawingFromAi(ai);
   const inferred = runInferFill(
     candidates.map(({ part, measured }) => ({
       name: part.name.trim(),
@@ -603,7 +622,7 @@ export function hydrateVision(
       name: ai.name,
       category: ai.category,
       interpretation: ai.interpretation,
-      drawing: ai.drawing,
+      drawing: drawingIn,
     },
   );
   const sourced = candidates
@@ -645,7 +664,6 @@ export function hydrateVision(
       ? ai.speciesGuess
       : (joinery.defaultSpecies ?? "maple");
 
-  const drawingIn = drawingFromAi(ai);
   const drawing = inferDrawing({
     id: `${joinery.id}-read`,
     category: ai.category ?? joinery.category,
@@ -674,6 +692,14 @@ export function hydrateVision(
     }
   }
 
+  const honesty = formHonestyNote(ai, drawing);
+  const uncertainties = [
+    ...(ai.uncertainties && ai.uncertainties.length
+      ? ai.uncertainties
+      : joinery.uncertainties),
+    ...(honesty ? [honesty] : []),
+  ];
+
   return instantiate(
     {
       ...joinery,
@@ -686,10 +712,7 @@ export function hydrateVision(
       drawing,
       interpretation: ai.interpretation ?? joinery.interpretation,
       confidence: ai.formConfidence ?? ai.confidence ?? joinery.confidence,
-      uncertainties:
-        ai.uncertainties && ai.uncertainties.length
-          ? ai.uncertainties
-          : joinery.uncertainties,
+      uncertainties,
       buyBoards: undefined,
       stack: undefined,
       stillBuy: undefined,
@@ -710,10 +733,7 @@ export function hydrateVision(
       sourceLabel: input.url,
       interpretation: ai.interpretation ?? joinery.interpretation,
       confidence: clampInch(ai.confidence ?? joinery.confidence, 0, 1),
-      uncertainties:
-        ai.uncertainties && ai.uncertainties.length
-          ? ai.uncertainties
-          : joinery.uncertainties,
+      uncertainties,
       partsFromPhotos: true,
       scaleConfidence: scale.scaleConfidence,
       scaleNotes: scale.scaleNotes,

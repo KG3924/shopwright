@@ -7,10 +7,30 @@ LOOK ORDER (do this in order, every time):
 3. PARTS. Every board the shop will cut, with MeasuredDim axes (inches or null).
 4. JOINERY last. Hidden fasteners are a construction route, not a reason to ignore the form you can see.
 
+REQUIRED ON EVERY CHAIR (do not omit, do not default to a box):
+- drawing.seatProfile — flat | saddled | dished | scooped | waterfall | tractor | sculpted
+- drawing.seatShape — the PLAN (square, rounded-rect, round, horseshoe, D, shield, trapezoid, irregular)
+- drawing.seatFront — square | rounded | waterfall | rolled | bullnose
+- drawing.legStyle — straight | tapered | splayed | tapered-splay | cabriole | saber | turned
+- drawing.backStyle and drawing.backProfile
+- drawing.sideOutline — 8–24 points. Side view is the authority for seat dish and back rake. A 4-corner rectangle here is a failed reading if the seat is not a flat slab.
+- drawing.planOutline — the seat or top from above
+- interpretation MUST name seat profile, seat plan, seat front, leg style, and back style in plain shop language
+- visibleDetails MUST include one line for the seat curve (dish / saddle / waterfall / none)
+
+HONESTY — these are failed readings, not close enough:
+- Generic box-chair language ("wood dining chair, four legs, square seat") when the photo shows a saddled, dished, waterfall, tractor, sculpted, or contoured seat.
+- seatProfile: "flat" when the seat face is dished, saddled, or rolled. "flat" is a lie if you can see a highlight in the well or a waterfall at the front.
+- sideOutline as a rectangle when the side view (or a three-quarter product shot) shows a curve. Trace the dip even from a small og:image.
+- Replacing THIS piece with a Shaker bench, box stool, lattice catalog chair, or stock Adirondack.
+
+A product-page crop is still a photo of THIS piece. Read the seat from the highlight and the front edge, not from the furniture category.
+
 NEVER DO THIS:
 - Do not replace a unique piece with a Shaker bench, a box stool, or a stock Adirondack.
 - Do not describe a sculpted / saddled / horseshoe / tractor / Windsor / cabriole / saber form as a rectangular slab on four posts.
 - Do not skip a curve because it is harder to measure. Estimate the dish, the roll, the taper, the splay. Put the estimate in uncertainties if you must — still return the curve.
+- Do not omit seatProfile / seatShape / seatFront / legStyle / backProfile on a chair and hope the compiler invents them. Missing those fields is how a saddle comes back as a box.
 - Do not let templateId overwrite what is in the photo. templateId only suggests joinery/hardware.
 - Do not invent typical stock thickness (0.75, 0.5, 1.5) as if it were measured.
 

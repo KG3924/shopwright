@@ -4,14 +4,18 @@ import { projectPhotos } from "../types";
 import { hydrateVision, InterpretError, type AiJson, type InterpretInput } from "./hydrate";
 import {
   INTERPRET_ABORT_MESSAGE,
+  NO_PRODUCT_PHOTO_MESSAGE,
+  PAGE_BLOCKED_MESSAGE,
   classifyFetchedUrl,
   filenameHintFromUrl,
   hasImageMagicBytes,
   isAbortError,
   isImageContentType,
   mapInterpretHandlerError,
+  pageLooksBlocked,
   parseHtmlExcerpt,
   photosForInterpret,
+  preferReadableProductImage,
   resolveUrlSource,
 } from "./url-source";
 
@@ -167,6 +171,67 @@ describe("parseHtmlExcerpt", () => {
     const excerpt = parseHtmlExcerpt(html, "https://shop.example/chair");
     assert.equal(excerpt.image, "https://cdn.example/og.jpg");
     assert.equal(excerpt.title, "Chair");
+  });
+
+  it("upsizes a tiny Wayfair og:image crop so vision can see the seat", () => {
+    const tiny =
+      "https://assets.wfcdn.com/im/1/resize-h200-w200%5Ecompr-r85/2751/leola.jpg";
+    assert.match(preferReadableProductImage(tiny), /resize-h800-w800/);
+    const html = `<html><head><title>Leola</title>
+      <meta property="og:image" content="${tiny}"></head>
+      <body>AllModern Leola solid wood low-back side chair</body></html>`;
+    const excerpt = parseHtmlExcerpt(html, "https://www.wayfair.com/leola");
+    assert.ok(excerpt.image);
+    assert.match(excerpt.image!, /resize-h800-w800/);
+  });
+
+  it("falls back to twitter:image when og:image is missing", () => {
+    const html = `<html><head><title>Chair</title>
+      <meta name="twitter:image" content="https://cdn.example/hero.jpg"></head></html>`;
+    const excerpt = parseHtmlExcerpt(html, "https://shop.example/chair");
+    assert.equal(excerpt.image, "https://cdn.example/hero.jpg");
+  });
+
+  it("skips logo crops", () => {
+    const html = `<html><head><title>Chair</title>
+      <meta property="og:image" content="https://cdn.example/brand-logo.png">
+      <meta name="twitter:image" content="https://cdn.example/chair-hero.jpg"></head></html>`;
+    const excerpt = parseHtmlExcerpt(html, "https://shop.example/chair");
+    assert.equal(excerpt.image, "https://cdn.example/chair-hero.jpg");
+  });
+});
+
+describe("blocked or empty product pages", () => {
+  it("detects a PerimeterX wall", () => {
+    assert.equal(pageLooksBlocked("Access to this page has been denied", "px-captcha"), true);
+    assert.equal(pageLooksBlocked("Leola Side Chair", "solid wood dining chair"), false);
+  });
+
+  it("refuses a blocked HTML page instead of inventing a box chair from the captcha text", () => {
+    const html = `<html><head><title>Access to this page has been denied</title></head>
+      <body>px-captcha Press & Hold to confirm you are a human</body></html>`;
+    assert.throws(
+      () =>
+        classifyFetchedUrl({
+          url: "https://www.wayfair.com/leola",
+          contentType: "text/html",
+          body: new TextEncoder().encode(html),
+        }),
+      (err: unknown) => err instanceof Error && err.message === PAGE_BLOCKED_MESSAGE,
+    );
+  });
+
+  it("refuses HTML with no product photo", () => {
+    const html = `<html><head><title>Chair</title></head><body>No images here</body></html>`;
+    assert.throws(
+      () =>
+        classifyFetchedUrl({
+          url: "https://shop.example/chair",
+          contentType: "text/html",
+          body: new TextEncoder().encode(html),
+        }),
+      (err: unknown) => err instanceof Error && err.message === NO_PRODUCT_PHOTO_MESSAGE,
+    );
   });
 });
 

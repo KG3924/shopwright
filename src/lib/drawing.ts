@@ -1,6 +1,11 @@
 import type { BackStyle, DrawingSpec, Overall, Part, Project, ProjectTemplate } from "./types";
 import { isKnownDim } from "./measure";
-import { sanitizeOutline } from "./silhouette";
+import {
+  applyRecoveredForm,
+  ensureElevationOutlines,
+  recoverFormLanguage,
+  sanitizeOutline,
+} from "./silhouette";
 
 const ADIRONDACK = /\b(adirondack|westport|muskoka)\b/;
 const LATTICE = /\b(lattice|chippendale|criss[- ]?cross|diamond back)\b/;
@@ -14,14 +19,16 @@ function blobOf(p: {
   category?: string;
   name?: string;
   interpretation?: string;
-  parts?: { name: string }[];
+  parts?: { name: string; notes?: string }[];
+  drawing?: Partial<DrawingSpec>;
 }): string {
   return [
     p.id,
     p.category,
     p.name,
     p.interpretation,
-    ...(p.parts ?? []).map((part) => part.name),
+    ...(p.drawing?.visibleDetails ?? []),
+    ...(p.parts ?? []).map((part) => `${part.name} ${part.notes ?? ""}`),
   ]
     .filter(Boolean)
     .join(" ")
@@ -34,7 +41,8 @@ function backFromBlob(blob: string): BackStyle {
   if (SPLAT.test(blob)) return "splat";
   if (/\b(slat|fan back|picket)\b/.test(blob)) return "slat-fan";
   if (/\bsolid back|panel back\b/.test(blob)) return "solid";
-  return "lattice";
+  // Do not invent a lattice on a sculpted low-back just because the photo has a back.
+  return "solid";
 }
 
 function partsBlob(parts: { name: string; role?: string }[] | undefined): string {
@@ -74,6 +82,10 @@ function seatHeightFromParts(
   return Math.min(1, Math.max(0.2, top / overall.h));
 }
 
+function finishDrawing(spec: DrawingSpec): DrawingSpec {
+  return ensureElevationOutlines(spec);
+}
+
 export function inferDrawing(
   project: Pick<
     Project,
@@ -81,7 +93,10 @@ export function inferDrawing(
   > & { drawing?: DrawingSpec; overall?: Overall },
 ): DrawingSpec {
   const blob = blobOf(project);
-  const fromPhoto = project.drawing;
+  const recovered = recoverFormLanguage(blob);
+  const fromPhoto = project.drawing
+    ? applyRecoveredForm(project.drawing, recovered)
+    : applyRecoveredForm({ family: "table" }, recovered);
 
   if (project.id === "feeder" || project.category === "feeder") {
     return { ...fromPhoto, family: "feeder" };
@@ -98,7 +113,7 @@ export function inferDrawing(
     fromPhoto?.backStyle !== "splat";
 
   if (keepAdirondack) {
-    return {
+    return finishDrawing({
       backStyle: "slat-fan",
       hasArms: true,
       hasFootring: false,
@@ -107,7 +122,7 @@ export function inferDrawing(
       ...fromPhoto,
       family: "chair",
       reclined: fromPhoto?.reclined ?? true,
-    };
+    });
   }
 
   const isChair =
@@ -118,21 +133,29 @@ export function inferDrawing(
 
   if (isChair) {
     const hasArmPart = (project.parts ?? []).some((p) => /\barm\b/i.test(p.name));
-    const hasBack = hasBackEvidence(project);
+    const hasBack = hasBackEvidence({ ...project, drawing: fromPhoto });
     const hasFootringPart = (project.parts ?? []).some((p) =>
       /\b(footring|foot rail|stretcher)\b/i.test(p.name),
     );
     const fromParts = seatHeightFromParts(project.parts, project.overall);
-    return {
+    const seatShape =
+      fromPhoto?.seatShape ??
+      recovered.seatShape ??
+      (/round|circular/.test(blob) ? "round" : "square");
+    return finishDrawing({
       backStyle: fromPhoto?.backStyle ?? (hasBack ? backFromBlob(blob) : "none"),
       hasArms: fromPhoto?.hasArms ?? hasArmPart,
       hasFootring: fromPhoto?.hasFootring ?? hasFootringPart,
-      seatShape: fromPhoto?.seatShape ?? (/round|circular/.test(blob) ? "round" : "square"),
       reclined: fromPhoto?.reclined ?? false,
       ...fromPhoto,
       family: "chair",
+      seatShape,
+      seatProfile: fromPhoto?.seatProfile ?? recovered.seatProfile,
+      seatFront: fromPhoto?.seatFront ?? recovered.seatFront,
+      legStyle: fromPhoto?.legStyle ?? recovered.legStyle,
+      backProfile: fromPhoto?.backProfile ?? recovered.backProfile,
       seatHeightRatio: fromPhoto?.seatHeightRatio ?? fromParts,
-    };
+    });
   }
 
   if (
@@ -184,7 +207,9 @@ export function drawingCaption(spec: DrawingSpec): string {
               : "open back";
   const seat =
     spec.seatProfile && spec.seatProfile !== "flat"
-      ? `${spec.seatProfile} ${spec.seatShape ?? "seat"}`
+      ? spec.seatShape && spec.seatShape !== "square"
+        ? `${spec.seatProfile} ${spec.seatShape} seat`
+        : `${spec.seatProfile} seat`
       : spec.seatShape === "round"
         ? "round seat"
         : spec.seatShape && spec.seatShape !== "square"

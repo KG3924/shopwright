@@ -1,0 +1,88 @@
+{
+  "id": "curved-seat-leola",
+  "expect": {
+    "scaleConfidence": "low",
+    "doNotCut": true,
+    "partsFromPhotos": true,
+    "ticketUnknownAxes": 1,
+    "cutTriplets": {
+      "Seat (saddle, waterfall front)": "17-1/2\" × 16-1/2\" × ?",
+      "Front leg": "17-1/2\" × 1-3/4\" × 1-3/4\""
+    },
+    "cutHoldIncludes": ["Don't cut yet"]
+  },
+  "ai": {
+    "name": "Leola low-back side chair",
+    "category": "chair",
+    "templateId": "side-chair",
+    "interpretation": "Solid-wood low-back dining chair with a saddled seat, waterfall front, and tapered splay legs. Not a flat square slab.",
+    "confidence": 0.88,
+    "constructionConfidence": 0.4,
+    "overall": { "w": 18, "d": 20, "h": 32 },
+    "overallSource": "estimated",
+    "scaleConfidence": "low",
+    "speciesGuess": "walnut",
+    "uncertainties": ["exact dish", "underside joinery"],
+    "visibleDetails": [
+      "saddle seat, ~3/8 dish",
+      "waterfall front rolled ~1",
+      "rear legs splay, taper 1 3/4 to 1 1/8"
+    ],
+    "parts": [
+      {
+        "name": "Seat (saddle, waterfall front)",
+        "qty": 1,
+        "role": "seat",
+        "stock": "solid",
+        "notes": "Blank is rectangular. Shape the saddle after glue-up.",
+        "length": { "value": 17.5, "source": "inferred", "confidence": 0.5 },
+        "width": { "value": 16.5, "source": "inferred", "confidence": 0.45 },
+        "thickness": { "value": null, "source": "unknown", "confidence": 0, "note": "edge not visible" },
+        "instances": [{ "x": 0, "y": 0, "z": 17.5, "lengthAlong": "x", "widthAlong": "y" }]
+      },
+      {
+        "name": "Front leg",
+        "qty": 2,
+        "role": "leg",
+        "stock": "solid",
+        "length": { "value": 17.5, "source": "inferred", "confidence": 0.5 },
+        "width": { "value": 1.75, "source": "inferred", "confidence": 0.4 },
+        "thickness": { "value": 1.75, "source": "inferred", "confidence": 0.4 }
+      }
+    ],
+    "drawing": {
+      "family": "chair",
+      "backStyle": "solid",
+      "hasArms": false,
+      "hasFootring": false,
+      "seatShape": "rounded-rect",
+      "seatProfile": "saddled",
+      "seatFront": "waterfall",
+      "seatDishIn": 0.375,
+      "legStyle": "tapered-splay",
+      "backProfile": "upright",
+      "seatHeightRatio": 0.55,
+      "reclined": false,
+      "sideOutline": [
+        [0.1, 0],
+        [0.12, 0.5],
+        [0.04, 0.54],
+        [0.22, 0.5],
+        [0.45, 0.48],
+        [0.7, 0.55],
+        [0.8, 0.72],
+        [0.86, 0.72],
+        [0.78, 0.08],
+        [0.7, 0]
+      ],
+      "planOutline": [
+        [0.08, 0.06],
+        [0.2, 0.02],
+        [0.8, 0.02],
+        [0.94, 0.1],
+        [0.96, 0.9],
+        [0.08, 0.9]
+      ]
+    }
+  }
+}
