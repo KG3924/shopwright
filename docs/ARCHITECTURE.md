@@ -52,6 +52,12 @@ No calls on page load. No loops. One retry at most is the caller’s job; we sur
 
 ## Persistence
 
-Zustand + localStorage for rank, ZIP, and the current project. Uploaded photos are not persisted (quota). Catalog thumbnails live in `/public/catalog`.
+Zustand + localStorage for rank, ZIP, tools, and the active piece id. Uploaded
+photos are too large for localStorage, so interpret results (photos + project
+graph / packet) are stored in the local Postgres (PGLite in preview, Neon when
+`DATABASE_URL` is set). Rows are keyed by piece id, not a user — auth is off.
+Home and Studio list recent pieces; opening one restores photos, locks, tools,
+and the compiled packet.
 
-Auth is off. Database is off. Nothing personal is stored server-side.
+Catalog thumbnails live in `/public/catalog`. Saving a catalog run stores a
+copy of that packet; catalog fixtures themselves are unchanged.

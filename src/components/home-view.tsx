@@ -15,13 +15,17 @@ import {
 import { useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toast } from "sonner";
 import { InterpretBusyStatus } from "@/components/interpret-busy";
+import { RecentPieces } from "@/components/recent-pieces";
 import { interpretPiece } from "@/lib/ai/interpret";
 import { mapInterpretHandlerError } from "@/lib/ai/url-source";
 import { CATALOG } from "@/lib/catalog";
 import { fileToDataUrl } from "@/lib/image";
+import { getSavedPiece, savePiece } from "@/lib/piece-api";
 import { PACKET_COPY } from "@/lib/plain-copy";
+import { newPieceId, shouldWritePiece } from "@/lib/saved-pieces";
 import { useStudio } from "@/lib/store";
 import { MAX_PHOTOS } from "@/lib/types";
+import { useRecentPieces } from "@/lib/use-persist-piece";
 import { ChiselMark, SawMark } from "./shop-marks";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -31,8 +35,10 @@ export function HomeView() {
   const navigate = useNavigate();
   const loadCatalog = useStudio((s) => s.loadCatalog);
   const loadProject = useStudio((s) => s.loadProject);
+  const setActivePieceId = useStudio((s) => s.setActivePieceId);
   const rank = useStudio((s) => s.rank);
   const toolsAvailable = useStudio((s) => s.toolsAvailable);
+  const recent = useRecentPieces();
   const inputRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
   const [note, setNote] = useState("");
@@ -40,9 +46,43 @@ export function HomeView() {
   const [drag, setDrag] = useState(false);
   const [staged, setStaged] = useState<string[]>([]);
 
-  function openCatalog(id: string) {
-    loadCatalog(id);
+  async function persistAndOpen() {
+    const project = useStudio.getState().project;
+    if (!project) {
+      void navigate({ to: "/studio" });
+      return;
+    }
+    const id = newPieceId();
+    setActivePieceId(id);
+    if (shouldWritePiece(project)) {
+      try {
+        await savePiece({ data: { id, project } });
+      } catch {
+        toast.error("Could not save this piece on this machine.");
+      }
+    }
     void navigate({ to: "/studio" });
+  }
+
+  async function openCatalog(id: string) {
+    loadCatalog(id);
+    await persistAndOpen();
+  }
+
+  async function openSaved(id: string) {
+    if (busy) return;
+    try {
+      const piece = await getSavedPiece({ data: { id } });
+      if (!piece) {
+        toast.error("That piece is gone.");
+        return;
+      }
+      setActivePieceId(id);
+      loadProject(piece.project);
+      void navigate({ to: "/studio" });
+    } catch {
+      toast.error("Could not open that piece.");
+    }
   }
 
   async function stageFiles(files: FileList | null) {
@@ -97,7 +137,7 @@ export function HomeView() {
         return;
       }
       loadProject({ ...result.project, photos: staged, photoDataUrl: staged[0] });
-      void navigate({ to: "/studio" });
+      await persistAndOpen();
     } catch (err) {
       toast.error(mapInterpretHandlerError(err, "Could not read those photos.").error);
     } finally {
@@ -129,7 +169,7 @@ export function HomeView() {
         ...result.project,
         photos: staged.length ? staged : result.project.photos,
       });
-      void navigate({ to: "/studio" });
+      await persistAndOpen();
     } catch (err) {
       toast.error(mapInterpretHandlerError(err, "Could not read that link.").error);
     } finally {
@@ -297,6 +337,16 @@ export function HomeView() {
         </form>
       </div>
 
+      {recent.length ? (
+        <section className="mt-16" data-recent-pieces>
+          <div>
+            <h2 className="font-display text-2xl">{PACKET_COPY.homeRecentTitle}</h2>
+            <p className="mt-1 text-sm text-muted">{PACKET_COPY.homeRecentBlurb}</p>
+          </div>
+          <RecentPieces pieces={recent} onOpen={(id) => void openSaved(id)} busy={busy !== null} />
+        </section>
+      ) : null}
+
       <section className="mt-16">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -314,7 +364,7 @@ export function HomeView() {
             <li key={item.id}>
               <button
                 type="button"
-                onClick={() => openCatalog(item.id)}
+                onClick={() => void openCatalog(item.id)}
                 className="group flex h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-surface text-left shadow-[var(--shadow-bench)] transition-colors duration-200 hover:border-border-strong"
               >
                 <span className="relative aspect-[4/3] overflow-hidden bg-surface-2">

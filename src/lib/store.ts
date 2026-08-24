@@ -20,8 +20,11 @@ type StudioState = {
   zip: string;
   toolsAvailable: ShopTool[];
   project: Project | null;
+  /** Local saved-piece row. Not a user. Null when the bench is empty. */
+  activePieceId: string | null;
   chat: ChatMessage[];
   setRank: (rank: Rank) => void;
+  setActivePieceId: (id: string | null) => void;
   setToolsAvailable: (tools: ShopTool[]) => void;
   toggleToolAvailable: (tool: ShopTool) => void;
   setZip: (zip: string) => void;
@@ -52,7 +55,9 @@ export const useStudio = create<StudioState>()(
       zip: defaultZip(),
       toolsAvailable: [],
       project: null,
+      activePieceId: null,
       chat: [],
+      setActivePieceId: (id) => set({ activePieceId: id }),
       setRank: (rank) => {
         const project = get().project;
         set({ rank, project: project ? { ...project, rank } : null });
@@ -165,7 +170,7 @@ export const useStudio = create<StudioState>()(
           },
           chat: [],
         }),
-      reset: () => set({ project: null, chat: [] }),
+      reset: () => set({ project: null, chat: [], activePieceId: null }),
       addChat: (msg) => set({ chat: [...get().chat, msg] }),
       clearChat: () => set({ chat: [] }),
       packet: () => {
@@ -199,12 +204,14 @@ export const useStudio = create<StudioState>()(
           ...raw,
           toolsAvailable,
           project,
+          activePieceId: raw.activePieceId ?? current.activePieceId ?? null,
         };
       },
       partialize: (s) => ({
         rank: s.rank,
         zip: s.zip,
         toolsAvailable: normalizeTools(s.toolsAvailable),
+        activePieceId: s.activePieceId,
         project: s.project
           ? {
               ...s.project,
