@@ -1,3 +1,4 @@
+import { randomUuid } from "./random-uuid";
 import { projectPhotos } from "./types";
 import type { Project } from "./types";
 
@@ -14,7 +15,7 @@ export type SavedPiece = PieceSummary & {
 };
 
 export function newPieceId(): string {
-  return crypto.randomUUID();
+  return randomUuid();
 }
 
 /**
