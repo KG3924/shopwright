@@ -305,7 +305,9 @@ export function StudioView() {
             {project.uncertainties.length > 0 ? (
               <div className="mt-4">
                 <p className="text-xs uppercase tracking-wider text-muted">
-                  {PACKET_COPY.inferred}
+                  {project.sourceKind === "catalog"
+                    ? PACKET_COPY.inferredCatalog
+                    : PACKET_COPY.inferred}
                 </p>
                 <ul className="mt-2 space-y-1.5 text-sm text-muted">
                   {project.uncertainties.map((u) => (
@@ -506,7 +508,7 @@ export function StudioView() {
       </section>
 
       {cutHold ? (
-        <div className="mt-4 print:hidden" data-hold-banner="studio">
+        <div className="mt-4 print:hidden">
           <DoNotCutCallout hold={cutHold} />
         </div>
       ) : null}

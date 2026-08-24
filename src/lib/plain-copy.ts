@@ -107,6 +107,7 @@ export const PACKET_COPY = {
     "Cut the boards you will use first. Leave spare on the rack until you need it.",
   assemblySummary: "Assembly steps — open when you are ready to build",
   inferred: "Guessed from the photo — confirm before you cut",
+  inferredCatalog: "Not visible — assumed",
   masterHint: "Asks about this packet.",
 } as const;
 

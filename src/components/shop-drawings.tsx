@@ -132,7 +132,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         {project.uncertainties.length ? (
           <div className="mt-5 rounded-sm border border-ink/10 bg-paper p-3">
             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
-              {PACKET_COPY.inferred}
+              {fromPhotos ? PACKET_COPY.inferred : PACKET_COPY.inferredCatalog}
             </p>
             <ul className="mt-2 space-y-1 text-sm text-ink-soft">
               {project.uncertainties.map((u) => (
