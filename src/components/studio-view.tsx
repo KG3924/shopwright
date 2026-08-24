@@ -4,7 +4,6 @@ import {
   ImageUp,
   Layers,
   ListChecks,
-  LoaderCircle,
   MessageSquare,
   RotateCcw,
   Ruler,
@@ -15,12 +14,14 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { InchField } from "@/components/inch-field";
+import { InterpretBusyStatus } from "@/components/interpret-busy";
 import { MasterChat } from "@/components/master-chat";
 import { DoNotCutCallout, ShopDrawings } from "@/components/shop-drawings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { interpretPiece } from "@/lib/ai/interpret";
+import { mapInterpretHandlerError } from "@/lib/ai/url-source";
 import { fileToDataUrl } from "@/lib/image";
 import { formatInches, rankIndex } from "@/lib/format";
 import {
@@ -110,7 +111,7 @@ export function StudioView() {
   });
 
   async function onAddPhotos(files: FileList | null) {
-    if (!files?.length || !project) return;
+    if (!files?.length || !project || busy) return;
     const images = [...files].filter((f) => f.type.startsWith("image/"));
     const room = MAX_PHOTOS - photos.length;
     if (room <= 0) {
@@ -128,7 +129,7 @@ export function StudioView() {
   }
 
   async function reread() {
-    if (!project) return;
+    if (!project || busy) return;
     const dataUrls = photos.filter((p) => p.startsWith("data:"));
     if (!dataUrls.length) {
       toast.error("Add a photo you took — catalog shots are already in the packet.");
@@ -161,7 +162,7 @@ export function StudioView() {
       });
       toast.success("Reading updated from the new angles. Sizes you set were kept.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not re-read.");
+      toast.error(mapInterpretHandlerError(err, "Could not re-read.").error);
     } finally {
       setBusy(false);
     }
@@ -256,8 +257,9 @@ export function StudioView() {
                     <button
                       type="button"
                       aria-label={`Remove photo ${i + 1}`}
+                      disabled={busy}
                       onClick={() => removePhoto(i)}
-                      className="absolute right-0.5 top-0.5 flex size-7 items-center justify-center rounded-xs bg-ink/80 text-paper"
+                      className="absolute right-0.5 top-0.5 flex size-7 items-center justify-center rounded-xs bg-ink/80 text-paper disabled:opacity-40"
                     >
                       <X className="size-3.5" />
                     </button>
@@ -268,8 +270,9 @@ export function StudioView() {
                 <li>
                   <button
                     type="button"
+                    disabled={busy}
                     onClick={() => photoRef.current?.click()}
-                    className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xs border border-dashed border-border text-muted"
+                    className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xs border border-dashed border-border text-muted disabled:opacity-40"
                   >
                     <ImageUp className="size-4" />
                     <span className="text-[10px]">Add</span>
@@ -288,6 +291,7 @@ export function StudioView() {
                 e.target.value = "";
               }}
             />
+            {busy ? <InterpretBusyStatus kind="photo" className="mt-3" /> : null}
             <div className="mt-3">
               <Button
                 type="button"
@@ -296,7 +300,6 @@ export function StudioView() {
                 disabled={busy}
                 onClick={() => void reread()}
               >
-                {busy ? <LoaderCircle className="size-4 animate-spin" /> : null}
                 Re-read with these angles
               </Button>
             </div>
