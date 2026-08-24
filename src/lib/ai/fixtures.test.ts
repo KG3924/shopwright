@@ -14,7 +14,7 @@ import {
   ticketUnknownAxes,
   ticketViewLabels,
 } from "../measure";
-import { isRectilinearOutline, outlineFor } from "../silhouette";
+import { isRectilinearOutline, outlineFor, shapeNotRead } from "../silhouette";
 import {
   hydrateVision,
   parseVisionJson,
@@ -250,6 +250,8 @@ describe("material translation — metal folding stool", () => {
     };
     assert.equal(slash(front), false, "front must not keep a CAD slash across a leg");
     assert.equal(slash(plan), false, "plan must not keep a diagonal slash across the seat");
+    assert.equal(front, undefined);
+    assert.equal(shapeNotRead(spec), true);
 
     const seat = packet.cuts.find((c) => c.name === "Seat")!;
     assert.equal(seat.measured?.thickness.source, "unknown");

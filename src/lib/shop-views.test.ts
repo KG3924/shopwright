@@ -260,11 +260,12 @@ describe("shop drawing wiring", () => {
     assert.doesNotMatch(iso.slice(0, 800), /outlineFor/);
   });
 
-  it("Sheet 1 ghosts blanks that fight a valid outline; explode stays boxes", () => {
+  it("Sheet 1 draws one story per elevation — outline XOR blanks; explode stays boxes", () => {
     const src = drawingsSource();
     const projected = src.slice(src.indexOf("function ProjectedView"));
-    assert.match(projected.slice(0, 2500), /rectOutsideOutline|sticksOut/);
-    assert.match(projected.slice(0, 2500), /separateBadges/);
+    assert.match(projected, /story === "outline"|story === "blanks"/);
+    assert.match(src, /shape not read/i);
+    assert.match(projected.slice(0, 2800), /separateBadges/);
     const sheet4 = src.slice(
       src.indexOf('title="Exploded assembly"'),
       src.indexOf('title="Part tickets"'),

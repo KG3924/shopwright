@@ -107,7 +107,9 @@ Upload a photo of a tubular / folding camp stool (chrome, steel, or plastic). Ke
 
 ## Elevation outlines (Sheet 1)
 
-- Heavy line = exterior of the piece (curves, splay, saddle dip). Boxes = cut-list blanks before shaping, drawn lighter.
-- Junk polylines (CAD slashes, 4-point garbage, camera-space scribbles) are dropped. If nothing honest remains, elevations are boxes-only.
-- A valid saddled side view still shows a dip at the seat. A low back is not stretched to full overall height.
+One story per view — never boxes fighting a polyline:
+
+- **Valid outline** — heavy line (curves, splay, saddle dip) + letters + overall dims. No part-boxes on that view.
+- **Junk / metal / CAD** — discard the polyline (slash through air, camera wing, hidden line). Elevations fall back to **blanks** and the caption **shape not read**.
+- Explode stays rectangular blanks.
 

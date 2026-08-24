@@ -10,7 +10,7 @@ import {
 } from "../measure";
 import { getTemplate } from "../catalog";
 import { drawingCaption } from "../drawing";
-import { isRectilinearOutline } from "../silhouette";
+import { isRectilinearOutline, outlineFor, shapeNotRead } from "../silhouette";
 import {
   hydrateVision,
   InterpretError,
@@ -443,6 +443,8 @@ describe("material translation", () => {
       return false;
     };
     assert.equal(slash(front), false);
+    assert.equal(shapeNotRead(project.drawing!), true);
+    assert.equal(outlineFor("front", project.drawing!), undefined);
   });
 });
 

@@ -3,7 +3,7 @@ import { Printer } from "lucide-react";
 import { LatticeJoinery } from "@/components/chair-drawings";
 import { drawingCaption, inferDrawing } from "@/lib/drawing";
 import { layoutBoxes, type WorldBox } from "@/lib/layout";
-import { hasShapedForm, outlineFor, rectOutsideOutline, svgPath } from "@/lib/silhouette";
+import { outlineFor, shapeNotRead, svgPath } from "@/lib/silhouette";
 import {
   formatCutAxis,
   formatCutAxisSource,
@@ -122,9 +122,13 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         ) : null}
         <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
           {drawingCaption(spec)}
-          {hasShapedForm(spec)
-            ? " · heavy line is the piece outline; boxes are blanks before shaping"
-            : ""}
+          {["front", "side", "plan"].some((m) =>
+            outlineFor(m as "front" | "side" | "plan", spec),
+          )
+            ? " · heavy line is the piece outline"
+            : shapeNotRead(spec)
+              ? " · shape not read"
+              : ""}
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           <ProjectedView label="Front" mode="front" boxes={boxes} overall={overall} spec={spec} />
@@ -543,9 +547,8 @@ function ProjectedView({
   const { xName, yName } = elevationViewAxes(mode);
   const outline = outlineFor(mode, spec);
   const invertY = mode !== "plan";
-  const ghost = !!outline;
-  const sticksOut = (r: { x: number; y: number; w: number; h: number }) =>
-    !!outline && rectOutsideOutline(r, outline, worldW, worldH, invertY);
+  const story = outline ? "outline" : "blanks";
+  const unread = story === "blanks" && shapeNotRead(spec);
   const rects = boxes
     .map((b) => {
       if (mode === "front") {
@@ -589,10 +592,16 @@ function ProjectedView({
     .filter((r) => r.unknownW || r.unknownH || (r.w > 0.04 && r.h > 0.04))
     .sort((a, b) => a.depth - b.depth);
 
-  const labels = labelElevationParts(rects.filter((r) => !sticksOut(r)));
+  const labels = labelElevationParts(rects);
 
   return (
-    <Frame label={label} worldW={worldW} worldH={worldH} xName={xName} yName={yName}>
+    <Frame
+      label={unread ? `${label} · shape not read` : label}
+      worldW={worldW}
+      worldH={worldH}
+      xName={xName}
+      yName={yName}
+    >
       {(s, ox, oy) => {
         const anchors = labels.map((r, i) => {
           const rw = Math.max(r.w * s, 1.15);
@@ -610,10 +619,28 @@ function ProjectedView({
         const badges = separateBadges(anchors, 7.2);
         return (
         <g>
-          {rects.map((r, i) => {
+          {story === "outline" && outline ? (
+            <path
+              d={svgPath(
+                outline,
+                ox,
+                oy,
+                worldW * s,
+                worldH * s,
+                invertY,
+                true,
+              )}
+              fill={WOOD}
+              fillOpacity="0.2"
+              stroke={INK}
+              strokeWidth="1.15"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          ) : null}
+          {story === "blanks"
+            ? rects.map((r, i) => {
             const unknown = r.unknownW || r.unknownH;
-            const outside = sticksOut(r);
-            if (outside && ghost) return null;
             const rw = Math.max(r.w * s, 1.15);
             const rh = Math.max(r.h * s, 1.15);
             return (
@@ -624,14 +651,15 @@ function ProjectedView({
                   width={rw}
                   height={rh}
                   fill={unknown ? "none" : fillFor(r.role)}
-                  fillOpacity={ghost && !unknown ? 0.22 : 1}
+                  fillOpacity={1}
                   stroke={INK}
-                  strokeWidth={ghost ? 0.35 : 0.6}
+                  strokeWidth={0.6}
                   strokeDasharray={unknown ? "2 1.4" : undefined}
                 />
               </g>
             );
-          })}
+          })
+            : null}
           {badges.map((r) => (
               <text
                 key={`lbl-${r.id}`}
@@ -645,24 +673,6 @@ function ProjectedView({
                 {r.letter}
               </text>
           ))}
-          {outline ? (
-            <path
-              d={svgPath(
-                outline,
-                ox,
-                oy,
-                worldW * s,
-                worldH * s,
-                mode !== "plan",
-                true,
-              )}
-              fill="none"
-              stroke={INK}
-              strokeWidth="1.15"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-          ) : null}
         </g>
         );
       }}

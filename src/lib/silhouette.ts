@@ -210,6 +210,79 @@ function shoelaceArea(pts: PolyPt[]): number {
   return Math.abs(s) / 2;
 }
 
+function segmentsCross(a: PolyPt, b: PolyPt, c: PolyPt, d: PolyPt): boolean {
+  const o = (p: PolyPt, q: PolyPt, r: PolyPt) =>
+    (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  const o1 = o(a, b, c);
+  const o2 = o(a, b, d);
+  const o3 = o(c, d, a);
+  const o4 = o(c, d, b);
+  const sep = (x: number, y: number) => Math.sign(x) !== 0 && Math.sign(y) !== 0 && Math.sign(x) !== Math.sign(y);
+  return sep(o1, o2) && sep(o3, o4);
+}
+
+function polylineSelfIntersects(pts: PolyPt[]): boolean {
+  const n = pts.length;
+  if (n < 4) return false;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i]!;
+    const b = pts[(i + 1) % n]!;
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;
+      const c = pts[j]!;
+      const d = pts[(j + 1) % n]!;
+      if (segmentsCross(a, b, c, d)) return true;
+    }
+  }
+  return false;
+}
+
+function hasCameraWing(pts: PolyPt[]): boolean {
+  const corners: PolyPt[] = [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 1, y: 1 },
+  ];
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i]!;
+    const spiked = corners.some((c) => Math.hypot(p.x - c.x, p.y - c.y) < 0.06);
+    if (!spiked) continue;
+    const others = pts.filter((_, j) => j !== i);
+    if (others.length < 3) continue;
+    const b = bboxOf(others);
+    const insideRest =
+      p.x >= b.minX - 0.06 &&
+      p.x <= b.maxX + 0.06 &&
+      p.y >= b.minY - 0.06 &&
+      p.y <= b.maxY + 0.06;
+    if (!insideRest && b.maxX - b.minX > 0.18 && b.maxY - b.minY > 0.18) return true;
+  }
+  return false;
+}
+
+function isLightningBolt(pts: PolyPt[]): boolean {
+  if (polylineSelfIntersects(pts)) return true;
+  const n = pts.length;
+  let sharp = 0;
+  for (let i = 0; i < n; i++) {
+    const p = pts[(i - 1 + n) % n]!;
+    const q = pts[i]!;
+    const r = pts[(i + 1) % n]!;
+    const v1x = p.x - q.x;
+    const v1y = p.y - q.y;
+    const v2x = r.x - q.x;
+    const v2y = r.y - q.y;
+    const l1 = Math.hypot(v1x, v1y);
+    const l2 = Math.hypot(v2x, v2y);
+    if (l1 < 0.14 || l2 < 0.14) continue;
+    const cos = (v1x * v2x + v1y * v2y) / (l1 * l2);
+    const ang = Math.acos(Math.min(1, Math.max(-1, cos)));
+    if (ang < (48 * Math.PI) / 180) sharp++;
+  }
+  return sharp >= 2;
+}
+
 function isSlashSegment(a: PolyPt, b: PolyPt, box: BBox): boolean {
   const bw = Math.max(box.maxX - box.minX, 0.001);
   const bh = Math.max(box.maxY - box.minY, 0.001);
@@ -275,6 +348,7 @@ function isJunkOutline(pts: PolyPt[]): boolean {
     return true;
   }
   if (uniq.length <= 5 && !isRectilinearOutline(uniq) && area / boxArea < 0.28) return true;
+  if (polylineSelfIntersects(uniq) || isLightningBolt(uniq) || hasCameraWing(uniq)) return true;
   return false;
 }
 
@@ -462,19 +536,17 @@ function preferShapedOutline(
   mode: "front" | "side" | "plan",
   spec: DrawingSpec,
 ): PolyPt[] | undefined {
-  const constructed = generated;
-  if (spec.preferConstructedOutline) return constructed;
+  // Metal / CAD: never overlay a camera or constructed polyline on blanks.
+  if (spec.preferConstructedOutline) return undefined;
   const clean = honestOutline(vision);
   if (clean && !isRectilinearOutline(clean)) return clean;
   const shapedSeat = spec.seatProfile && spec.seatProfile !== "flat";
   const nonSquarePlan = spec.seatShape && spec.seatShape !== "square";
   if (mode === "plan") {
-    if (nonSquarePlan && constructed) return constructed;
+    if (nonSquarePlan && generated) return generated;
     return clean;
   }
-  if ((shapedSeat || hasShapedForm(spec) || spec.family === "chair") && constructed) {
-    return constructed;
-  }
+  if ((shapedSeat || hasShapedForm(spec)) && generated) return generated;
   return clean;
 }
 
@@ -491,8 +563,26 @@ export function outlineFor(
   return preferShapedOutline(spec.planOutline, generatePlan(spec), "plan", spec);
 }
 
+/** True when junk / non-wood vision was discarded and elevations should show blanks. */
+export function shapeNotRead(spec: DrawingSpec): boolean {
+  if (spec.preferConstructedOutline) return true;
+  const views: ("front" | "side" | "plan")[] = ["front", "side", "plan"];
+  const raw = [spec.frontOutline, spec.sideOutline, spec.planOutline];
+  const hadJunk = raw.some((v) => v && v.length >= 3 && !honestOutline(v));
+  if (!hadJunk) return false;
+  return views.every((mode) => !outlineFor(mode, spec));
+}
+
 /** Persist elevation curves onto the spec so hydrate tests and captions see them. */
 export function ensureElevationOutlines(spec: DrawingSpec): DrawingSpec {
+  if (spec.preferConstructedOutline) {
+    return {
+      ...spec,
+      sideOutline: undefined,
+      frontOutline: undefined,
+      planOutline: undefined,
+    };
+  }
   if (!hasShapedForm(spec)) return spec;
   return {
     ...spec,

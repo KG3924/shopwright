@@ -8,6 +8,7 @@ import {
   outlineFor,
   recoverFormLanguage,
   sanitizeOutline,
+  shapeNotRead,
 } from "./silhouette";
 
 /** A CAD-style diagonal cutting the lower-left of a front elevation. */
@@ -103,6 +104,33 @@ describe("junk / CAD polylines", () => {
     assert.equal(honestOutline(bowtie), undefined);
   });
 
+  it("rejects a lightning-bolt slash that cuts through air", () => {
+    const bolt = [
+      { x: 0.08, y: 0 },
+      { x: 0.18, y: 0.12 },
+      { x: 0.62, y: 0.58 },
+      { x: 0.2, y: 0.18 },
+      { x: 0.75, y: 0.88 },
+      { x: 0.12, y: 0.08 },
+    ];
+    assert.equal(honestOutline(bolt), undefined);
+    assert.equal(
+      outlineFor("front", { family: "chair", backStyle: "none", frontOutline: bolt }),
+      undefined,
+    );
+  });
+
+  it("rejects a camera-wing spike to a corner", () => {
+    const wing = [
+      { x: 0, y: 0 },
+      { x: 0.28, y: 0.42 },
+      { x: 0.72, y: 0.42 },
+      { x: 0.72, y: 0.82 },
+      { x: 0.28, y: 0.82 },
+    ];
+    assert.equal(honestOutline(wing), undefined);
+  });
+
   it("does not treat a slash as a shaped form worth overlaying", () => {
     assert.equal(
       hasShapedForm({
@@ -111,6 +139,19 @@ describe("junk / CAD polylines", () => {
       }),
       false,
     );
+  });
+
+  it("metal / CAD junk falls back to blanks and shape-not-read, not a cartoon overlay", () => {
+    const spec = {
+      family: "chair" as const,
+      backStyle: "none" as const,
+      seatShape: "round" as const,
+      preferConstructedOutline: true,
+      frontOutline: DIAGONAL_SLASH,
+    };
+    assert.equal(outlineFor("front", spec), undefined);
+    assert.equal(outlineFor("side", spec), undefined);
+    assert.equal(shapeNotRead(spec), true);
   });
 });
 
