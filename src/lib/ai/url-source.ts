@@ -6,11 +6,26 @@ const HTML_EXCERPT_BYTES = 220_000;
 const HTML_TEXT_CHARS = 4000;
 
 export const PAGE_BLOCKED_MESSAGE =
-  "That product page blocked the fetch. Upload a photo of the piece instead.";
+  "That product page blocked the fetch. Upload a photo of the piece, or paste a direct image URL (wfcdn .jpg), not the product-page link.";
+export const PAGE_UNREADABLE_MESSAGE = "Could not read that page.";
 export const NO_PRODUCT_PHOTO_MESSAGE =
   "That page had no product photo we could use. Upload a picture of the piece.";
 export const INTERPRET_ABORT_MESSAGE =
   "Interpretation was cancelled or timed out. Try again.";
+
+const BLOCKED_FETCH_STATUSES = new Set([401, 403, 429]);
+
+/** 401/403/429 are the site blocking us, not a Shopwright bug. */
+export function messageForFetchStatus(status: number): string {
+  return BLOCKED_FETCH_STATUSES.has(status) ? PAGE_BLOCKED_MESSAGE : PAGE_UNREADABLE_MESSAGE;
+}
+
+function httpStatusFromCouldNotRead(message: string): number | undefined {
+  const m = /^Could not read that page \((\d+)\)$/.exec(message);
+  if (!m) return undefined;
+  const status = Number(m[1]);
+  return Number.isFinite(status) ? status : undefined;
+}
 
 export type ClassifiedUrl =
   | { kind: "image"; photoUrl: string; pageNote: string }
@@ -241,7 +256,7 @@ export async function resolveUrlSource(
     headers: { "User-Agent": FETCH_UA },
     signal: AbortSignal.timeout(8000),
   });
-  if (!res.ok) throw new Error(`Could not read that page (${res.status})`);
+  if (!res.ok) throw new Error(messageForFetchStatus(res.status));
   const contentType = res.headers.get("content-type");
   if (isImageContentType(contentType)) {
     try {
@@ -281,8 +296,10 @@ export function mapInterpretHandlerError(
   if (err instanceof InterpretError) {
     return { ok: false, error: err.message, code: err.code };
   }
+  const raw = err instanceof Error ? err.message : fallback;
+  const status = httpStatusFromCouldNotRead(raw);
   return {
     ok: false,
-    error: err instanceof Error ? err.message : fallback,
+    error: status !== undefined ? messageForFetchStatus(status) : raw,
   };
 }

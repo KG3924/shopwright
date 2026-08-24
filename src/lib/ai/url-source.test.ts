@@ -6,6 +6,7 @@ import {
   INTERPRET_ABORT_MESSAGE,
   NO_PRODUCT_PHOTO_MESSAGE,
   PAGE_BLOCKED_MESSAGE,
+  PAGE_UNREADABLE_MESSAGE,
   classifyFetchedUrl,
   filenameHintFromUrl,
   hasImageMagicBytes,
@@ -202,6 +203,15 @@ describe("parseHtmlExcerpt", () => {
 });
 
 describe("blocked or empty product pages", () => {
+  it("tells a beginner to upload a photo or paste a wfcdn jpg, not the product-page link", () => {
+    assert.match(PAGE_BLOCKED_MESSAGE, /blocked the fetch/i);
+    assert.match(PAGE_BLOCKED_MESSAGE, /upload a photo of the piece/i);
+    assert.match(PAGE_BLOCKED_MESSAGE, /wfcdn/i);
+    assert.match(PAGE_BLOCKED_MESSAGE, /\.jpg/i);
+    assert.match(PAGE_BLOCKED_MESSAGE, /product-page link/i);
+    assert.doesNotMatch(PAGE_BLOCKED_MESSAGE, /\b(?:401|403|429)\b/);
+  });
+
   it("detects a PerimeterX wall", () => {
     assert.equal(pageLooksBlocked("Access to this page has been denied", "px-captcha"), true);
     assert.equal(pageLooksBlocked("Leola Side Chair", "solid wood dining chair"), false);
@@ -275,6 +285,31 @@ describe("resolveUrlSource", () => {
     assert.equal(source.photoUrl, "https://cdn.example/og.jpg");
     assert.match(source.pageNote, /Vertical slat dining chair/);
   });
+
+  it("maps HTTP 429/403/401 as the product page blocking the fetch, not a Shopwright bug", async () => {
+    for (const status of [429, 403, 401]) {
+      const fetchImpl: typeof fetch = async () => new Response("blocked", { status });
+      await assert.rejects(
+        () => resolveUrlSource("https://www.wayfair.com/furniture/pdp/leola", fetchImpl),
+        (err: unknown) =>
+          err instanceof Error &&
+          err.message === PAGE_BLOCKED_MESSAGE &&
+          !/\b(?:401|403|429)\b/.test(err.message),
+        `status ${status}`,
+      );
+    }
+  });
+
+  it("keeps other non-OK fetches as a generic could-not-read without a status code", async () => {
+    const fetchImpl: typeof fetch = async () => new Response("oops", { status: 500 });
+    await assert.rejects(
+      () => resolveUrlSource("https://shop.example/chair", fetchImpl),
+      (err: unknown) =>
+        err instanceof Error &&
+        err.message === PAGE_UNREADABLE_MESSAGE &&
+        !err.message.includes("500"),
+    );
+  });
 });
 
 describe("mapInterpretHandlerError", () => {
@@ -303,6 +338,22 @@ describe("mapInterpretHandlerError", () => {
     wrapped.cause = timeout;
     assert.equal(isAbortError(wrapped), true);
     assert.equal(mapInterpretHandlerError(wrapped).error, INTERPRET_ABORT_MESSAGE);
+  });
+
+  it("maps leftover Could-not-read (429/403/401) copy to the blocked-page banner", () => {
+    for (const status of [429, 403, 401]) {
+      const mapped = mapInterpretHandlerError(new Error(`Could not read that page (${status})`));
+      assert.equal(mapped.ok, false);
+      assert.equal(mapped.error, PAGE_BLOCKED_MESSAGE);
+      assert.doesNotMatch(mapped.error, /\b(?:401|403|429)\b/);
+    }
+  });
+
+  it("strips other HTTP statuses from the could-not-read banner", () => {
+    const mapped = mapInterpretHandlerError(new Error("Could not read that page (500)"));
+    assert.equal(mapped.ok, false);
+    assert.equal(mapped.error, PAGE_UNREADABLE_MESSAGE);
+    assert.doesNotMatch(mapped.error, /500/);
   });
 
   it("keeps incomplete_parts honesty instead of swallowing Cut A", () => {
