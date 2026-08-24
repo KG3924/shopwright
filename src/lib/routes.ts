@@ -46,10 +46,10 @@ export const ROUTE_GATES: Record<string, RouteGate> = {
 };
 
 export const POCKET_CUT_NOTE =
-  "Pocket / butt — cut the listed length. Do not invent tenon length.";
+  "Pocket / butt — cut the listed length. Do not invent extra length.";
 
 export const MORTISE_CUT_NOTE =
-  "Mortise / tenon shoulders — cut the listed length. Do not invent extra stock (no silent ¾″ horns).";
+  "Tongue and the pocket it fits into — cut the listed length. Do not invent extra stock.";
 
 const JOINERY_NOTE_ROLES = new Set<PartRole>([
   "leg",

@@ -203,7 +203,7 @@ export function formatDoNotCut(flags: {
   };
 }
 
-/** Packet-bound Don't-cut — counts live `?` axes so the BLUF can mention them. */
+/** Packet-bound Don't-cut. Tickets already print `?`; the hold stays silent about them. */
 export function cutHoldFromPacket(
   packet: Pick<ShopPacket, "doNotCut" | "routeRunnable" | "cuts" | "project">,
 ): CutHold | null {

@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { drawingCaption } from "@/lib/drawing";
 import { formatInches } from "@/lib/format";
+import { SHOP_PLAIN } from "@/lib/plain-copy";
 import type { CutRow, DrawingSpec, ShopPacket } from "@/lib/types";
 
 const INK = "var(--color-ink)";
@@ -811,12 +812,12 @@ export function LatticeJoinery() {
             fill={INK}
             fontFamily="IBM Plex Mono, monospace"
           >
-            G + H rails · C stiles · J lattice
+            C · G + H · J
           </text>
         </svg>
         <figcaption className="text-sm text-ink-soft">
-          The back is a frame. Lattice lives in the opening, not on the seat. Cut strips long, mark
-          the diamonds, then lap.
+          C — {SHOP_PLAIN.stile}. G + H — {SHOP_PLAIN.rail}. J lattice lives in the opening, not
+          on the seat. Cut strips long, mark the diamonds, then lap.
         </figcaption>
       </figure>
       <figure>

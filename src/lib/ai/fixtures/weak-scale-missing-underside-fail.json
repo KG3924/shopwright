@@ -21,7 +21,7 @@
         "thickness": "guessed — verify"
       }
     },
-    "cutHoldIncludes": ["Don't cut yet", "photo, not a tape"]
+    "cutHoldIncludes": ["Don't cut yet", "cannot authorize a cut list"]
   },
   "ai": {
     "name": "Guessed stool",

@@ -15,7 +15,7 @@ import {
   type CutAxis,
   type CutHold,
 } from "@/lib/measure";
-import { PACKET_COPY } from "@/lib/plain-copy";
+import { PACKET_COPY, SHOP_PLAIN } from "@/lib/plain-copy";
 import {
   assemblyStepsOpen,
   elevationCallout,
@@ -1026,9 +1026,9 @@ function FeederJoinery() {
       </figure>
       <div className="sm:col-span-2 rounded-sm border border-ink/10 bg-paper p-3 text-sm leading-relaxed text-ink-soft">
         Resaw: board FLAT, fence 1¾", rip six strips. Then strip ON EDGE against a tall fence, two
-        passes that meet in the middle, same face on the fence both times. ¾" minus ~⅛" kerf split
-        in half is ~5/16". Do not stand the 1×12 on edge. Hang slats long, nail high, trim to the
-        hip. They lap — they are not stacked end to end.
+        passes that meet in the middle, same face on the fence both times. ¾" minus ~⅛" (the{" "}
+        {SHOP_PLAIN.kerf}) split in half is ~5/16". Do not stand the 1×12 on edge. Hang slats long,
+        nail high, trim to the hip. They lap — they are not stacked end to end.
       </div>
     </div>
   );

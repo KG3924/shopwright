@@ -87,8 +87,7 @@ export function MasterChat({
         <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
           {chat.length === 0 ? (
             <p className="text-sm text-muted">
-              Ask how to cut the dados without a table saw, whether walnut is
-              worth it at this size, or what changes if the alcove is 62 inches.
+              {PACKET_COPY.masterEmpty}
             </p>
           ) : null}
           {chat.map((m, i) => (

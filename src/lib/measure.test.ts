@@ -16,6 +16,7 @@ import {
   unknownDim,
   isCutAxisUnconfirmed,
 } from "./measure";
+import { HOLD_BODY } from "./plain-copy";
 import { formatInches } from "./format";
 import type { CutRow, PartMeasured } from "./types";
 
@@ -242,8 +243,8 @@ describe("measure helpers", () => {
     assert.equal(hold.headline, DONT_CUT_YET);
     assert.equal(hold.notes.length, 1);
     assert.match(hold.text, /Don't cut yet/);
-    assert.match(hold.text, /photo, not a tape/);
-    assert.match(hold.text, /\?/);
+    assert.equal(hold.notes[0], HOLD_BODY.photo);
+    assert.doesNotMatch(hold.text, /\?/);
     assert.doesNotMatch(hold.text, /No tape/);
     assert.doesNotMatch(hold.text, /Underside not visible/);
   });

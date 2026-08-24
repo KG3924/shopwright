@@ -10,7 +10,9 @@ import {
   holdWarningCount,
 } from "./measure";
 import {
+  HOLD_BODY,
   PACKET_COPY,
+  SHOP_PLAIN,
   UNEXPLAINED_JARGON_RE,
   formatHoldBody,
   packetChromeStrings,
@@ -41,9 +43,35 @@ describe("plain packet copy", () => {
         `jargon in chrome copy: ${text}`,
       );
     }
-    assert.match(PACKET_COPY.tickets, /cross-bar under the seat \(stretcher\)/);
-    assert.match(PACKET_COPY.homeLead, /One photo is enough/);
+    assert.match(PACKET_COPY.tickets, /drawing next to them/);
+    assert.match(PACKET_COPY.homeLead, /cannot authorize a cut list/);
+    assert.doesNotMatch(PACKET_COPY.homeLead, /\?/);
+    assert.doesNotMatch(PACKET_COPY.drawingsFromPhotos, /\?/);
     assert.equal(formatHoldBody({ routeRunnable: false }).includes("rank"), false);
+  });
+
+  it("uses scout beginner names, not unexplained shop jargon", () => {
+    assert.equal(SHOP_PLAIN.crest, "top bar of the chair back");
+    assert.equal(SHOP_PLAIN.stretcher, "lower support connecting the legs");
+    assert.equal(SHOP_PLAIN.stile, "vertical side of a door or frame");
+    assert.equal(SHOP_PLAIN.rabbet, "step-shaped cut along the edge");
+    assert.equal(SHOP_PLAIN.rail, "horizontal piece of a frame");
+    assert.equal(SHOP_PLAIN.apron, "frame under the tabletop, between the legs");
+    assert.equal(SHOP_PLAIN.mortiseTenon, "tongue and the pocket it fits into");
+    assert.equal(SHOP_PLAIN.dado, "three-sided trench for a shelf");
+    assert.equal(SHOP_PLAIN.kerf, "slot the blade removes");
+    assert.equal("haunch" in SHOP_PLAIN, false);
+    assert.equal(Object.keys(HOLD_BODY).length, 4);
+    const drawings = read("src/components/chair-drawings.tsx");
+    assert.match(drawings, /SHOP_PLAIN\.stile/);
+    assert.match(drawings, /SHOP_PLAIN\.rail/);
+    assert.doesNotMatch(drawings, /G \+ H rails · C stiles/);
+    const feeder = read("src/components/shop-drawings.tsx");
+    assert.match(feeder, /SHOP_PLAIN\.kerf/);
+    assert.doesNotMatch(feeder, /⅛" kerf/);
+    for (const body of Object.values(HOLD_BODY)) {
+      assert.doesNotMatch(body, /\?/);
+    }
   });
 
   it("collapses a single-photo weak-scale packet to one Don't-cut BLUF", () => {
@@ -62,10 +90,29 @@ describe("plain packet copy", () => {
     const hold = cutHoldFromPacket(packet);
     assert.ok(hold);
     assert.equal(hold.notes.length, 1);
-    assert.match(hold.notes[0]!, /photo, not a tape/i);
-    assert.match(hold.notes[0]!, /\?/);
+    assert.equal(hold.notes[0], HOLD_BODY.photo);
+    assert.doesNotMatch(hold.text, /\?/);
     assert.doesNotMatch(hold.text, /sourced axis|stock template|scale confidence is low/i);
     assert.doesNotMatch(hold.text, /underside not visible/i);
+  });
+
+  it("stays silent about ? when tickets already print it", () => {
+    const photo = formatDoNotCut({
+      doNotCut: true,
+      scaleConfidence: "low",
+      unknownAxes: 3,
+    });
+    assert.ok(photo);
+    assert.equal(photo.notes[0], HOLD_BODY.photo);
+    assert.doesNotMatch(photo.text, /\?/);
+    const lock = formatDoNotCut({
+      doNotCut: true,
+      scaleConfidence: "high",
+      unknownAxes: 1,
+    });
+    assert.ok(lock);
+    assert.equal(lock.notes[0], HOLD_BODY.lock);
+    assert.doesNotMatch(lock.text, /\?/);
   });
 
   it("does not dump scale notes into the hold", () => {

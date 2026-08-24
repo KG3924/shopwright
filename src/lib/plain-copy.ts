@@ -1,52 +1,59 @@
 import type { ScaleConfidence } from "./types";
 
-/** Shop hold headline — one short line, then one what-to-do sentence. */
+/** Process hold — not a danger banner. */
 export const DONT_CUT_YET = "Don't cut yet";
 
 /**
- * Master-shop words beginners bounce off. Fine in craft-rule files;
- * chrome copy may use them only with an immediate gloss in the same phrase.
+ * Master-shop words beginners bounce off. Fine in craft-rule files.
+ * Chrome copy uses the beginner name; a lettered drawing does the teaching.
+ * Haunch has no short synonym — skip it in chrome.
  */
 export const UNEXPLAINED_JARGON_RE =
-  /\b(crest|haunches?|stiles?|rabbets?)\b/i;
+  /\b(crest|haunches?|stiles?|rabbets?|stretchers?|dados?|kerfs?|tenons?|mortises?|aprons?)\b/i;
+
+/**
+ * Short beginner names. Use next to a lettered drawing — do not dump
+ * these glosses into banners.
+ */
+export const SHOP_PLAIN = {
+  crest: "top bar of the chair back",
+  stretcher: "lower support connecting the legs",
+  stile: "vertical side of a door or frame",
+  rabbet: "step-shaped cut along the edge",
+  rail: "horizontal piece of a frame",
+  apron: "frame under the tabletop, between the legs",
+  mortiseTenon: "tongue and the pocket it fits into",
+  dado: "three-sided trench for a shelf",
+  kerf: "slot the blade removes",
+} as const;
 
 export type HoldFlags = {
   doNotCut?: boolean;
   routeRunnable?: boolean;
   scaleConfidence?: ScaleConfidence;
-  /** Count of ticket axes that still print `?`. */
+  /** Count of ticket axes that still print `?`. Hold copy stays silent about them. */
   unknownAxes?: number;
 };
 
 /**
- * One BLUF sentence: what's wrong + what to do.
- * Scale notes, missing-axis essays, and template lectures stay off this line —
- * those details live on tickets (`?`, guessed — verify) and the cut list.
+ * IKEA-style: a few standardized holds, not seven equivalent banners.
+ * Tickets already print `?` / guessed — verify — do not lecture that again.
  */
+export const HOLD_BODY = {
+  tools:
+    "No build method matches the tools on the bench. Add tools, or pick a method that can run.",
+  conflict:
+    "Labeled sizes don't match. Confirm overall width, depth, and height with a tape.",
+  photo:
+    "One photo can label what you see. It cannot authorize a cut list. Confirm overall size with a tape before you cut.",
+  lock: "Confirm the sizes you haven't locked before you cut.",
+} as const;
+
 export function formatHoldBody(flags: HoldFlags): string {
-  if (flags.routeRunnable === false) {
-    return "No build method matches the tools on the bench. Add tools, or pick a method that can run.";
-  }
-  const unknown = flags.unknownAxes ?? 0;
-  if (flags.scaleConfidence === "conflict") {
-    return unknown > 0
-      ? "Labeled sizes don't match the boards we read. Confirm overall width, depth, and height — and any ? on the tickets — with a tape before you cut."
-      : "Labeled sizes don't match the boards we read. Confirm overall width, depth, and height with a tape before you cut.";
-  }
-  if (flags.scaleConfidence === "low") {
-    return unknown > 0
-      ? "Sizes came from the photo, not a tape. Confirm overall width, depth, and height — and any ? on the tickets — before you cut."
-      : "Sizes came from the photo, not a tape. Confirm overall width, depth, and height before you cut.";
-  }
-  if (unknown > 0) {
-    return unknown === 1
-      ? "One size on the tickets is still ?. Measure that before you cut."
-      : `${unknown} sizes on the tickets are still ?. Measure those before you cut.`;
-  }
-  if (flags.doNotCut) {
-    return "Some sizes are guessed from the photo. Confirm them on the tickets before you cut.";
-  }
-  return "Confirm the sizes on the tickets before you cut.";
+  if (flags.routeRunnable === false) return HOLD_BODY.tools;
+  if (flags.scaleConfidence === "conflict") return HOLD_BODY.conflict;
+  if (flags.scaleConfidence === "low") return HOLD_BODY.photo;
+  return HOLD_BODY.lock;
 }
 
 /** Duplicate scale / photo / template / don't-cut lectures that used to stack. */
@@ -63,15 +70,15 @@ export function holdWarningCount(warnings: readonly string[]): number {
 
 /** User-facing chrome — home, studio, shop-drawings. Not craft-rule prose. */
 export const PACKET_COPY = {
-  homeKicker: "Photo in. Shop packet out.",
-  homeTitle: "Turn a photo into a cut list you can build from.",
+  homeKicker: "Photo in. Labeled packet out.",
+  homeTitle: "Turn a photo into a labeled packet.",
   homeLead:
-    "One photo is enough to start. A side, the underside, or a tape in the shot makes the sizes more trustworthy. Then confirm any ? before you cut.",
+    "One photo can label what you see. It cannot authorize a cut list. Add a tape when you can, then lock unmarked sizes before you cut.",
   homeStepPhotos: "Up to six angles",
   homeStepReading: "What the piece is",
   homeStepDrawings: "Of this piece",
   homeStepCutList: "Board by board",
-  homePhotosTitle: "Add photos — one is enough to start",
+  homePhotosTitle: "Add photos — one is enough to label",
   homePhotosBody:
     "Front, side, underside, a tape if you have one. Up to six. Then interpret once.",
   homeNoteLabel: "What to look for (optional)",
@@ -92,25 +99,27 @@ export const PACKET_COPY = {
   routesBlurb:
     "A method compiles when the tools on the bench can run it. Switching methods changes fasteners, steps, and cut notes — not just the words.",
   drawingsFromPhotos:
-    "Drawn from the boards in the photos. Cut to the tickets, not the pictures. Confirm any ? with a tape.",
+    "Letters on the drawing match the tickets. A photo labels the piece — it does not authorize the cut list.",
   drawingsCatalog:
     "Cut to the numbers on the tickets. Unlocked parts follow overall width, depth, and height.",
   explode:
     "Letters on the drawing match the legend. Open assembly steps when you are ready to build.",
   tickets:
-    "One ticket per board. Letter and size lead so seats, legs, and the cross-bar under the seat (stretcher) do not look the same.",
+    "One ticket per board. Letter and size lead. The drawing next to them is how you tell the parts apart.",
   scaleCaption:
-    "Not to scale. Cut to the tickets. If you use plywood, check its real thickness before you cut grooves.",
+    "Not to scale. Cut to the tickets. If you use plywood, check its real thickness before you cut.",
   cutList:
     "Letter, thickness, width, length, and which board it comes from. Type a size to lock it. Unlock to follow overall width, depth, and height again.",
   lumberFirst:
     "Cut the boards you will use first. Leave spare on the rack until you need it.",
   assemblySummary: "Assembly steps — open when you are ready to build",
-  inferred: "Guessed from the photo — confirm before you cut",
+  inferred: "Labeled from the photo",
   inferredCatalog: "Not visible — assumed",
   masterHint: "Asks about this packet.",
+  masterEmpty:
+    "Ask how to cut a three-sided trench for a shelf without a table saw, whether walnut is worth it at this size, or what changes if the alcove is 62 inches.",
 } as const;
 
 export function packetChromeStrings(): string[] {
-  return Object.values(PACKET_COPY);
+  return [...Object.values(PACKET_COPY), ...Object.values(HOLD_BODY), ...Object.values(SHOP_PLAIN)];
 }
