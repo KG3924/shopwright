@@ -1,6 +1,7 @@
 import {
   asIso,
   parseStoredProject,
+  safeThumbnailSrc,
   thumbnailFromProject,
   type PieceSummary,
   type SavedPiece,
@@ -96,7 +97,7 @@ export async function listRecentPieces(
     id: row.id,
     name: row.name,
     sourceKind: asSourceKind(row.source_kind),
-    thumbnail: row.thumbnail ?? null,
+    thumbnail: safeThumbnailSrc(row.thumbnail),
     updatedAt: asIso(row.updated_at),
   }));
 }

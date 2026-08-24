@@ -1,34 +1,30 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getSql } from "./db";
+import { dbSource, getSql } from "./db";
 import {
-  getSavedPiece as loadSavedPiece,
-  listRecentPieces as loadRecentPieces,
-  upsertSavedPiece,
-} from "./piece-store";
-import { shouldWritePiece } from "./saved-pieces";
+  getSavedPieceRpc,
+  listRecentPiecesRpc,
+  savePieceRpc,
+} from "./piece-rpc";
 import type { Project } from "./types";
 
 export const listRecentPieces = createServerFn({ method: "POST" }).handler(
   async () => {
-    const sql = await getSql();
-    return loadRecentPieces(sql, 12);
+    const result = await listRecentPiecesRpc(dbSource, getSql);
+    if (!result.ok) return [];
+    return result.pieces;
   },
 );
 
 export const getSavedPiece = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }) => {
-    const sql = await getSql();
-    return loadSavedPiece(sql, data.id);
+    const result = await getSavedPieceRpc(dbSource, getSql, data.id);
+    if (!result.ok) return null;
+    return result.piece;
   });
 
 export const savePiece = createServerFn({ method: "POST" })
   .validator((input: { id: string; project: Project }) => input)
   .handler(async ({ data }) => {
-    if (!shouldWritePiece(data.project)) {
-      return { ok: false as const, skipped: true };
-    }
-    const sql = await getSql();
-    await upsertSavedPiece(sql, data.id, data.project);
-    return { ok: true as const };
+    return savePieceRpc(dbSource, getSql, data.id, data.project);
   });

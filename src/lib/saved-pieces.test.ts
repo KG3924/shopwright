@@ -11,6 +11,12 @@ import {
   ticketUnknownAxes,
 } from "./measure";
 import {
+  getSavedPieceRpc,
+  listRecentPiecesRpc,
+  pieceStoreSourceFromEnv,
+  savePieceRpc,
+} from "./piece-rpc";
+import {
   getSavedPiece,
   listRecentPieces,
   upsertSavedPiece,
@@ -19,6 +25,7 @@ import {
 import {
   newPieceId,
   parseStoredProject,
+  safeThumbnailSrc,
   shouldWritePiece,
   thumbnailFromProject,
 } from "./saved-pieces";
@@ -124,6 +131,26 @@ describe("saved piece helpers", () => {
   it("thumbnail prefers the first photo", () => {
     assert.equal(thumbnailFromProject(photoProject()), PIXEL);
     assert.equal(thumbnailFromProject(catalogProject()), catalogProject().photos[0]);
+  });
+
+  it("does not persist blob: photos that die on reopen", () => {
+    const project = photoProject();
+    const blobOnly: Project = {
+      ...project,
+      photos: ["blob:http://localhost/dead-photo"],
+      photoDataUrl: "blob:http://localhost/dead-photo",
+    };
+    assert.equal(shouldWritePiece(blobOnly), false);
+  });
+
+  it("thumbnail src is allowlisted — no javascript, blob, or html data", () => {
+    assert.equal(safeThumbnailSrc(PIXEL), PIXEL);
+    assert.equal(safeThumbnailSrc("/catalog/bench.jpg"), "/catalog/bench.jpg");
+    assert.equal(safeThumbnailSrc("https://cdn.example/photo.jpg"), "https://cdn.example/photo.jpg");
+    assert.equal(safeThumbnailSrc("javascript:alert(1)"), null);
+    assert.equal(safeThumbnailSrc("blob:http://localhost/x"), null);
+    assert.equal(safeThumbnailSrc("data:text/html,<img>"), null);
+    assert.equal(safeThumbnailSrc("data:image/svg+xml,<svg>"), null);
   });
 });
 
@@ -269,8 +296,60 @@ describe("save-packet wiring and copy", () => {
   it("auth stays off this path", () => {
     const api = read("src/lib/piece-api.ts");
     const store = read("src/lib/piece-store.ts");
+    const rpc = read("src/lib/piece-rpc.ts");
     assert.doesNotMatch(api, /from ["']@\/lib\/auth/);
     assert.doesNotMatch(store, /from ["']@\/lib\/auth/);
+    assert.doesNotMatch(rpc, /authMiddleware|requireUserId|user_id/);
     assert.doesNotMatch(api, /VITE_AUTH_ENABLED/);
+    assert.match(api, /dbSource/);
+    assert.match(api, /listRecentPiecesRpc|savePieceRpc|getSavedPieceRpc/);
+  });
+});
+
+describe("piece store is local PGLite only while auth is deferred", () => {
+  it("DATABASE_URL / nonempty postgres URL is the shared Neon path", () => {
+    assert.equal(pieceStoreSourceFromEnv(undefined), "pglite");
+    assert.equal(pieceStoreSourceFromEnv(""), "pglite");
+    assert.equal(pieceStoreSourceFromEnv("  "), "pglite");
+    assert.equal(
+      pieceStoreSourceFromEnv("postgresql://user:pass@ep-x.neon.tech/neondb"),
+      "neon",
+    );
+  });
+
+  it("shared Neon path refuses list, get, and save without opening sql", async () => {
+    let opened = 0;
+    const openSql = async (): Promise<QuerySql> => {
+      opened += 1;
+      throw new Error("shared store must not be opened");
+    };
+    const listed = await listRecentPiecesRpc("neon", openSql);
+    const got = await getSavedPieceRpc("neon", openSql, "any-id");
+    const saved = await savePieceRpc("neon", openSql, "any-id", photoProject());
+    assert.equal(opened, 0);
+    assert.deepEqual(listed, { ok: false, reason: "shared-store" });
+    assert.deepEqual(got, { ok: false, reason: "shared-store" });
+    assert.deepEqual(saved, { ok: false, reason: "shared-store" });
+  });
+
+  it("PGLite path still saves and reopens through the guarded RPCs", async () => {
+    const { sql, close } = await testSql();
+    try {
+      const openSql = async () => sql;
+      const project = photoProject();
+      const id = newPieceId();
+      const saved = await savePieceRpc("pglite", openSql, id, project);
+      assert.deepEqual(saved, { ok: true });
+      const listed = await listRecentPiecesRpc("pglite", openSql);
+      assert.equal(listed.ok, true);
+      if (!listed.ok) throw new Error("expected pglite list to succeed");
+      assert.equal(listed.pieces[0]?.id, id);
+      const got = await getSavedPieceRpc("pglite", openSql, id);
+      assert.equal(got.ok, true);
+      if (!got.ok) throw new Error("expected pglite get to succeed");
+      assert.deepEqual(got.piece?.project.photos, [PIXEL, PIXEL_B]);
+    } finally {
+      await close();
+    }
   });
 });

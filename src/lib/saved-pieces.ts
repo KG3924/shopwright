@@ -21,16 +21,34 @@ export function newPieceId(): string {
  * Catalog runs are always writable (fixture thumbnails, not uploads).
  * Photo / URL / blueprint runs must still have a real image — never overwrite
  * a saved piece with the stripped localStorage shell (data URLs are quota-dropped).
+ * `blob:` URLs die on reopen, so they are not persistable.
  */
+const DATA_IMAGE_RE = /^data:image\/(?:jpeg|jpg|png|gif|webp)[;,]/i;
+
 export function shouldWritePiece(project: Project): boolean {
   if (project.sourceKind === "catalog") return true;
   return projectPhotos(project).some(
     (p) =>
-      p.startsWith("data:") ||
-      p.startsWith("blob:") ||
-      p.startsWith("http://") ||
-      p.startsWith("https://"),
+      DATA_IMAGE_RE.test(p) ||
+      p.startsWith("https://") ||
+      p.startsWith("http://"),
   );
+}
+
+/** Display allowlist for list thumbnails. Rejects javascript:, blob:, html/svg data. */
+export function safeThumbnailSrc(src: string | null | undefined): string | null {
+  if (!src) return null;
+  if (DATA_IMAGE_RE.test(src)) return src;
+  if (src.startsWith("/catalog/") && !src.includes("..") && !src.includes("\\")) {
+    return src;
+  }
+  try {
+    const url = new URL(src);
+    if (url.protocol === "https:") return src;
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 export function thumbnailFromProject(project: Project): string | null {
