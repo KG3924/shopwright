@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { InchField } from "@/components/inch-field";
 import { InterpretBusyStatus } from "@/components/interpret-busy";
 import { MasterChat } from "@/components/master-chat";
+import { RecentPieces } from "@/components/recent-pieces";
 import { DoNotCutCallout, ShopDrawings } from "@/components/shop-drawings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,9 @@ import { interpretPiece } from "@/lib/ai/interpret";
 import { mapInterpretHandlerError } from "@/lib/ai/url-source";
 import { fileToDataUrl } from "@/lib/image";
 import { formatInches } from "@/lib/format";
+import { getSavedPiece, savePiece } from "@/lib/piece-api";
+import { newPieceId, shouldWritePiece } from "@/lib/saved-pieces";
+import { usePersistPiece, useRecentPieces } from "@/lib/use-persist-piece";
 import {
   cutHoldFromPacket,
   editorAxisValue,
@@ -73,6 +77,9 @@ export function StudioView() {
   const reset = useStudio((s) => s.reset);
   const rank = useStudio((s) => s.rank);
   const toolsAvailable = useStudio((s) => s.toolsAvailable);
+  const setActivePieceId = useStudio((s) => s.setActivePieceId);
+  const persistReady = usePersistPiece();
+  const recent = useRecentPieces();
   const [tab, setTab] = useState<Tab>("Drawings");
   const [chatOpen, setChatOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -82,7 +89,7 @@ export function StudioView() {
 
   const packet = useMemo(() => packetFn(), [packetFn, project, zip]);
 
-  if (!mounted) {
+  if (!mounted || !persistReady) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-24 text-muted">
         Opening the packet…
@@ -92,14 +99,40 @@ export function StudioView() {
 
   if (!project || !packet) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-24 text-center">
-        <h1 className="font-display text-3xl">{PACKET_COPY.studioEmptyTitle}</h1>
-        <p className="mt-3 text-muted">
-          {PACKET_COPY.studioEmptyBody}
-        </p>
-        <Button className="mt-6" asChild>
-          <Link to="/">Back to the shop</Link>
-        </Button>
+      <main className="mx-auto max-w-6xl px-4 py-24">
+        <div className="mx-auto max-w-lg text-center">
+          <h1 className="font-display text-3xl">{PACKET_COPY.studioEmptyTitle}</h1>
+          <p className="mt-3 text-muted">
+            {PACKET_COPY.studioEmptyBody}
+          </p>
+          <Button className="mt-6" asChild>
+            <Link to="/">Back to the shop</Link>
+          </Button>
+        </div>
+        {recent.length ? (
+          <section className="mt-12" data-recent-pieces>
+            <h2 className="font-display text-xl">{PACKET_COPY.homeRecentTitle}</h2>
+            <p className="mt-1 text-sm text-muted">{PACKET_COPY.studioRecentBlurb}</p>
+            <RecentPieces
+              pieces={recent}
+              onOpen={(id) => {
+                void (async () => {
+                  try {
+                    const piece = await getSavedPiece({ data: { id } });
+                    if (!piece) {
+                      toast.error("That piece is gone.");
+                      return;
+                    }
+                    setActivePieceId(id);
+                    loadProject(piece.project);
+                  } catch {
+                    toast.error("Could not open that piece.");
+                  }
+                })();
+              }}
+            />
+          </section>
+        ) : null}
       </main>
     );
   }
@@ -159,6 +192,12 @@ export function StudioView() {
         photos,
         photoDataUrl: photos[0],
       });
+      const savedId = useStudio.getState().activePieceId ?? newPieceId();
+      if (!useStudio.getState().activePieceId) setActivePieceId(savedId);
+      const next = useStudio.getState().project;
+      if (next && shouldWritePiece(next)) {
+        void savePiece({ data: { id: savedId, project: next } }).catch(() => undefined);
+      }
       toast.success("Reading updated from the new angles. Sizes you set were kept.");
     } catch (err) {
       toast.error(mapInterpretHandlerError(err, "Could not re-read.").error);

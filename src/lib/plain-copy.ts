@@ -86,8 +86,11 @@ export const PACKET_COPY = {
     "Saddle seat, rolled front, tapered legs — name anything the photo might flatten.",
   homeCatalogBlurb:
     "Start from a known form. Same packet — drawings, per-part sizes, wood, and a build method.",
+  homeRecentTitle: "Recent pieces",
+  homeRecentBlurb: "Open one to restore the photos and the packet.",
   studioEmptyTitle: "No piece on the bench",
   studioEmptyBody: "Start with photos, a link, or a studio piece.",
+  studioRecentBlurb: "Or open a piece you already read.",
   studioFit: "Overall width, depth, and height. Unlocked parts follow. Size a single board on the cut list if it needs to be different.",
   toolsTitle: "Tools on the bench",
   toolsBlurb:
