@@ -90,6 +90,7 @@ export const interpretPiece = createServerFn({ method: "POST" })
         pageNote,
         "Return JSON only. parts[] is required. Unknown axes must be value null, source unknown — do not invent typical stock.",
         "drawing.seatProfile, seatShape, seatFront, legStyle, backStyle, backProfile are required on a chair. sideOutline must follow the seat curve — a 4-point rectangle is a failed reading for a saddled or dished seat.",
+        "If the piece looks metal or plastic, still return a wooden shop packet: solid/ply blanks, wood species, wood joinery. Note the source material. Do not refuse, and do not copy sheet-metal gauge as measured thickness.",
       ]
         .filter(Boolean)
         .join("\n");

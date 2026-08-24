@@ -11,4 +11,11 @@ describe("INTERPRET_SYSTEM", () => {
     assert.match(INTERPRET_SYSTEM, /failed reading/);
     assert.match(INTERPRET_SYSTEM, /4-corner rectangle|4-point rectangle|A rectangle is a failure/);
   });
+
+  it("translates metal or plastic photos into a wood shop packet instead of refusing", () => {
+    assert.match(INTERPRET_SYSTEM, /MATERIAL TRANSLATION/);
+    assert.match(INTERPRET_SYSTEM, /translated to wood build/);
+    assert.match(INTERPRET_SYSTEM, /never steel/i);
+    assert.match(INTERPRET_SYSTEM, /Do not refuse a metal or plastic piece/);
+  });
 });

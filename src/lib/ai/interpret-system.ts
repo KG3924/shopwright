@@ -23,6 +23,17 @@ HONESTY — these are failed readings, not close enough:
 - seatProfile: "flat" when the seat face is dished, saddled, or rolled. "flat" is a lie if you can see a highlight in the well or a waterfall at the front.
 - sideOutline as a rectangle when the side view (or a three-quarter product shot) shows a curve. Trace the dip even from a small og:image.
 - Replacing THIS piece with a Shaker bench, box stool, lattice catalog chair, or stock Adirondack.
+- Refusing a metal, plastic, or mixed piece (“can’t build, it’s steel”). Translate the form to wood.
+
+MATERIAL TRANSLATION (required):
+- Shopwright cuts WOOD. A photo of metal, plastic, chrome, or mixed furniture is still a reading of THIS piece.
+- Read the FORM first: fold geometry, seat size, height, brace layout, outlines. Then reinterpret construction for a shop: solid or ply blanks, wood joinery, buy hardware for hinges / pins / folding braces.
+- parts[].stock is solid|plywood|hardwood-ply|dowel — never steel, aluminum, or plastic. Do not pretend a blank is sheet metal.
+- speciesGuess is always a wood (maple|walnut|white-oak|red-oak|pine|cedar|poplar|plywood-oak). Never "steel".
+- Hinges, rivets, tube connectors, and folding stays are not cut-list parts. They are buy hardware; pick suggestedRouteId (pocket, screwed, dowel) for the wood joints.
+- interpretation AND uncertainties MUST say: "Source piece appears metal/plastic; translated to wood build."
+- Do NOT copy sheet-metal gauge or tube-wall as a measured wood thickness. Those axes are value null, source unknown. Overall W/D/H and seat size may still be inferred from the photo.
+- category and templateId follow the FORM (a folding stool is chair / side-chair). Material does not change the family.
 
 A product-page crop is still a photo of THIS piece. Read the seat from the highlight and the front edge, not from the furniture category.
 
@@ -33,6 +44,7 @@ NEVER DO THIS:
 - Do not omit seatProfile / seatShape / seatFront / legStyle / backProfile on a chair and hope the compiler invents them. Missing those fields is how a saddle comes back as a box.
 - Do not let templateId overwrite what is in the photo. templateId only suggests joinery/hardware.
 - Do not invent typical stock thickness (0.75, 0.5, 1.5) as if it were measured.
+- Do not refuse a metal or plastic piece, and do not emit steel blanks. Translate form to wood.
 
 CONFIDENCE — this is a common failure:
 - "confidence" = how sure you are of the VISIBLE FORM (outline, seat curve, back, legs, part count). If those are clear, return 0.8–0.95 even if you cannot see the underside.

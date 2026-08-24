@@ -228,6 +228,73 @@ function coerceMeasured(
   return unknownDim();
 }
 
+export const WOOD_TRANSLATION_NOTE =
+  "Source piece appears metal/plastic; translated to wood build.";
+
+const NON_WOOD_RE =
+  /\b(metal|steel|stainless|aluminum|aluminium|chrome|iron|alloy|tubular|sheet[\s-]?metal|plastic|pvc|resin|polypropylene|acrylic|polycarbonate|fiberglass)\b/i;
+
+const WOOD_SPECIES = [
+  "maple",
+  "walnut",
+  "white-oak",
+  "red-oak",
+  "pine",
+  "cedar",
+  "poplar",
+  "plywood-oak",
+] as const;
+
+const WOOD_STOCK = ["solid", "plywood", "hardwood-ply", "dowel"] as const;
+
+export function sourceLooksNonWood(blob: string): boolean {
+  return NON_WOOD_RE.test(blob);
+}
+
+function materialBlob(ai: AiJson): string {
+  return [
+    ai.name,
+    ai.category,
+    ai.interpretation,
+    ai.speciesGuess,
+    ...(ai.visibleDetails ?? []),
+    ...(ai.uncertainties ?? []),
+    ...(ai.parts ?? []).map((p) => `${p.name} ${p.stock ?? ""} ${p.notes ?? ""}`),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function woodStockOf(raw: string | undefined, nonWood: boolean): string {
+  if (raw && (WOOD_STOCK as readonly string[]).includes(raw)) return raw;
+  if (!nonWood && raw === "sheet") return "sheet";
+  return "solid";
+}
+
+function stripSheetMetalThickness(measured: PartMeasured, nonWood: boolean): PartMeasured {
+  if (!nonWood) return measured;
+  const t = measured.thickness;
+  if (t.source === "measured" && t.value != null && t.value > 0 && t.value < 0.25) {
+    return {
+      ...measured,
+      thickness: {
+        value: null,
+        source: "unknown",
+        confidence: 0,
+        note: t.note ?? "Sheet-metal / tube-wall thickness is not wood stock — measure the blank.",
+      },
+    };
+  }
+  return measured;
+}
+
+function withWoodTranslationNote(text: string | undefined, nonWood: boolean): string | undefined {
+  if (!nonWood) return text;
+  const body = text?.trim() ?? "";
+  if (/translated to (a )?wood/i.test(body)) return body || WOOD_TRANSLATION_NOTE;
+  return body ? `${body} ${WOOD_TRANSLATION_NOTE}` : WOOD_TRANSLATION_NOTE;
+}
+
 function pickTemplate(ai: AiJson) {
   const drawing = drawingFromAi(ai);
   const reading = { ...ai, templateId: ai.templateId ?? undefined, drawing };
@@ -583,9 +650,13 @@ export function hydrateVision(
     );
   }
 
+  const nonWood = sourceLooksNonWood(materialBlob(ai));
   const candidates = (ai.parts ?? [])
     .filter((p) => p && typeof p.name === "string" && p.name.trim())
-    .map((part) => ({ part, measured: measuredOf(part) }));
+    .map((part) => ({
+      part: { ...part, stock: woodStockOf(part.stock, nonWood) },
+      measured: stripSheetMetalThickness(measuredOf(part), nonWood),
+    }));
   const visionSourced = candidates.filter((c) => hasSourcedDims(c.measured));
 
   if (visionSourced.length < 2) {
@@ -650,17 +721,7 @@ export function hydrateVision(
 
   const scale = resolveScale(ai, sourced, overall);
   const speciesId =
-    ai.speciesGuess &&
-    [
-      "maple",
-      "walnut",
-      "white-oak",
-      "red-oak",
-      "pine",
-      "cedar",
-      "poplar",
-      "plywood-oak",
-    ].includes(ai.speciesGuess)
+    ai.speciesGuess && (WOOD_SPECIES as readonly string[]).includes(ai.speciesGuess)
       ? ai.speciesGuess
       : (joinery.defaultSpecies ?? "maple");
 
@@ -693,11 +754,19 @@ export function hydrateVision(
   }
 
   const honesty = formHonestyNote(ai, drawing);
+  const interpretation = withWoodTranslationNote(
+    ai.interpretation ?? joinery.interpretation,
+    nonWood,
+  );
   const uncertainties = [
     ...(ai.uncertainties && ai.uncertainties.length
       ? ai.uncertainties
       : joinery.uncertainties),
     ...(honesty ? [honesty] : []),
+    ...(nonWood &&
+    !(ai.uncertainties ?? []).some((u) => /translated to (a )?wood/i.test(u))
+      ? [WOOD_TRANSLATION_NOTE]
+      : []),
   ];
 
   return instantiate(
@@ -710,7 +779,7 @@ export function hydrateVision(
       overall,
       parts,
       drawing,
-      interpretation: ai.interpretation ?? joinery.interpretation,
+      interpretation,
       confidence: ai.formConfidence ?? ai.confidence ?? joinery.confidence,
       uncertainties,
       buyBoards: undefined,
@@ -731,7 +800,7 @@ export function hydrateVision(
       overallSource: ai.overallSource ?? "estimated",
       sourceKind: input.kind,
       sourceLabel: input.url,
-      interpretation: ai.interpretation ?? joinery.interpretation,
+      interpretation,
       confidence: clampInch(ai.confidence ?? joinery.confidence, 0, 1),
       uncertainties,
       partsFromPhotos: true,

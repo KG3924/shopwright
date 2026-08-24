@@ -41,6 +41,8 @@ Return drawing.sideOutline / frontOutline / planOutline as 0–1 polylines trace
 Blanks on the cut list are rectangles you cut BEFORE shaping. Put the shaping in part notes.
 
 Do not replace this piece with a stock Shaker, box stool, or Adirondack.
+
+If the photo is metal or plastic, still build it in wood. Say so. Do not emit steel blanks.
 ```
 
 ## Photo set that actually works
@@ -71,3 +73,22 @@ On a good reading, Sheet 1 should show:
 - Don’t-cut / `?` thickness / Infer-Fill behavior unchanged if there is no tape
 
 If the model returns “wood dining chair, square seat, four legs” for a clearly dished Leola, that is a failed vision reading — the pipeline will still lift a named saddle out of the interpretation, but it cannot invent a dish from generic box language.
+
+## Material translation (metal / plastic → wood)
+
+Photos may show furniture that is **not wood** — a tubular folding stool, a plastic patio chair, chrome legs. Shopwright still reads the form and compiles a **wooden shop packet**.
+
+| Keep | Translate | Do not |
+| --- | --- | --- |
+| Outline, fold geometry, seat size, height, brace layout | Cut list in solid / ply; wood species; wood joinery routes | Refuse (“it’s metal”) |
+| Hinges, pins, folding stays as **buy hardware** | `stock: solid` (or plywood) on every blank | Steel / aluminum / plastic blanks |
+| Honesty line in interpretation + uncertainties | `templateId` / category from the **form** (folding stool → chair / side-chair) | Copy sheet-metal gauge as a measured wood thickness |
+
+Required honesty copy:
+
+```
+Source piece appears metal/plastic; translated to wood build.
+```
+
+Hydrate enforces this even if the model emits `stock: "steel"` or a 1/16" “measured” tube wall: stock becomes solid/ply, that thickness becomes `?`, species stays a wood.
+
