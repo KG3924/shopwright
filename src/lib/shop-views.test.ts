@@ -136,13 +136,39 @@ describe("elevation part labels", () => {
 
   it("puts letters beside thin legs, on the seat when there is room", () => {
     const labels = labelElevationParts([
-      rect({ letter: "A", role: "seat", x: 0, y: 0, w: 16, h: 14 }),
+      rect({ letter: "A", role: "seat", x: 0, y: 16, w: 16, h: 1.25 }),
       rect({ letter: "B", role: "leg", x: 0, y: 1, w: 1.5, h: 17 }),
     ]);
     const seat = labels.find((l) => l.letter === "A");
     const leg = labels.find((l) => l.letter === "B");
     assert.equal(seat?.beside, false);
     assert.equal(leg?.beside, true);
+  });
+
+  it("does not pile F D G C on the seat — each letter sits on its part", () => {
+    const labels = labelElevationParts([
+      rect({ letter: "F", role: "seat", x: 1, y: 16, w: 16.5, h: 1.25, depth: 8 }),
+      rect({ letter: "D", role: "back", x: 6, y: 0, w: 6, h: 16, depth: 18 }),
+      rect({ letter: "G", role: "rail", x: 2, y: 14, w: 14, h: 1.5, depth: 16 }),
+      rect({ letter: "C", role: "stretcher", x: 2, y: 20, w: 14, h: 1.5, depth: 4 }),
+      rect({ letter: "F", role: "seat", x: 1.1, y: 16.1, w: 16.5, h: 1.25, depth: 9 }),
+      rect({ letter: "B", role: "leg", x: 0, y: 1, w: 1.6, h: 17 }),
+    ]);
+    const letters = labels.map((l) => l.letter).sort();
+    assert.ok(letters.includes("F"));
+    assert.ok(letters.includes("B"));
+    const seat = labels.find((l) => l.letter === "F");
+    assert.equal(seat?.beside, false);
+    assert.equal(labels.filter((l) => l.letter === "F").length, 1);
+    const seatCenterY = (seat?.y ?? 0) + (seat?.h ?? 0) / 2;
+    const piledOnSeat = labels.filter(
+      (l) => !l.beside && l.letter !== "F" && Math.abs(l.y + l.h / 2 - seatCenterY) < 0.6,
+    );
+    assert.equal(
+      piledOnSeat.length,
+      0,
+      `pile on seat: ${piledOnSeat.map((l) => l.letter).join(" ")}`,
+    );
   });
 });
 
@@ -232,5 +258,17 @@ describe("shop drawing wiring", () => {
     assert.doesNotMatch(sheet4, /outlineFor/);
     const iso = src.slice(src.indexOf("function IsoScene"));
     assert.doesNotMatch(iso.slice(0, 800), /outlineFor/);
+  });
+
+  it("Sheet 1 ghosts blanks that fight a valid outline; explode stays boxes", () => {
+    const src = drawingsSource();
+    const projected = src.slice(src.indexOf("function ProjectedView"));
+    assert.match(projected.slice(0, 2500), /rectOutsideOutline|sticksOut/);
+    assert.match(projected.slice(0, 2500), /separateBadges/);
+    const sheet4 = src.slice(
+      src.indexOf('title="Exploded assembly"'),
+      src.indexOf('title="Part tickets"'),
+    );
+    assert.doesNotMatch(sheet4, /outlineFor/);
   });
 });

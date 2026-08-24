@@ -142,7 +142,7 @@ export function asBackProfile(v: string | undefined | null): BackProfile | undef
   return BACK_ALIAS[k];
 }
 
-export function sanitizeOutline(raw: unknown): PolyPt[] | undefined {
+function parseOutlinePts(raw: unknown): PolyPt[] | undefined {
   if (!Array.isArray(raw) || raw.length < 3) return undefined;
   const pts: PolyPt[] = [];
   for (const p of raw.slice(0, 32)) {
@@ -163,8 +163,180 @@ export function sanitizeOutline(raw: unknown): PolyPt[] | undefined {
   return pts.length >= 3 ? pts : undefined;
 }
 
+export function sanitizeOutline(raw: unknown): PolyPt[] | undefined {
+  return honestOutline(parseOutlinePts(raw));
+}
+
 function clamp01(n: number) {
   return Math.min(1, Math.max(0, n));
+}
+
+type BBox = { minX: number; maxX: number; minY: number; maxY: number };
+
+function bboxOf(pts: PolyPt[]): BBox {
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
+  return {
+    minX: Math.min(...xs),
+    maxX: Math.max(...xs),
+    minY: Math.min(...ys),
+    maxY: Math.max(...ys),
+  };
+}
+
+function uniquifyPts(pts: PolyPt[]): PolyPt[] {
+  const uniq: PolyPt[] = [];
+  for (const p of pts) {
+    const last = uniq[uniq.length - 1];
+    if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 0.01) uniq.push(p);
+  }
+  if (
+    uniq.length >= 2 &&
+    Math.hypot(uniq[0]!.x - uniq[uniq.length - 1]!.x, uniq[0]!.y - uniq[uniq.length - 1]!.y) < 0.01
+  ) {
+    uniq.pop();
+  }
+  return uniq;
+}
+
+function shoelaceArea(pts: PolyPt[]): number {
+  if (pts.length < 3) return 0;
+  let s = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i]!;
+    const b = pts[(i + 1) % pts.length]!;
+    s += a.x * b.y - b.x * a.y;
+  }
+  return Math.abs(s) / 2;
+}
+
+function isSlashSegment(a: PolyPt, b: PolyPt, box: BBox): boolean {
+  const bw = Math.max(box.maxX - box.minX, 0.001);
+  const bh = Math.max(box.maxY - box.minY, 0.001);
+  const diag = Math.hypot(bw, bh);
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  const dx = Math.abs(b.x - a.x);
+  const dy = Math.abs(b.y - a.y);
+  if (len < 0.38 * diag) return false;
+  if (dx < 0.16 * bw || dy < 0.16 * bh) return false;
+  const mx = (a.x + b.x) / 2;
+  const my = (a.y + b.y) / 2;
+  const edge =
+    Math.min(mx - box.minX, box.maxX - mx) < 0.07 * bw ||
+    Math.min(my - box.minY, box.maxY - my) < 0.07 * bh;
+  if (edge) return false;
+  return true;
+}
+
+function dropSlashSegments(pts: PolyPt[]): PolyPt[] {
+  if (pts.length < 4) return pts;
+  const box = bboxOf(pts);
+  const out: PolyPt[] = [pts[0]!];
+  for (let i = 1; i < pts.length; i++) {
+    const a = out[out.length - 1]!;
+    const p = pts[i]!;
+    if (isSlashSegment(a, p, box)) continue;
+    out.push(p);
+  }
+  if (out.length >= 2 && isSlashSegment(out[out.length - 1]!, out[0]!, box)) {
+    out.pop();
+  }
+  return out;
+}
+
+function alignOutlineToOverall(pts: PolyPt[]): PolyPt[] {
+  const b = bboxOf(pts);
+  const spanX = b.maxX - b.minX;
+  const spanY = b.maxY - b.minY;
+  if (spanX < 0.2 || spanY < 0.2) return pts;
+  const cameraCrop =
+    b.minX > 0.08 &&
+    1 - b.maxX > 0.08 &&
+    b.minY > 0.08 &&
+    1 - b.maxY > 0.08;
+  if (!cameraCrop) return pts;
+  return pts.map((p) => ({
+    x: (p.x - b.minX) / spanX,
+    y: (p.y - b.minY) / spanY,
+  }));
+}
+
+function isJunkOutline(pts: PolyPt[]): boolean {
+  const uniq = uniquifyPts(pts);
+  if (uniq.length < 3) return true;
+  const box = bboxOf(uniq);
+  const spanX = box.maxX - box.minX;
+  const spanY = box.maxY - box.minY;
+  if (spanX < 0.18 || spanY < 0.18) return true;
+  const area = shoelaceArea(uniq);
+  const boxArea = Math.max(spanX * spanY, 1e-6);
+  if (area / boxArea < 0.12) return true;
+  if (uniq.some((_, i) => isSlashSegment(uniq[i]!, uniq[(i + 1) % uniq.length]!, box))) {
+    return true;
+  }
+  if (uniq.length <= 5 && !isRectilinearOutline(uniq) && area / boxArea < 0.28) return true;
+  return false;
+}
+
+/**
+ * Vision polylines that are safe to draw on an elevation: no CAD slashes,
+ * no 4-point garbage, camera-space crops mapped into the overall 0–1 frame.
+ */
+export function honestOutline(raw: PolyPt[] | undefined): PolyPt[] | undefined {
+  if (!raw?.length) return undefined;
+  const pts = uniquifyPts(
+    raw
+      .filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y))
+      .map((p) => ({ x: clamp01(p.x), y: clamp01(p.y) })),
+  );
+  if (pts.length < 3) return undefined;
+  const cleaned = uniquifyPts(dropSlashSegments(pts));
+  if (isJunkOutline(cleaned)) return undefined;
+  return alignOutlineToOverall(cleaned);
+}
+
+function pointInPoly(pt: PolyPt, poly: PolyPt[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]!;
+    const b = poly[j]!;
+    const hit =
+      a.y > pt.y !== b.y > pt.y &&
+      pt.x < ((b.x - a.x) * (pt.y - a.y)) / (b.y - a.y + 1e-12) + a.x;
+    if (hit) inside = !inside;
+  }
+  return inside;
+}
+
+/** True when a layout blank mostly sits outside the elevation silhouette. */
+export function rectOutsideOutline(
+  rect: { x: number; y: number; w: number; h: number },
+  outline: PolyPt[],
+  worldW: number,
+  worldH: number,
+  invertY: boolean,
+): boolean {
+  if (!outline.length || worldW <= 0 || worldH <= 0) return false;
+  const corners = [
+    { x: rect.x, y: rect.y },
+    { x: rect.x + rect.w, y: rect.y },
+    { x: rect.x + rect.w, y: rect.y + rect.h },
+    { x: rect.x, y: rect.y + rect.h },
+  ];
+  const toPoly = (c: { x: number; y: number }): PolyPt => ({
+    x: c.x / worldW,
+    y: invertY ? 1 - c.y / worldH : c.y / worldH,
+  });
+  let outside = 0;
+  for (const c of corners) {
+    if (!pointInPoly(toPoly(c), outline)) outside++;
+  }
+  const center = toPoly({
+    x: rect.x + rect.w / 2,
+    y: rect.y + rect.h / 2,
+  });
+  if (!pointInPoly(center, outline) && outside >= 2) return true;
+  return outside >= 3;
 }
 
 /** Axis-aligned 4–6-corner box. A saddle / splay / hoop polyline is not this. */
@@ -247,9 +419,12 @@ export function recoverFormLanguage(blob: string): RecoveredForm {
 }
 
 export function hasShapedForm(spec: DrawingSpec): boolean {
-  if (spec.sideOutline?.length && !isRectilinearOutline(spec.sideOutline)) return true;
-  if (spec.frontOutline?.length && !isRectilinearOutline(spec.frontOutline)) return true;
-  if (spec.planOutline?.length && !isRectilinearOutline(spec.planOutline)) return true;
+  const side = honestOutline(spec.sideOutline);
+  const front = honestOutline(spec.frontOutline);
+  const plan = honestOutline(spec.planOutline);
+  if (side && !isRectilinearOutline(side)) return true;
+  if (front && !isRectilinearOutline(front)) return true;
+  if (plan && !isRectilinearOutline(plan)) return true;
   if (spec.seatProfile && spec.seatProfile !== "flat") return true;
   if (spec.seatShape && spec.seatShape !== "square") return true;
   if (spec.seatFront && spec.seatFront !== "square") return true;
@@ -287,19 +462,20 @@ function preferShapedOutline(
   mode: "front" | "side" | "plan",
   spec: DrawingSpec,
 ): PolyPt[] | undefined {
-  if (!vision?.length) return generated;
-  const box = isRectilinearOutline(vision);
-  if (!box) return vision;
+  const constructed = generated;
+  if (spec.preferConstructedOutline) return constructed;
+  const clean = honestOutline(vision);
+  if (clean && !isRectilinearOutline(clean)) return clean;
   const shapedSeat = spec.seatProfile && spec.seatProfile !== "flat";
   const nonSquarePlan = spec.seatShape && spec.seatShape !== "square";
   if (mode === "plan") {
-    if (nonSquarePlan && generated) return generated;
-    return vision;
+    if (nonSquarePlan && constructed) return constructed;
+    return clean;
   }
-  if ((shapedSeat || hasShapedForm(spec) || spec.family === "chair") && generated) {
-    return generated;
+  if ((shapedSeat || hasShapedForm(spec) || spec.family === "chair") && constructed) {
+    return constructed;
   }
-  return vision;
+  return clean;
 }
 
 export function outlineFor(
@@ -407,6 +583,7 @@ function generatePlan(spec: DrawingSpec): PolyPt[] | undefined {
 
 function generateSide(spec: DrawingSpec): PolyPt[] | undefined {
   if (!hasShapedForm(spec) && spec.family !== "chair") return undefined;
+  if (spec.backStyle === "none") return generateBacklessSide(spec);
   const sh = spec.seatHeightRatio ?? (spec.family === "chair" ? 0.48 : 0.75);
   const namedDish =
     spec.seatDishIn && spec.seatDishIn > 0 ? Math.min(0.09, spec.seatDishIn / 12) : 0;
@@ -461,8 +638,55 @@ function generateSide(spec: DrawingSpec): PolyPt[] | undefined {
   ];
 }
 
+function generateBacklessSide(spec: DrawingSpec): PolyPt[] {
+  const sh = spec.seatHeightRatio ?? 0.48;
+  const dish =
+    spec.seatProfile && spec.seatProfile !== "flat"
+      ? spec.seatProfile === "tractor"
+        ? 0.05
+        : 0.03
+      : 0;
+  const splay =
+    spec.legStyle === "splayed" || spec.legStyle === "tapered-splay" ? 0.06 : 0.03;
+  return [
+    { x: 0.12 + splay, y: 0 },
+    { x: 0.14, y: sh - 0.02 },
+    { x: 0.08, y: sh },
+    { x: 0.45, y: sh - dish },
+    { x: 0.9, y: sh },
+    { x: 0.86, y: sh - 0.02 },
+    { x: 0.82 + splay, y: 0 },
+  ];
+}
+
+function generateBacklessFront(spec: DrawingSpec): PolyPt[] {
+  const sh = spec.seatHeightRatio ?? 0.48;
+  const splay =
+    spec.legStyle === "splayed" || spec.legStyle === "tapered-splay" ? 0.08 : 0.04;
+  const dish =
+    spec.seatProfile && spec.seatProfile !== "flat"
+      ? spec.seatProfile === "tractor"
+        ? 0.05
+        : 0.03
+      : 0;
+  return [
+    { x: 0.14 - splay, y: 0 },
+    { x: 0.18, y: sh - 0.02 },
+    { x: 0.08, y: sh },
+    { x: 0.5, y: sh - dish },
+    { x: 0.92, y: sh },
+    { x: 0.82, y: sh - 0.02 },
+    { x: 0.86 + splay, y: 0 },
+    { x: 0.78, y: 0 },
+    { x: 0.72, y: sh - 0.05 },
+    { x: 0.28, y: sh - 0.05 },
+    { x: 0.22, y: 0 },
+  ];
+}
+
 function generateFront(spec: DrawingSpec): PolyPt[] | undefined {
   if (spec.family !== "chair" && !hasShapedForm(spec)) return undefined;
+  if (spec.backStyle === "none") return generateBacklessFront(spec);
   const sh = spec.seatHeightRatio ?? 0.48;
   const splay =
     spec.legStyle === "splayed" || spec.legStyle === "tapered-splay" ? 0.08 : 0.03;

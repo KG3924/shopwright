@@ -80,9 +80,10 @@ Photos may show furniture that is **not wood** — a tubular folding stool, a pl
 
 | Keep | Translate | Do not |
 | --- | --- | --- |
-| Outline, fold geometry, seat size, height, brace layout | Cut list in solid / ply; wood species; wood joinery routes | Refuse (“it’s metal”) |
+| Fold geometry, seat size, height, brace layout | Cut list in solid / ply; wood species; wood joinery routes | Refuse (“it’s metal”) |
 | Hinges, pins, folding stays as **buy hardware** | `stock: solid` (or plywood) on every blank | Steel / aluminum / plastic blanks |
 | Honesty line in interpretation + uncertainties | `templateId` / category from the **form** (folding stool → chair / side-chair) | Copy sheet-metal gauge as a measured wood thickness |
+| Constructed shop elevations from the wood parts | | Trace factory CAD / hidden lines / odd diagonals |
 
 Required honesty copy:
 
@@ -102,4 +103,11 @@ Upload a photo of a tubular / folding camp stool (chrome, steel, or plastic). Ke
 4. Seat/leg thickness is `?` unless you pick stock — 16-gauge / tube wall must not become a measured wood thickness.
 5. Category is chair; Sheet 1 is a stool/chair drawing, not a bench.
 6. Hinges / pivot pins are not blanks on the cut list. X-braces and legs are wood parts.
+7. Sheet 1 must **not** show a diagonal slash across a leg or seat. Metal / CAD product photos compile constructed elevations from the parts — never a camera-space factory polyline. Explode stays rectangular blanks.
+
+## Elevation outlines (Sheet 1)
+
+- Heavy line = exterior of the piece (curves, splay, saddle dip). Boxes = cut-list blanks before shaping, drawn lighter.
+- Junk polylines (CAD slashes, 4-point garbage, camera-space scribbles) are dropped. If nothing honest remains, elevations are boxes-only.
+- A valid saddled side view still shows a dip at the seat. A low back is not stretched to full overall height.
 

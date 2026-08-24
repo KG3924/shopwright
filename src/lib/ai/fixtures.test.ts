@@ -191,6 +191,13 @@ describe("curved seat must not hydrate as a flat square slab", () => {
     const side = outlineFor("side", spec);
     assert.ok(side && side.length >= 6);
     assert.equal(isRectilinearOutline(side), false);
+    const well = side.filter((p) => p.x >= 0.2 && p.x <= 0.55 && p.y > 0.35);
+    const frontSeat = side.filter((p) => p.x < 0.2 && p.y > 0.35);
+    assert.ok(well.length && frontSeat.length);
+    assert.ok(
+      Math.min(...well.map((p) => p.y)) < Math.max(...frontSeat.map((p) => p.y)) - 0.015,
+      "saddled side elevation must keep a seat dip",
+    );
 
     const seat = packet.cuts.find((c) => /seat/i.test(c.name))!;
     assert.match(seat.notes ?? "", /saddle/i);
@@ -217,6 +224,32 @@ describe("material translation — metal folding stool", () => {
     assert.equal(spec.family, "chair");
     assert.equal(spec.backStyle, "none");
     assert.equal(spec.seatShape, "round");
+
+    const front = outlineFor("front", spec);
+    const plan = outlineFor("plan", spec);
+    const slash = (pts: { x: number; y: number }[] | undefined) => {
+      if (!pts || pts.length < 2) return false;
+      const closed = [...pts, pts[0]!];
+      for (let i = 0; i < closed.length - 1; i++) {
+        const a = closed[i]!;
+        const b = closed[i + 1]!;
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2;
+        if (
+          len > 0.4 &&
+          Math.abs(b.x - a.x) > 0.2 &&
+          Math.abs(b.y - a.y) > 0.2 &&
+          mx < 0.5 &&
+          my < 0.55
+        ) {
+          return true;
+        }
+      }
+      return false;
+    };
+    assert.equal(slash(front), false, "front must not keep a CAD slash across a leg");
+    assert.equal(slash(plan), false, "plan must not keep a diagonal slash across the seat");
 
     const seat = packet.cuts.find((c) => c.name === "Seat")!;
     assert.equal(seat.measured?.thickness.source, "unknown");
