@@ -45,6 +45,7 @@ describe("plain packet copy", () => {
     }
     assert.match(PACKET_COPY.tickets, /drawing next to them/);
     assert.match(PACKET_COPY.homeLead, /cannot authorize a cut list/);
+    assert.match(PACKET_COPY.buildLead, /match the tickets/);
     assert.doesNotMatch(PACKET_COPY.homeLead, /\?/);
     assert.doesNotMatch(PACKET_COPY.drawingsFromPhotos, /\?/);
     assert.equal(formatHoldBody({ routeRunnable: false }).includes("rank"), false);
@@ -153,6 +154,8 @@ describe("plain packet copy", () => {
       "studio screen should render one Don't-cut callout",
     );
     assert.doesNotMatch(studio, /\{DONT_CUT_YET\}/);
+    assert.match(studio, /data-build-steps/);
+    assert.match(studio, /TechniqueFigures/);
   });
 
   it("does not require rank to run a tools-gated mortise route", () => {

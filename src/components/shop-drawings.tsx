@@ -16,6 +16,7 @@ import {
   type CutHold,
 } from "@/lib/measure";
 import { PACKET_COPY, SHOP_PLAIN } from "@/lib/plain-copy";
+import { TechniqueFigures } from "@/components/technique-drawings";
 import {
   assemblyStepsOpen,
   elevationCallout,
@@ -173,7 +174,12 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
           <IsoScene boxes={exploded} />
           <Legend cuts={cuts} />
         </div>
-        <AssemblyStepList key={project.rank} rank={project.rank} steps={packet.steps} />
+        <AssemblyStepList
+          key={project.rank}
+          rank={project.rank}
+          steps={packet.steps}
+          cuts={cuts}
+        />
       </Sheet>
 
       <Sheet
@@ -769,9 +775,11 @@ function IsoScene({ boxes }: { boxes: WorldBox[] }) {
 function AssemblyStepList({
   rank,
   steps,
+  cuts,
 }: {
   rank: Rank;
   steps: ShopPacket["steps"];
+  cuts: CutRow[];
 }) {
   const [open, setOpen] = useState(() => assemblyStepsOpen(rank));
   useEffect(() => {
@@ -787,16 +795,17 @@ function AssemblyStepList({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary className="cursor-pointer font-mono text-xs text-ink-soft">
-        Assembly steps · {steps.length} — open when you are ready to build
+        {PACKET_COPY.assemblySummary} · {steps.length}
       </summary>
-      <ol className="mt-3 grid gap-3 sm:grid-cols-2">
+      <ol className="mt-3 grid gap-4">
         {steps.map((step, i) => (
-          <li key={step.id} className="border-t border-ink/10 pt-2">
+          <li key={step.id} className="border-t border-ink/10 pt-3">
             <p className="font-mono text-[10px] text-ink-soft">
               {String(i + 1).padStart(2, "0")} · assembly
             </p>
             <p className="mt-0.5 text-sm font-medium">{step.title}</p>
             <p className="mt-1 text-xs leading-relaxed text-ink-soft">{step.body}</p>
+            <TechniqueFigures ids={step.techniques} cuts={cuts} compact />
           </li>
         ))}
       </ol>
