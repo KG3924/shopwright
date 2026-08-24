@@ -1,5 +1,6 @@
 import type { BackStyle, DrawingSpec, Overall, Part, Project, ProjectTemplate } from "./types";
 import { isKnownDim } from "./measure";
+import { sanitizeOutline } from "./silhouette";
 
 const ADIRONDACK = /\b(adirondack|westport|muskoka)\b/;
 const LATTICE = /\b(lattice|chippendale|criss[- ]?cross|diamond back)\b/;
@@ -123,14 +124,13 @@ export function inferDrawing(
     );
     const fromParts = seatHeightFromParts(project.parts, project.overall);
     return {
-      family: "chair",
       backStyle: fromPhoto?.backStyle ?? (hasBack ? backFromBlob(blob) : "none"),
       hasArms: fromPhoto?.hasArms ?? hasArmPart,
       hasFootring: fromPhoto?.hasFootring ?? hasFootringPart,
       seatShape: fromPhoto?.seatShape ?? (/round|circular/.test(blob) ? "round" : "square"),
       reclined: fromPhoto?.reclined ?? false,
-      // Do not fill counter-height / dining stock ratios when the photos
-      // did not give a seat height or a back that needs one.
+      ...fromPhoto,
+      family: "chair",
       seatHeightRatio: fromPhoto?.seatHeightRatio ?? fromParts,
     };
   }
@@ -156,7 +156,12 @@ export function mergeDrawing(
   over: Partial<DrawingSpec> | undefined,
 ): DrawingSpec {
   const family = over?.family ?? template?.family ?? "table";
-  return { ...template, ...over, family };
+  const merged: DrawingSpec = { ...template, ...over, family };
+  if (over?.sideOutline) merged.sideOutline = sanitizeOutline(over.sideOutline);
+  if (over?.frontOutline) merged.frontOutline = sanitizeOutline(over.frontOutline);
+  if (over?.planOutline) merged.planOutline = sanitizeOutline(over.planOutline);
+  if (over?.visibleDetails?.length) merged.visibleDetails = over.visibleDetails.slice(0, 10);
+  return merged;
 }
 
 export function drawingCaption(spec: DrawingSpec): string {
@@ -174,13 +179,29 @@ export function drawingCaption(spec: DrawingSpec): string {
             ? "fan slat back"
             : spec.backStyle === "solid"
               ? "solid back"
+            : spec.backProfile === "hoop" || spec.backProfile === "windsor"
+              ? "hoop / Windsor back"
               : "open back";
+  const seat =
+    spec.seatProfile && spec.seatProfile !== "flat"
+      ? `${spec.seatProfile} ${spec.seatShape ?? "seat"}`
+      : spec.seatShape === "round"
+        ? "round seat"
+        : spec.seatShape && spec.seatShape !== "square"
+          ? `${spec.seatShape} seat`
+          : "square seat";
+  const legs =
+    spec.legStyle && spec.legStyle !== "straight"
+      ? spec.legStyle.replace("-", " ") + " legs"
+      : null;
   return [
-    spec.reclined ? "reclined Adirondack" : "upright chair",
+    spec.reclined ? "reclined" : "upright chair",
     back,
-    spec.seatShape === "round" ? "round seat" : "square seat",
+    seat,
+    spec.seatFront && spec.seatFront !== "square" ? `${spec.seatFront} front` : null,
     spec.hasArms ? "arms" : "no arms",
     spec.hasFootring ? "footring" : null,
+    legs,
     spec.seatHeightRatio && spec.seatHeightRatio >= 0.68
       ? "bar height"
       : spec.seatHeightRatio && spec.seatHeightRatio >= 0.55

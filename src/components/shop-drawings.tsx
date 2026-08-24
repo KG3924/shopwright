@@ -1,8 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Printer } from "lucide-react";
 import { LatticeJoinery } from "@/components/chair-drawings";
-import { inferDrawing } from "@/lib/drawing";
+import { drawingCaption, inferDrawing } from "@/lib/drawing";
 import { layoutBoxes, type WorldBox } from "@/lib/layout";
+import { hasShapedForm, outlineFor, svgPath } from "@/lib/silhouette";
 import {
   formatCutAxis,
   formatCutAxisSource,
@@ -27,7 +28,7 @@ import {
   labelElevationParts,
   separateBadges,
 } from "@/lib/shop-views";
-import type { CutRow, HardwareItem, Overall, Rank, ShopPacket } from "@/lib/types";
+import type { CutRow, DrawingSpec, HardwareItem, Overall, Rank, ShopPacket } from "@/lib/types";
 import { projectPhotos } from "@/lib/types";
 import { Button } from "./ui/button";
 
@@ -110,10 +111,25 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
           {project.interpretation}
         </p>
         <StackList stack={packet.stack} />
+        {spec.visibleDetails?.length ? (
+          <ul className="mb-4 columns-1 gap-x-8 text-sm text-ink sm:columns-2">
+            {spec.visibleDetails.map((d) => (
+              <li key={d} className="break-inside-avoid py-0.5">
+                {d}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+          {drawingCaption(spec)}
+          {hasShapedForm(spec)
+            ? " · heavy line is the photo outline; boxes are blanks before shaping"
+            : ""}
+        </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-          <ProjectedView label="Front" mode="front" boxes={boxes} overall={overall} />
-          <ProjectedView label="Side" mode="side" boxes={boxes} overall={overall} />
-          <ProjectedView label="Plan (top)" mode="plan" boxes={boxes} overall={overall} />
+          <ProjectedView label="Front" mode="front" boxes={boxes} overall={overall} spec={spec} />
+          <ProjectedView label="Side" mode="side" boxes={boxes} overall={overall} spec={spec} />
+          <ProjectedView label="Plan (top)" mode="plan" boxes={boxes} overall={overall} spec={spec} />
         </div>
         {project.uncertainties.length ? (
           <div className="mt-5 rounded-sm border border-ink/10 bg-paper p-3">
@@ -514,15 +530,19 @@ function ProjectedView({
   mode,
   boxes,
   overall,
+  spec,
 }: {
   label: string;
   mode: "front" | "side" | "plan";
   boxes: WorldBox[];
   overall: Overall;
+  spec: DrawingSpec;
 }) {
   const worldW = mode === "side" ? overall.d : overall.w;
   const worldH = mode === "plan" ? overall.d : overall.h;
   const { xName, yName } = elevationViewAxes(mode);
+  const outline = outlineFor(mode, spec);
+  const ghost = !!outline;
   const rects = boxes
     .map((b) => {
       if (mode === "front") {
@@ -584,8 +604,9 @@ function ProjectedView({
                   width={rw}
                   height={rh}
                   fill={unknown ? "none" : fillFor(r.role)}
+                  fillOpacity={ghost && !unknown ? 0.35 : 1}
                   stroke={INK}
-                  strokeWidth="0.6"
+                  strokeWidth={ghost ? 0.4 : 0.6}
                   strokeDasharray={unknown ? "2 1.4" : undefined}
                 />
               </g>
@@ -613,6 +634,24 @@ function ProjectedView({
               </text>
             );
           })}
+          {outline ? (
+            <path
+              d={svgPath(
+                outline,
+                ox,
+                oy,
+                worldW * s,
+                worldH * s,
+                mode !== "plan",
+                true,
+              )}
+              fill="none"
+              stroke={INK}
+              strokeWidth="1.15"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          ) : null}
         </g>
       )}
     </Frame>

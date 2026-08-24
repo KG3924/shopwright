@@ -219,8 +219,15 @@ export function StudioView() {
           <div className="p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={confidencePct >= 80 ? "good" : "warn"}>
-                {confidencePct}% confidence
+                {confidencePct}% form
               </Badge>
+              {project.drawing?.constructionConfidence != null ? (
+                <Badge
+                  tone={project.drawing.constructionConfidence >= 0.7 ? "good" : "warn"}
+                >
+                  {Math.round(project.drawing.constructionConfidence * 100)}% joinery
+                </Badge>
+              ) : null}
               {packet.doNotCut ? (
                 <Badge tone="warn">{DONT_CUT_YET}</Badge>
               ) : null}

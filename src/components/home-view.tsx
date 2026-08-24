@@ -23,6 +23,7 @@ import { MAX_PHOTOS } from "@/lib/types";
 import { ChiselMark, SawMark } from "./shop-marks";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
 
 export function HomeView() {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ export function HomeView() {
   const toolsAvailable = useStudio((s) => s.toolsAvailable);
   const inputRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
+  const [note, setNote] = useState("");
   const [busy, setBusy] = useState<"photo" | "url" | null>(null);
   const [drag, setDrag] = useState(false);
   const [staged, setStaged] = useState<string[]>([]);
@@ -79,7 +81,13 @@ export function HomeView() {
     try {
       const kind = "photo";
       const result = await interpretPiece({
-        data: { imageDataUrls: staged, kind, rank, toolsAvailable },
+        data: {
+          imageDataUrls: staged,
+          kind,
+          rank,
+          toolsAvailable,
+          note: note.trim() || undefined,
+        },
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -106,6 +114,7 @@ export function HomeView() {
           kind: "url",
           rank,
           toolsAvailable,
+          note: note.trim() || undefined,
           imageDataUrls: staged.length ? staged : undefined,
         },
       });
@@ -229,6 +238,18 @@ export function HomeView() {
             ))}
           </ul>
         ) : null}
+
+        <label className="mt-6 block">
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+            What to look for (optional)
+          </span>
+          <Textarea
+            className="mt-2 min-h-20"
+            value={note}
+            onChange={(e) => setNote(e.target.value.slice(0, 400))}
+            placeholder="Saddle seat, waterfall front, horseshoe plan, tapered splay legs, hoop back — name the curves so the reading doesn’t flatten them."
+          />
+        </label>
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button

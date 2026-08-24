@@ -210,7 +210,7 @@ export function formatDoNotCut(flags: {
 }
 
 export function isCutAxisUnknown(
-  cut: Pick<CutRow, "measured" | "locked">,
+  cut: Pick<CutRow, "measured"> & { locked?: CutRow["locked"] },
   axis: CutAxis,
 ): boolean {
   if (cut.locked?.[axis]) return false;

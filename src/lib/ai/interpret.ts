@@ -1,77 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { MAX_PHOTOS } from "../types";
+import { INTERPRET_SYSTEM } from "./interpret-system";
 import { hydrateVision, parseVisionJson, type InterpretInput } from "./hydrate";
 import { mapInterpretHandlerError, photosForInterpret, resolveUrlSource } from "./url-source";
-
-const SYSTEM = `You are Shopwright, a master furniture maker who reverse-engineers a piece from photographs into a shop-buildable interpretation — not a clone, and not a stock silhouette.
-
-You may receive several photos of the SAME piece from different angles (front, side, back, underside, detail, a tape in frame). Use ALL of them.
-
-The shop drawings are compiled from YOUR parts list. If you skip a board or invent a template instead of what is in the photo, the builder cuts the wrong wood. Always return the complete cut list for THIS piece.
-
-Return ONLY JSON:
-{
-  "name": "short name of THIS piece",
-  "category": "bench|table|case|bookcase|cabinet|chair|feeder|other",
-  "templateId": "bench|console|bookcase|coffee-table|cabinet|adirondack|side-chair|feeder|null",
-  "interpretation": "2-4 sentences: what you can see across the photos, what you are inferring",
-  "confidence": 0.0-1.0,
-  "overall": { "w": inches, "d": inches, "h": inches },
-  "overallSource": "labeled|estimated|assumed",
-  "scaleConfidence": "high|low|conflict",
-  "scaleNotes": ["optional notes about tape, labels, or disagreeing sizes"],
-  "speciesGuess": "maple|walnut|white-oak|red-oak|pine|cedar|poplar|plywood-oak",
-  "uncertainties": ["what is still not visible"],
-  "suggestedRouteId": "pocket|dado|mortise|dovetail|screwed|frame|dowel|adjustable|plugged",
-  "parts": [
-    {
-      "name": "Top panel",
-      "qty": 1,
-      "length": { "value": 48, "source": "measured", "confidence": 0.9, "photoIndex": 0 },
-      "width": { "value": 14, "source": "inferred", "confidence": 0.5 },
-      "thickness": { "value": null, "source": "unknown", "confidence": 0, "note": "edge not visible" },
-      "stock": "solid",
-      "role": "top",
-      "notes": "optional",
-      "instances": [
-        { "x": 0, "y": 0, "z": 17.25, "lengthAlong": "x", "widthAlong": "y" }
-      ]
-    }
-  ],
-  "drawing": {
-    "family": "table|case|chair|feeder",
-    "backStyle": "lattice|x-back|splat|slat-fan|solid|none",
-    "hasArms": false,
-    "hasFootring": false,
-    "seatShape": "square|round",
-    "seatHeightRatio": 0.48,
-    "reclined": false
-  }
-}
-
-MEASUREMENT RULES (required):
-- Every axis is a MeasuredDim: value (inches or null), source (measured|inferred|unknown), confidence 0–1.
-- measured = tape, ruler, or labeled dimension in frame. inferred = proportion from a known size. unknown = you cannot see it — value MUST be null.
-- Do NOT invent typical stock thickness (0.75, 0.5, 1.5) as if it were measured. If the edge is not visible, thickness.source is unknown.
-- If two labeled sizes disagree, scaleConfidence is conflict and explain in scaleNotes.
-- If a tape or labeled dimension is in frame, those inches WIN (overallSource: labeled, scaleConfidence: high).
-- overall is required unless every board has instances that reconstruct the box.
-
-PARTS (required):
-- Every board the shop will cut. Do not omit parts because a templateId exists. templateId only suggests joinery/hardware.
-- role: top|seat|leg|apron-long|apron-short|side|shelf|bottom|back|rail|stile|splat|slat|arm|stretcher|cleat|door|panel|post|roof|brace|kick|other
-- instances: one entry per copy. Origin is the front-left corner of the piece sitting on the floor. x = right, y = back (depth), z = up. The point is the part's front-left-bottom.
-- lengthAlong / widthAlong: which world axis the board's LENGTH and WIDTH run ("x"|"y"|"z"). Thickness takes the remaining axis.
-  Legs: lengthAlong z. Tops/seats/shelves: lengthAlong x, widthAlong y. Long aprons: lengthAlong x, widthAlong z. Case sides: lengthAlong z, widthAlong y.
-
-CHAIR CLASSIFICATION — common failure:
-- Adirondack ONLY if reclined outdoor chair with a FAN of back slats and wide flat arms.
-- Indoor dining / kitchen / counter / lattice / X-back / splat: templateId side-chair, reclined false.
-- NEVER classify a lattice-back or X-back chair as an Adirondack.
-
-Other rules:
-- Interpretation, not factory clone. Hidden joinery is a route, not a fact.
-- confidence < 0.7 if the underside or joinery is still not visible.`;
 
 async function grokChat(messages: unknown[], maxTokens: number): Promise<string> {
   const apiKey = process.env.XAI_API_KEY;
@@ -86,7 +17,7 @@ async function grokChat(messages: unknown[], maxTokens: number): Promise<string>
     body: JSON.stringify({
       model: "grok-4.5",
       messages,
-      temperature: 0.3,
+      temperature: 0.2,
       max_tokens: maxTokens,
     }),
   });
@@ -136,19 +67,21 @@ export const interpretPiece = createServerFn({ method: "POST" })
       photos.forEach((url, i) => {
         userContent.push({
           type: "image_url",
-          image_url: { url, detail: i < 3 ? "high" : "low" },
+          image_url: { url, detail: i < 4 ? "high" : "low" },
         });
       });
 
       const prompt = [
         data.kind === "blueprint"
-          ? "These are dimensioned plans or blueprint scans. Prefer labeled measurements. Return the full parts list with MeasuredDim axes and instances so we can draw every board."
+          ? "These are dimensioned plans. Prefer labeled measurements. Return MeasuredDim axes, instances, AND outlines that match the drawn profiles — including any curves."
           : photos.length > 1
-            ? `These are ${photos.length} photographs of the same piece from different angles. Combine them. Photo 1 is the primary view; later photos are additional angles (side, back, underside, detail, tape). Return a complete parts list with MeasuredDim inches and 3D instances for THIS piece — not a stock template.`
-            : "This is a photograph of a piece of furniture. Return a complete parts list with MeasuredDim inches and 3D instances for THIS piece — not a stock silhouette.",
-        data.note ? `Builder note: ${data.note}` : "",
+            ? `These are ${photos.length} photographs of the same piece from different angles. Combine them. Photo 1 is primary; later photos are side, back, underside, detail, tape. Trace the REAL outline. If the seat is saddled, horseshoe, waterfall, or otherwise not a rectangle, sideOutline / planOutline / seatProfile MUST show that. Do not return a boxy stand-in.`
+            : "This is a photograph of a piece of furniture. Trace the real outline. Return MeasuredDim parts, instances, and outlines for THIS piece. Do not replace curves with rectangles.",
+        data.note
+          ? `Builder note — treat as ground truth for details to look for: ${data.note}`
+          : "Look for minor shaping: seat dish, waterfall/rolled front, leg taper and splay, back rake, crest/hoop, arm profile.",
         pageNote,
-        "Return JSON only. parts[] is required. Unknown axes must be value null, source unknown — do not invent typical stock.",
+        "Return JSON only. parts[] is required. Unknown axes must be value null, source unknown — do not invent typical stock. drawing outlines are required when the piece is not a plain box.",
       ]
         .filter(Boolean)
         .join("\n");
@@ -157,10 +90,10 @@ export const interpretPiece = createServerFn({ method: "POST" })
 
       const text = await grokChat(
         [
-          { role: "system", content: SYSTEM },
+          { role: "system", content: INTERPRET_SYSTEM },
           { role: "user", content: userContent },
         ],
-        3500,
+        4000,
       );
       const ai = parseVisionJson(text);
       const project = hydrateVision(ai, data, photos);

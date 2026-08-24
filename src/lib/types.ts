@@ -187,7 +187,46 @@ export type BackStyle =
   | "solid"
   | "none";
 
-export type SeatShape = "square" | "round";
+export type SeatShape =
+  | "square"
+  | "round"
+  | "horseshoe"
+  | "D"
+  | "shield"
+  | "trapezoid"
+  | "rounded-rect"
+  | "irregular";
+
+export type SeatProfile =
+  | "flat"
+  | "saddled"
+  | "dished"
+  | "scooped"
+  | "waterfall"
+  | "tractor"
+  | "sculpted";
+
+export type SeatFront = "square" | "rounded" | "waterfall" | "rolled" | "bullnose";
+
+export type LegStyle =
+  | "straight"
+  | "tapered"
+  | "splayed"
+  | "tapered-splay"
+  | "cabriole"
+  | "saber"
+  | "turned";
+
+export type BackProfile =
+  | "upright"
+  | "reclined"
+  | "curved"
+  | "hoop"
+  | "windsor"
+  | "ladder";
+
+/** Normalized 0–1 point on an elevation or plan. */
+export type PolyPt = { x: number; y: number };
 
 /** How to draw the piece — from the photo, not from a catalog silhouette. */
 export type DrawingSpec = {
@@ -196,9 +235,27 @@ export type DrawingSpec = {
   hasArms?: boolean;
   hasFootring?: boolean;
   seatShape?: SeatShape;
+  seatProfile?: SeatProfile;
+  seatFront?: SeatFront;
+  /** Dish / saddle depth in inches. */
+  seatDishIn?: number;
+  legStyle?: LegStyle;
+  legTaperToIn?: number;
+  /** Kick-out from plumb, degrees. */
+  legSplayDeg?: number;
+  backProfile?: BackProfile;
   /** Seat height as a fraction of overall H. Dining ~0.48, counter ~0.61, bar ~0.72. */
   seatHeightRatio?: number;
   reclined?: boolean;
+  /** Joinery confidence, separate from visible-form confidence on the project. */
+  constructionConfidence?: number;
+  visibleDetails?: string[];
+  /** side: x=depth 0 front→1 back, y=height 0 floor→1 top */
+  sideOutline?: PolyPt[];
+  /** front: x=width 0 left→1 right, y=height 0 floor→1 top */
+  frontOutline?: PolyPt[];
+  /** plan: x=width 0 left→1 right, y=depth 0 front→1 back */
+  planOutline?: PolyPt[];
 };
 
 export type Overall = { w: number; d: number; h: number };

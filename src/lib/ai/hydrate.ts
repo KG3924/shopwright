@@ -4,6 +4,14 @@ import { instantiate } from "../compile";
 import { inferDrawing, isAdirondackReading, isUprightChair } from "../drawing";
 import { inferRole, isPartRole } from "../layout";
 import {
+  asBackProfile,
+  asLegStyle,
+  asSeatFront,
+  asSeatProfile,
+  asSeatShape,
+  sanitizeOutline,
+} from "../silhouette";
+import {
   clampInch,
   hasSourcedDims,
   isDimSource,
@@ -108,9 +116,38 @@ const DrawingSchema = z
       .optional(),
     hasArms: z.boolean().optional(),
     hasFootring: z.boolean().optional(),
-    seatShape: z.enum(["square", "round"]).optional(),
+    seatShape: z
+      .enum([
+        "square",
+        "round",
+        "horseshoe",
+        "D",
+        "shield",
+        "trapezoid",
+        "rounded-rect",
+        "irregular",
+      ])
+      .optional(),
+    seatProfile: z
+      .enum(["flat", "saddled", "dished", "scooped", "waterfall", "tractor", "sculpted"])
+      .optional(),
+    seatFront: z.enum(["square", "rounded", "waterfall", "rolled", "bullnose"]).optional(),
+    seatDishIn: z.number().finite().optional(),
+    legStyle: z
+      .enum(["straight", "tapered", "splayed", "tapered-splay", "cabriole", "saber", "turned"])
+      .optional(),
+    legTaperToIn: z.number().finite().optional(),
+    legSplayDeg: z.number().finite().optional(),
+    backProfile: z
+      .enum(["upright", "reclined", "curved", "hoop", "windsor", "ladder"])
+      .optional(),
     seatHeightRatio: z.number().finite().optional(),
     reclined: z.boolean().optional(),
+    constructionConfidence: z.number().finite().optional(),
+    visibleDetails: z.array(z.string()).optional(),
+    sideOutline: z.array(z.any()).optional(),
+    frontOutline: z.array(z.any()).optional(),
+    planOutline: z.array(z.any()).optional(),
   })
   .optional();
 
@@ -120,6 +157,8 @@ export const AiJsonSchema = z.object({
   templateId: z.string().nullable().optional(),
   interpretation: z.string().optional(),
   confidence: z.number().optional(),
+  formConfidence: z.number().optional(),
+  constructionConfidence: z.number().optional(),
   overall: OverallSchema.optional(),
   overallSource: z.enum(["labeled", "estimated", "assumed"]).optional(),
   scaleConfidence: z.enum(["high", "low", "conflict"]).optional(),
@@ -127,6 +166,7 @@ export const AiJsonSchema = z.object({
   speciesGuess: z.string().optional(),
   uncertainties: z.array(z.string()).optional(),
   suggestedRouteId: z.string().optional(),
+  visibleDetails: z.array(z.string()).optional(),
   parts: z.array(AiPartSchema).optional(),
   drawing: DrawingSchema,
 });
@@ -404,6 +444,44 @@ function toGraphParts(
   });
 }
 
+function drawingFromAi(ai: AiJson): DrawingSpec | undefined {
+  const d = ai.drawing;
+  if (!d && !ai.visibleDetails?.length && ai.constructionConfidence == null) {
+    return undefined;
+  }
+  const details = [
+    ...(Array.isArray(ai.visibleDetails) ? ai.visibleDetails : []),
+    ...(Array.isArray(d?.visibleDetails) ? d.visibleDetails : []),
+  ]
+    .map((s) => String(s).trim())
+    .filter(Boolean)
+    .slice(0, 10);
+  return {
+    family: d?.family,
+    backStyle: d?.backStyle,
+    hasArms: d?.hasArms,
+    hasFootring: d?.hasFootring,
+    reclined: d?.reclined,
+    seatHeightRatio: d?.seatHeightRatio,
+    seatShape: asSeatShape(d?.seatShape) ?? d?.seatShape,
+    seatProfile: asSeatProfile(d?.seatProfile),
+    seatFront: asSeatFront(d?.seatFront),
+    seatDishIn: d?.seatDishIn,
+    legStyle: asLegStyle(d?.legStyle),
+    legTaperToIn: d?.legTaperToIn,
+    legSplayDeg: d?.legSplayDeg,
+    backProfile: asBackProfile(d?.backProfile),
+    constructionConfidence:
+      typeof ai.constructionConfidence === "number"
+        ? ai.constructionConfidence
+        : d?.constructionConfidence,
+    visibleDetails: details.length ? details : undefined,
+    sideOutline: sanitizeOutline(d?.sideOutline),
+    frontOutline: sanitizeOutline(d?.frontOutline),
+    planOutline: sanitizeOutline(d?.planOutline),
+  } as DrawingSpec;
+}
+
 /**
  * Zod-validate vision JSON. Invalid or empty payloads fail loud.
  * Partial objects that still have a parts array are accepted so hydrate
@@ -567,8 +645,7 @@ export function hydrateVision(
       ? ai.speciesGuess
       : (joinery.defaultSpecies ?? "maple");
 
-  // Draw the boards we read — do not start from the joinery template's
-  // silhouette (lattice-back / counter-height stock sizes).
+  const drawingIn = drawingFromAi(ai);
   const drawing = inferDrawing({
     id: `${joinery.id}-read`,
     category: ai.category ?? joinery.category,
@@ -576,8 +653,26 @@ export function hydrateVision(
     interpretation: ai.interpretation ?? joinery.interpretation,
     parts,
     overall,
-    drawing: ai.drawing as DrawingSpec | undefined,
+    drawing: drawingIn,
   });
+
+  if (drawing.seatProfile && drawing.seatProfile !== "flat") {
+    for (const p of parts) {
+      if (p.role === "seat" && !p.notes) {
+        const dish = drawing.seatDishIn ? `, dish ~${drawing.seatDishIn}"` : "";
+        const front =
+          drawing.seatFront && drawing.seatFront !== "square"
+            ? `, ${drawing.seatFront} front`
+            : "";
+        p.notes = `Blank is rectangular. Shape ${drawing.seatProfile} seat${dish}${front}.`;
+      }
+      if (p.role === "leg" && !p.notes && drawing.legStyle && drawing.legStyle !== "straight") {
+        p.notes = `Shape ${drawing.legStyle.replace("-", " ")}${
+          drawing.legTaperToIn ? ` to ${drawing.legTaperToIn}"` : ""
+        }${drawing.legSplayDeg ? `, splay ~${drawing.legSplayDeg}°` : ""}.`;
+      }
+    }
+  }
 
   return instantiate(
     {
@@ -590,7 +685,7 @@ export function hydrateVision(
       parts,
       drawing,
       interpretation: ai.interpretation ?? joinery.interpretation,
-      confidence: ai.confidence ?? joinery.confidence,
+      confidence: ai.formConfidence ?? ai.confidence ?? joinery.confidence,
       uncertainties:
         ai.uncertainties && ai.uncertainties.length
           ? ai.uncertainties
