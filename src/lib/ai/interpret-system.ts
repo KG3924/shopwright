@@ -50,7 +50,7 @@ NEVER DO THIS:
 - Do not describe a sculpted / saddled / horseshoe / tractor / Windsor / cabriole / saber form as a rectangular slab on four posts.
 - Do not skip a curve because it is harder to measure. Estimate the dish, the roll, the taper, the splay. Put the estimate in uncertainties if you must — still return the curve.
 - Do not omit seatProfile / seatShape / seatFront / legStyle / backProfile on a chair and hope the compiler invents them. Missing those fields is how a saddle comes back as a box.
-- Do not let templateId overwrite what is in the photo. templateId only suggests joinery/hardware.
+- Do not let templateId overwrite what is in the photo. templateId is not an input to photo hydrate joinery, finish, steps, or technique plates.
 - Do not invent typical stock thickness (0.75, 0.5, 1.5) as if it were measured.
 - Do not refuse a metal or plastic piece, and do not emit steel blanks. Translate form to wood.
 - Do not weld a camera-space silhouette or CAD hidden lines onto the shop elevations. If the outline would be a slash, a 4-point scribble, or a factory drawing, omit it.

@@ -127,7 +127,7 @@ function geom(packet: ShopPacket, spec: DrawingSpec) {
     botRailH: botRail?.width ?? 2,
     hasArms: spec.hasArms ?? Boolean(arm),
     hasFootring: spec.hasFootring ?? true,
-    backStyle: spec.backStyle ?? "lattice",
+    backStyle: spec.backStyle ?? "none",
     seatShape: spec.seatShape ?? "square",
     reclined: spec.reclined ?? false,
   };
@@ -192,6 +192,7 @@ function BackFill({
       <rect x={x} y={y} width={w} height={h} fill={WOOD} stroke={INK} strokeWidth="0.5" />
     );
   }
+  if (style !== "lattice") return null;
   const cx = x + w / 2;
   const cy = y + h / 2;
   return (

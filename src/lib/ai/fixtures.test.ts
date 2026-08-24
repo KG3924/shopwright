@@ -16,12 +16,15 @@ import {
   ticketViewLabels,
 } from "../measure";
 import { holdWarningCount } from "../plain-copy";
+import { NO_ROUTE_ID } from "../routes";
 import { isRectilinearOutline, outlineFor, shapeNotRead } from "../silhouette";
+import { figuresForStep } from "../technique-drawings";
 import {
   hydrateVision,
   parseVisionJson,
   type InterpretInput,
 } from "./hydrate";
+import type { ShopPacket } from "../types";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const input: InterpretInput = {
@@ -223,14 +226,14 @@ describe("curved seat must not hydrate as a flat square slab", () => {
 });
 
 describe("material translation — metal folding stool", () => {
-  it("metal-folding-stool: wood blanks, chair template, no steel gauge, no hinge on the cut list", () => {
+  it("metal-folding-stool: wood blanks, chair family, no steel gauge, no hinge on the cut list", () => {
     const fixture = load("metal-folding-stool.json");
     const { project, packet } = assertShopTruth(fixture);
 
     assert.equal(project.category, "chair");
-    assert.equal(project.id, "side-chair-read");
+    assert.equal(project.id, "chair-read");
     assert.notEqual(project.speciesId, "steel");
-    assert.ok(project.parts.every((p) => p.stock !== "steel" && p.stock !== "sheet"));
+    assert.ok(project.parts.every((p) => p.stock !== "sheet"));
     assert.match(project.interpretation, /translated to wood build/i);
     assert.ok(project.uncertainties.some((u) => /translated to wood build/i.test(u)));
     assert.ok(!packet.cuts.some((c) => /hinge/i.test(c.name)));
@@ -283,6 +286,115 @@ describe("material translation — metal folding stool", () => {
     assert.deepEqual(
       exploded.map((b) => b.letter).sort(),
       [...tickets].sort(),
+    );
+  });
+});
+
+const LATTICE_LEAK_RE =
+  /lattice|half-?lap|fit the lattice|diamond pins?|23-ga|enamel|primer|paint-grade poplar|white enamel/i;
+
+function packetStory(packet: ShopPacket): string {
+  return [
+    packet.route.id,
+    packet.route.name,
+    packet.route.summary,
+    packet.route.joinery,
+    packet.route.hiddenWork,
+    packet.species.id,
+    packet.species.name,
+    ...packet.hardware.map((h) => `${h.id} ${h.name} ${h.spec} ${h.where ?? ""}`),
+    ...packet.steps.map((s) => `${s.id} ${s.title} ${s.body} ${s.techniques.join(" ")}`),
+    ...packet.techniques.map((t) => `${t.id} ${t.name} ${t.body}`),
+    ...packet.stillBuy,
+    ...packet.doNotBuy,
+    ...packet.stack,
+    ...packet.cuts.map((c) => `${c.letter} ${c.name} ${c.notes ?? ""} ${c.fromStock} ${c.stock}`),
+    ...packet.warnings,
+    ...packet.project.uncertainties,
+    packet.project.interpretation,
+  ].join("\n");
+}
+
+function assertNoLatticeImpersonation(packet: ShopPacket) {
+  const story = packetStory(packet);
+  assert.doesNotMatch(story, LATTICE_LEAK_RE, story);
+  assert.ok(!packet.hardware.some((h) => h.id === "pins-ch" || h.id === "primer-ch"));
+  assert.ok(!packet.steps.some((s) => s.id === "sc5" || s.id === "sc6"));
+  assert.ok(!packet.steps.some((s) => s.techniques.includes("half-lap")));
+  assert.ok(!packet.steps.some((s) => s.techniques.includes("finish-paint")));
+  for (const step of packet.steps) {
+    assert.ok(!figuresForStep(step.techniques).includes("half-lap"));
+    assert.ok(!figuresForStep(step.techniques).includes("finish-paint"));
+  }
+}
+
+describe("packet-from-photo — Barros must not impersonate the catalog lattice chair", () => {
+  const pocketInput: InterpretInput = {
+    kind: "photo",
+    rank: "beginner",
+    toolsAvailable: ["drill", "miter-saw", "kreg-jig", "clamps"],
+  };
+
+  function compileBarros(over: Partial<InterpretInput> = {}) {
+    const fixture = load("barros-side-chair.json");
+    const ai = parseVisionJson(JSON.stringify(fixture.ai));
+    assert.equal(ai.templateId, "side-chair");
+    assert.equal(ai.drawing?.backStyle, "solid");
+    const project = hydrateVision(ai, { ...pocketInput, ...over }, []);
+    const packet = compilePacket(project, "75013");
+    return { fixture, project, packet };
+  }
+
+  it("barros-side-chair: compile from this interpret only — no catalog lattice, paint, or poplar enamel", () => {
+    const fixture = load("barros-side-chair.json");
+    const { project, packet } = assertShopTruth(fixture);
+
+    assert.equal(project.sourceKind, "photo");
+    assert.equal(project.partsFromPhotos, true);
+    assert.notEqual(project.id, "side-chair");
+    assert.ok(!project.image?.includes("lattice-chair"));
+    assert.equal(project.drawing?.backStyle, "solid");
+    assert.notEqual(project.drawing?.backStyle, "lattice");
+    assert.notEqual(project.speciesId, "poplar");
+    assert.equal(project.speciesId, "maple");
+
+    assertNoLatticeImpersonation(packet);
+    assert.equal(packet.route.id, "pocket");
+
+    const seat = packet.cuts.find((c) => c.letter === "A" || c.role === "seat")!;
+    assert.equal(seat.letter, "A");
+    assert.equal(seat.role, "seat");
+    assert.equal(formatCutTriplet(seat), `18" × 16-1/2" × 3/4"`);
+    assert.equal(seat.stock, "plywood");
+    assert.doesNotMatch(seat.notes ?? "", /45\s*°|diamond|lattice|enamel|primer/i);
+    assert.match(seat.notes ?? "", /fabric|webbing|plywood/i);
+    assert.ok(
+      packet.hardware.some((h) => /fabric|webbing|foam|upholster/i.test(`${h.id} ${h.name} ${h.spec}`)),
+      "upholstered seat needs a fabric/webbing/foam pack",
+    );
+    assert.ok(!packet.steps.some((s) => s.techniques.includes("glue-up")));
+
+    const spec = inferDrawing(project);
+    assert.equal(spec.backStyle, "solid");
+    const plan = outlineFor("plan", spec);
+    assert.ok(plan && plan.length >= 4);
+    assert.equal(isRectilinearOutline(plan), true, "seat A plan must stay the ticket rectangle");
+  });
+
+  it("barros-side-chair No-route still must not print lattice, enamel, or a Paint-A figure", () => {
+    const { packet } = compileBarros({ toolsAvailable: [] });
+    assert.equal(packet.route.id, NO_ROUTE_ID);
+    assert.equal(packet.routeRunnable, false);
+    assertNoLatticeImpersonation(packet);
+  });
+
+  it("does not use a parts-name blacklist as the lattice gate", () => {
+    const src = readFileSync(join(dir, "photo-joinery.ts"), "utf8");
+    assert.match(src, /backStyle/);
+    assert.doesNotMatch(
+      src,
+      /parts\.some\([^)]*lattice/,
+      "lattice gate must be interpret backStyle / explicit tag, not a parts-name check",
     );
   });
 });

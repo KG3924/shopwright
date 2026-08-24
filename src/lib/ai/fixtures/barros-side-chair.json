@@ -1,0 +1,127 @@
+{
+  "id": "barros-side-chair",
+  "note": "Wayfair Barros-class solid wood side chair. Solid crest, upholstered fabric seat, natural hardwood. Interpret did not tag lattice or paint. CI must not fetch a live Wayfair URL. templateId side-chair is present so hydrate cannot use it as an input.",
+  "expect": {
+    "scaleConfidence": "high",
+    "doNotCut": false,
+    "partsFromPhotos": true,
+    "ticketUnknownAxes": 0,
+    "cutTriplets": {
+      "Seat": "18\" × 16-1/2\" × 3/4\"",
+      "Front leg": "17-1/4\" × 1-3/4\" × 1-3/4\"",
+      "Crest rail": "16-1/2\" × 3\" × 3/4\""
+    },
+    "dimSources": {
+      "Seat": {
+        "length": "measured from photo 1",
+        "width": "measured from photo 1",
+        "thickness": "measured from photo 3"
+      }
+    },
+    "cutHold": null
+  },
+  "ai": {
+    "name": "Barros solid wood side chair",
+    "category": "chair",
+    "templateId": "side-chair",
+    "interpretation": "Upright dining side chair with a solid crest rail, four square legs, and an upholstered fabric seat. Natural hardwood, not a paint finish. The back is a solid crest.",
+    "confidence": 0.9,
+    "constructionConfidence": 0.45,
+    "formConfidence": 0.9,
+    "overall": { "w": 18.5, "d": 20, "h": 38 },
+    "overallSource": "labeled",
+    "scaleConfidence": "high",
+    "scaleNotes": ["Product label overall on the listing."],
+    "speciesGuess": "maple",
+    "uncertainties": ["underside webbing layout", "exact foam thickness"],
+    "visibleDetails": [
+      "solid crest rail",
+      "upholstered fabric seat",
+      "natural hardwood finish",
+      "square tapered legs"
+    ],
+    "suggestedRouteId": "pocket",
+    "parts": [
+      {
+        "name": "Seat",
+        "letter": "A",
+        "qty": 1,
+        "role": "seat",
+        "stock": "solid",
+        "notes": "Upholstered fabric over the seat. Not a solid glue-up.",
+        "length": { "value": 18, "source": "measured", "confidence": 0.92, "photoIndex": 0 },
+        "width": { "value": 16.5, "source": "measured", "confidence": 0.9, "photoIndex": 0 },
+        "thickness": { "value": 0.75, "source": "measured", "confidence": 0.85, "photoIndex": 2, "note": "ply / pad stack at the edge" },
+        "instances": [{ "x": 0.25, "y": 0.5, "z": 17.25, "lengthAlong": "x", "widthAlong": "y" }]
+      },
+      {
+        "name": "Front leg",
+        "letter": "B",
+        "qty": 2,
+        "role": "leg",
+        "stock": "solid",
+        "length": { "value": 17.25, "source": "measured", "confidence": 0.9, "photoIndex": 1 },
+        "width": { "value": 1.75, "source": "measured", "confidence": 0.85, "photoIndex": 1 },
+        "thickness": { "value": 1.75, "source": "measured", "confidence": 0.85, "photoIndex": 1 },
+        "instances": [
+          { "x": 0, "y": 0, "z": 0, "lengthAlong": "z", "widthAlong": "x" },
+          { "x": 16.75, "y": 0, "z": 0, "lengthAlong": "z", "widthAlong": "x" }
+        ]
+      },
+      {
+        "name": "Back leg",
+        "letter": "C",
+        "qty": 2,
+        "role": "leg",
+        "stock": "solid",
+        "length": { "value": 37.25, "source": "measured", "confidence": 0.8, "photoIndex": 1 },
+        "width": { "value": 1.75, "source": "measured", "confidence": 0.85, "photoIndex": 1 },
+        "thickness": { "value": 1.75, "source": "measured", "confidence": 0.85, "photoIndex": 1 },
+        "instances": [
+          { "x": 0, "y": 18.25, "z": 0, "lengthAlong": "z", "widthAlong": "x" },
+          { "x": 16.75, "y": 18.25, "z": 0, "lengthAlong": "z", "widthAlong": "x" }
+        ]
+      },
+      {
+        "name": "Side stretcher",
+        "letter": "D",
+        "qty": 2,
+        "role": "stretcher",
+        "stock": "solid",
+        "length": { "value": 16.5, "source": "measured", "confidence": 0.8, "photoIndex": 1 },
+        "width": { "value": 1.75, "source": "measured", "confidence": 0.8, "photoIndex": 1 },
+        "thickness": { "value": 0.75, "source": "measured", "confidence": 0.8, "photoIndex": 2 }
+      },
+      {
+        "name": "Crest rail",
+        "letter": "E",
+        "qty": 1,
+        "role": "rail",
+        "stock": "solid",
+        "notes": "Solid crest. This is the top bar of the back, not an open frame.",
+        "length": { "value": 16.5, "source": "measured", "confidence": 0.8, "photoIndex": 0 },
+        "width": { "value": 3, "source": "measured", "confidence": 0.8, "photoIndex": 0 },
+        "thickness": { "value": 0.75, "source": "measured", "confidence": 0.8, "photoIndex": 2 }
+      }
+    ],
+    "drawing": {
+      "family": "chair",
+      "backStyle": "solid",
+      "hasArms": false,
+      "hasFootring": false,
+      "seatShape": "square",
+      "seatProfile": "flat",
+      "seatFront": "square",
+      "legStyle": "tapered",
+      "backProfile": "upright",
+      "seatHeightRatio": 0.47,
+      "reclined": false,
+      "planOutline": [
+        [0.05, 0.08],
+        [0.95, 0.08],
+        [0.95, 0.92],
+        [0.05, 0.92]
+      ]
+    }
+  }
+}
