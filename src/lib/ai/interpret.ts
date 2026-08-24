@@ -58,6 +58,13 @@ export const interpretPiece = createServerFn({ method: "POST" })
         } catch (err) {
           return mapInterpretHandlerError(err, "Could not read that link");
         }
+        if (photos.length === 0) {
+          return {
+            ok: false as const,
+            error:
+              "That page had no product photo we could use. Upload a picture of the piece — a small share-card crop is not enough to read a seat curve.",
+          };
+        }
       }
 
       if (photos.some((p) => p.length > 1_400_000)) {
@@ -79,9 +86,11 @@ export const interpretPiece = createServerFn({ method: "POST" })
             : "This is a photograph of a piece of furniture. Trace the real outline. Return MeasuredDim parts, instances, and outlines for THIS piece. Do not replace curves with rectangles.",
         data.note
           ? `Builder note — treat as ground truth for details to look for: ${data.note}`
-          : "Look for minor shaping: seat dish, waterfall/rolled front, leg taper and splay, back rake, crest/hoop, arm profile.",
+          : "Look for minor shaping: seat dish, waterfall/rolled front, leg taper and splay, back rake, crest/hoop, arm profile. Name seat profile, plan, front, leg style, and back style even on a small product-page crop.",
         pageNote,
-        "Return JSON only. parts[] is required. Unknown axes must be value null, source unknown — do not invent typical stock. drawing outlines are required when the piece is not a plain box.",
+        "Return JSON only. parts[] is required. Unknown axes must be value null, source unknown — do not invent typical stock.",
+        "drawing.seatProfile, seatShape, seatFront, legStyle, backStyle, backProfile are required on a chair. sideOutline must follow the seat curve — a 4-point rectangle is a failed reading for a saddled or dished seat.",
+        "If the piece looks metal or plastic, still return a wooden shop packet: solid/ply blanks, wood species, wood joinery. Note the source material. Do not refuse, and do not copy sheet-metal gauge as measured thickness.",
       ]
         .filter(Boolean)
         .join("\n");
@@ -93,7 +102,7 @@ export const interpretPiece = createServerFn({ method: "POST" })
           { role: "system", content: INTERPRET_SYSTEM },
           { role: "user", content: userContent },
         ],
-        4000,
+        5000,
       );
       const ai = parseVisionJson(text);
       const project = hydrateVision(ai, data, photos);

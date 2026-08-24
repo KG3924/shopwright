@@ -29,7 +29,7 @@ A long apron is `{ from: "w", offset: -3 }` because two 1½" legs eat three inch
 
 Routes (`pocket`, `dado`, `mortise`, …) filter hardware, steps, and sometimes parts (a slab door vs. frame-and-panel).
 
-Shop drawings (elevations, exploded assembly, part tickets) are SVG compiled from the resolved cut list placed in space, so a locked part shows up on the drawing the same turn. They are not picked from a pool of furniture silhouettes.
+Shop drawings (elevations, exploded assembly, part tickets) are SVG compiled from the resolved cut list placed in space, so a locked part shows up on the drawing the same turn. They are not picked from a pool of furniture silhouettes. Elevations overlay a photo-traced outline (seat dish, splay, plan shape) on those blanks; the exploded assembly stays boxes.
 
 ## Hydration from a photo
 

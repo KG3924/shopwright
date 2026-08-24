@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { compilePacket } from "../compile";
-import { inferDrawing } from "../drawing";
+import { drawingCaption, inferDrawing } from "../drawing";
 import { layoutBoxes } from "../layout";
 import {
   editorAxisValue,
@@ -14,6 +14,7 @@ import {
   ticketUnknownAxes,
   ticketViewLabels,
 } from "../measure";
+import { isRectilinearOutline, outlineFor } from "../silhouette";
 import {
   hydrateVision,
   parseVisionJson,
@@ -171,5 +172,55 @@ describe("accuracy Cut B fixtures", () => {
     assert.ok(seatBox);
     assert.equal(seatBox.unknown?.h, true);
     assert.notEqual(seatBox.h, 0.75);
+  });
+});
+
+describe("curved seat must not hydrate as a flat square slab", () => {
+  it("curved-seat-leola: keeps saddle profile, non-rect side outline, Don't-cut", () => {
+    const fixture = load("curved-seat-leola.json");
+    const { project, packet } = assertShopTruth(fixture);
+
+    const spec = inferDrawing(project);
+    assert.equal(spec.seatProfile, "saddled");
+    assert.notEqual(spec.seatProfile, "flat");
+    assert.notEqual(spec.seatShape, "square");
+    assert.equal(spec.seatFront, "waterfall");
+    assert.match(drawingCaption(spec), /saddled/i);
+    assert.doesNotMatch(drawingCaption(spec), /^[^·]*square seat/);
+
+    const side = outlineFor("side", spec);
+    assert.ok(side && side.length >= 6);
+    assert.equal(isRectilinearOutline(side), false);
+
+    const seat = packet.cuts.find((c) => /seat/i.test(c.name))!;
+    assert.match(seat.notes ?? "", /saddle/i);
+    assert.equal(seat.measured?.thickness.source, "unknown");
+    assert.equal(packet.doNotCut, true);
+  });
+});
+
+describe("material translation — metal folding stool", () => {
+  it("metal-folding-stool: wood blanks, chair template, no steel gauge, no hinge on the cut list", () => {
+    const fixture = load("metal-folding-stool.json");
+    const { project, packet } = assertShopTruth(fixture);
+
+    assert.equal(project.category, "chair");
+    assert.equal(project.id, "side-chair-read");
+    assert.notEqual(project.speciesId, "steel");
+    assert.ok(project.parts.every((p) => p.stock !== "steel" && p.stock !== "sheet"));
+    assert.match(project.interpretation, /translated to wood build/i);
+    assert.ok(project.uncertainties.some((u) => /translated to wood build/i.test(u)));
+    assert.ok(!packet.cuts.some((c) => /hinge/i.test(c.name)));
+    assert.ok(packet.cuts.some((c) => /x-brace/i.test(c.name)));
+
+    const spec = inferDrawing(project);
+    assert.equal(spec.family, "chair");
+    assert.equal(spec.backStyle, "none");
+    assert.equal(spec.seatShape, "round");
+
+    const seat = packet.cuts.find((c) => c.name === "Seat")!;
+    assert.equal(seat.measured?.thickness.source, "unknown");
+    assert.equal(seat.measured?.thickness.value, null);
+    assert.notEqual(seat.measured?.thickness.value, 0.062);
   });
 });

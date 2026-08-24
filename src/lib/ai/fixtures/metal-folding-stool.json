@@ -1,0 +1,88 @@
+{
+  "id": "metal-folding-stool",
+  "note": "Photo of a metal folding stool must still compile a wooden shop packet. Hydrate translates steel/plastic to solid/ply, drops hinges as buy hardware, strips sheet-metal gauge to ?, and keeps chair / side-chair even if the model dumped category other. Do not refuse; do not emit steel blanks.",
+  "expect": {
+    "scaleConfidence": "low",
+    "doNotCut": true,
+    "partsFromPhotos": true,
+    "ticketUnknownAxes": 2,
+    "cutTriplets": {
+      "Seat": "12\" × 12\" × ?",
+      "Leg": "16\" × 1-1/4\" × ?",
+      "X-brace": "14\" × 1-1/4\" × 3/4\""
+    },
+    "cutHoldIncludes": ["Don't cut yet"]
+  },
+  "ai": {
+    "name": "Folding camp stool",
+    "category": "other",
+    "templateId": null,
+    "interpretation": "Tubular steel folding stool with a round seat and X-brace. Factory piece is metal, not wood.",
+    "confidence": 0.82,
+    "constructionConfidence": 0.35,
+    "overall": { "w": 12, "d": 12, "h": 16 },
+    "overallSource": "estimated",
+    "scaleConfidence": "low",
+    "speciesGuess": "steel",
+    "uncertainties": ["exact fold geometry", "pin diameter"],
+    "visibleDetails": [
+      "chrome tube legs",
+      "round fabric-over-metal seat",
+      "X-brace folding stay"
+    ],
+    "suggestedRouteId": "screwed",
+    "parts": [
+      {
+        "name": "Seat",
+        "qty": 1,
+        "role": "seat",
+        "stock": "steel",
+        "notes": "Source is a metal ring; shop blank is a round wood seat.",
+        "length": { "value": 12, "source": "inferred", "confidence": 0.55 },
+        "width": { "value": 12, "source": "inferred", "confidence": 0.55 },
+        "thickness": { "value": 0.062, "source": "measured", "confidence": 0.8, "note": "16 ga sheet" }
+      },
+      {
+        "name": "Leg",
+        "qty": 4,
+        "role": "leg",
+        "stock": "steel",
+        "length": { "value": 16, "source": "inferred", "confidence": 0.5 },
+        "width": { "value": 1.25, "source": "inferred", "confidence": 0.4 },
+        "thickness": { "value": 0.065, "source": "measured", "confidence": 0.7, "note": "tube wall" }
+      },
+      {
+        "name": "X-brace",
+        "qty": 2,
+        "role": "brace",
+        "stock": "solid",
+        "notes": "Shop translation of the folding X; cut wood, buy the hinge.",
+        "length": { "value": 14, "source": "inferred", "confidence": 0.45 },
+        "width": { "value": 1.25, "source": "inferred", "confidence": 0.4 },
+        "thickness": { "value": 0.75, "source": "inferred", "confidence": 0.4 }
+      },
+      {
+        "name": "Pivot hinge",
+        "qty": 4,
+        "role": "other",
+        "stock": "steel",
+        "length": { "value": 2, "source": "inferred", "confidence": 0.3 },
+        "width": { "value": 1, "source": "inferred", "confidence": 0.3 },
+        "thickness": { "value": 0.125, "source": "measured", "confidence": 0.6 }
+      }
+    ],
+    "drawing": {
+      "family": "chair",
+      "backStyle": "none",
+      "hasArms": false,
+      "hasFootring": false,
+      "seatShape": "round",
+      "seatProfile": "flat",
+      "seatFront": "rounded",
+      "legStyle": "straight",
+      "backProfile": "upright",
+      "seatHeightRatio": 0.95,
+      "reclined": false
+    }
+  }
+}

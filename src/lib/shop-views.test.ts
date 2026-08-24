@@ -219,4 +219,18 @@ describe("shop drawing wiring", () => {
     assert.match(src, /separateBadges/);
     assert.match(src, /isoShowsBadge/);
   });
+
+  it("Sheet 1 elevations overlay photo outlines; explode does not", () => {
+    const src = drawingsSource();
+    const sheet1 = src.slice(0, src.indexOf('title="Exploded assembly"'));
+    assert.match(sheet1, /outlineFor/);
+    assert.match(sheet1, /drawingCaption/);
+    const sheet4 = src.slice(
+      src.indexOf('title="Exploded assembly"'),
+      src.indexOf('title="Part tickets"'),
+    );
+    assert.doesNotMatch(sheet4, /outlineFor/);
+    const iso = src.slice(src.indexOf("function IsoScene"));
+    assert.doesNotMatch(iso.slice(0, 800), /outlineFor/);
+  });
 });
