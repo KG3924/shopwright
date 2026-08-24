@@ -25,7 +25,6 @@ import { mapInterpretHandlerError } from "@/lib/ai/url-source";
 import { fileToDataUrl } from "@/lib/image";
 import { formatInches } from "@/lib/format";
 import {
-  DONT_CUT_YET,
   cutHoldFromPacket,
   editorAxisValue,
   formatCutAxis,
@@ -36,7 +35,7 @@ import {
 } from "@/lib/measure";
 import { PACKET_COPY } from "@/lib/plain-copy";
 import { RANK_META } from "@/lib/ranks";
-import { NO_ROUTE_NAME, normalizeTools, SHOP_TOOL_META, statusForRoute } from "@/lib/routes";
+import { normalizeTools, SHOP_TOOL_META, statusForRoute } from "@/lib/routes";
 import { SPECIES } from "@/lib/species";
 import { useStudio } from "@/lib/store";
 import { MAX_PHOTOS, projectPhotos, RANKS, SHOP_TOOLS } from "@/lib/types";
@@ -185,9 +184,6 @@ export function StudioView() {
             >
               {packet.route.name}
             </Badge>
-            {!packet.routeRunnable ? (
-              <Badge tone="warn">{DONT_CUT_YET}</Badge>
-            ) : null}
           </div>
         </div>
         <div className="flex gap-2">
@@ -226,14 +222,6 @@ export function StudioView() {
                 >
                   {Math.round(project.drawing.constructionConfidence * 100)}% joinery
                 </Badge>
-              ) : null}
-              {packet.doNotCut ? (
-                <Badge tone="warn">{DONT_CUT_YET}</Badge>
-              ) : null}
-              {project.scaleConfidence === "high" ? (
-                <Badge tone="good">Scale high</Badge>
-              ) : project.scaleConfidence ? (
-                <Badge tone="warn">Scale {project.scaleConfidence}</Badge>
               ) : null}
               <Badge>{project.category}</Badge>
               {photos.length > 1 ? (
@@ -453,9 +441,6 @@ export function StudioView() {
                   >
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{route.name}</span>
-                      <Badge tone={compiled ? "good" : "warn"}>
-                        {RANK_META[route.recommendedRank].label}
-                      </Badge>
                     </span>
                     <span className="mt-1 block text-sm text-muted">
                       {route.summary}
@@ -463,9 +448,6 @@ export function StudioView() {
                     {!status.runnable ? (
                       <span className="mt-2 block text-sm text-warn">
                         {status.reasons.join(" · ")}
-                        {pickerSelected && !packet.routeRunnable
-                          ? ` · ${NO_ROUTE_NAME} — ${DONT_CUT_YET}`
-                          : ""}
                       </span>
                     ) : compiled ? (
                       <span className="mt-2 block text-sm text-fg/80">
@@ -793,19 +775,6 @@ export function StudioView() {
 
           {tab === "Build" ? (
             <ol className="space-y-6">
-              {!packet.routeRunnable ? (
-                <li>
-                  <DoNotCutCallout
-                    hold={
-                      cutHold ?? {
-                        headline: DONT_CUT_YET,
-                        notes: ["No construction route compiled — do not cut."],
-                        text: `${DONT_CUT_YET}. No construction route compiled — do not cut.`,
-                      }
-                    }
-                  />
-                </li>
-              ) : null}
               {packet.steps.map((step, i) => (
                 <li key={step.id}>
                   <p className="font-mono text-xs text-ink-soft">

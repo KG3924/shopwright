@@ -99,6 +99,13 @@ describe("plain packet copy", () => {
     const toolsIdx = studio.indexOf("PACKET_COPY.toolsTitle");
     const rankIdx = studio.indexOf("data-rank-advanced");
     assert.ok(toolsIdx > 0 && rankIdx > toolsIdx, "tools come before parked rank");
+    assert.doesNotMatch(studio, /RANK_META\[route\.recommendedRank\]/);
+    assert.equal(
+      [...studio.matchAll(/<DoNotCutCallout/g)].length,
+      1,
+      "studio screen should render one Don't-cut callout",
+    );
+    assert.doesNotMatch(studio, /\{DONT_CUT_YET\}/);
   });
 
   it("does not require rank to run a tools-gated mortise route", () => {
