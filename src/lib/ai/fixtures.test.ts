@@ -5,7 +5,8 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { compilePacket } from "../compile";
 import { drawingCaption, inferDrawing } from "../drawing";
-import { layoutBoxes } from "../layout";
+import { explodeLetteredBlanks, layoutBoxes } from "../layout";
+import { explodeOffset } from "../shop-views";
 import {
   cutHoldFromPacket,
   editorAxisValue,
@@ -207,6 +208,17 @@ describe("curved seat must not hydrate as a flat square slab", () => {
     assert.match(seat.notes ?? "", /saddle/i);
     assert.equal(seat.measured?.thickness.source, "unknown");
     assert.equal(packet.doNotCut, true);
+
+    const exploded = explodeLetteredBlanks(project.overall, packet.cuts, {
+      explode: explodeOffset(project.overall),
+      seatHeightRatio: spec.seatHeightRatio,
+    });
+    const tickets = packet.cuts.map((c) => c.letter);
+    assert.equal(exploded.length, tickets.length);
+    assert.deepEqual(
+      exploded.map((b) => b.letter).sort(),
+      [...tickets].sort(),
+    );
   });
 });
 
@@ -261,5 +273,16 @@ describe("material translation — metal folding stool", () => {
     assert.equal(seat.measured?.thickness.source, "unknown");
     assert.equal(seat.measured?.thickness.value, null);
     assert.notEqual(seat.measured?.thickness.value, 0.062);
+
+    const exploded = explodeLetteredBlanks(project.overall, packet.cuts, {
+      explode: explodeOffset(project.overall),
+      seatHeightRatio: spec.seatHeightRatio,
+    });
+    const tickets = packet.cuts.map((c) => c.letter);
+    assert.equal(exploded.length, tickets.length);
+    assert.deepEqual(
+      exploded.map((b) => b.letter).sort(),
+      [...tickets].sort(),
+    );
   });
 });

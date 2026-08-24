@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Printer } from "lucide-react";
 import { LatticeJoinery } from "@/components/chair-drawings";
 import { drawingCaption, inferDrawing } from "@/lib/drawing";
-import { layoutBoxes, type WorldBox } from "@/lib/layout";
+import { explodeLetteredBlanks, layoutBoxes, type WorldBox } from "@/lib/layout";
 import { outlineFor, shapeNotRead, svgPath } from "@/lib/silhouette";
 import {
   cutHoldFromPacket,
@@ -23,8 +23,6 @@ import {
   elevationViewAxes,
   explodeOffset,
   formatElevationCallout,
-  isoShowsBadge,
-  isMajorShopPart,
   labelElevationParts,
   separateBadges,
 } from "@/lib/shop-views";
@@ -64,7 +62,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
   const boxes = layoutBoxes(overall, cuts, {
     seatHeightRatio: spec.seatHeightRatio,
   });
-  const exploded = layoutBoxes(overall, cuts, {
+  const exploded = explodeLetteredBlanks(overall, cuts, {
     explode: explodeOffset(overall),
     seatHeightRatio: spec.seatHeightRatio,
   });
@@ -670,7 +668,6 @@ function isoRaw(x: number, y: number, z: number) {
 function IsoScene({ boxes }: { boxes: WorldBox[] }) {
   const VW = 240;
   const VH = 176;
-  const quiet = true;
   if (!boxes.length) {
     return (
       <svg viewBox={`0 0 ${VW} ${VH}`} className="h-auto w-full" aria-hidden>
@@ -705,14 +702,12 @@ function IsoScene({ boxes }: { boxes: WorldBox[] }) {
     return `${(ox + r.px * s).toFixed(2)},${(oy + r.py * s).toFixed(2)}`;
   };
   const sorted = [...boxes].sort((a, b) => a.x + a.y - (b.x + b.y) || a.z - b.z);
-  const anchors = sorted
-    .filter((b) => isoShowsBadge(b.role))
-    .map((b) => {
-      const [cx, cy] = P(b.x + b.w / 2, b.y + b.d / 2, b.z + b.h)
-        .split(",")
-        .map(Number);
-      return { id: b.id, letter: b.letter, x: cx, y: cy - 6 };
-    });
+  const anchors = sorted.map((b) => {
+    const [cx, cy] = P(b.x + b.w / 2, b.y + b.d / 2, b.z + b.h)
+      .split(",")
+      .map(Number);
+    return { id: b.id, letter: b.letter, x: cx, y: cy - 6 };
+  });
   const badges = separateBadges(anchors, 12);
   const fromId = new Map(anchors.map((a) => [a.id, a]));
 
@@ -722,17 +717,16 @@ function IsoScene({ boxes }: { boxes: WorldBox[] }) {
       {sorted.map((b) => {
         const unknown = !!(b.unknown?.w || b.unknown?.d || b.unknown?.h);
         const dash = unknown ? "2.2 1.6" : undefined;
-        const light = quiet && !isMajorShopPart(b.role);
-        const strokeW = light ? 0.5 : 0.85;
+        const strokeW = 0.85;
         const p = (dx: number, dy: number, dz: number) => P(b.x + dx, b.y + dy, b.z + dz);
         const top = `${p(0, 0, b.h)} ${p(b.w, 0, b.h)} ${p(b.w, b.d, b.h)} ${p(0, b.d, b.h)}`;
         const right = `${p(b.w, 0, 0)} ${p(b.w, b.d, 0)} ${p(b.w, b.d, b.h)} ${p(b.w, 0, b.h)}`;
         const front = `${p(0, 0, 0)} ${p(b.w, 0, 0)} ${p(b.w, 0, b.h)} ${p(0, 0, b.h)}`;
         return (
           <g key={b.id}>
-            <polygon points={right} fill={unknown || light ? "none" : WOOD_DK} stroke={INK} strokeWidth={strokeW} strokeDasharray={dash} />
-            <polygon points={front} fill={unknown || light ? "none" : fillFor(b.role)} stroke={INK} strokeWidth={strokeW} strokeDasharray={dash} />
-            <polygon points={top} fill={unknown || light ? "none" : PAPER} stroke={INK} strokeWidth={strokeW} strokeDasharray={dash} />
+            <polygon points={right} fill={unknown ? "none" : WOOD_DK} stroke={INK} strokeWidth={strokeW} strokeDasharray={dash} />
+            <polygon points={front} fill={unknown ? "none" : fillFor(b.role)} stroke={INK} strokeWidth={strokeW} strokeDasharray={dash} />
+            <polygon points={top} fill={unknown ? "none" : PAPER} stroke={INK} strokeWidth={strokeW} strokeDasharray={dash} />
           </g>
         );
       })}

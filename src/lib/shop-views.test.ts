@@ -191,13 +191,13 @@ describe("exploded assembly quiet defaults", () => {
     assert.equal(assemblyStepsOpen("master"), false);
   });
 
-  it("keeps explode badges on major parts only, regardless of rank", () => {
+  it("letters every explode blank — one ticket letter, regardless of rank", () => {
     assert.equal(isoShowsBadge("seat", "beginner"), true);
     assert.equal(isoShowsBadge("leg", "novice"), true);
-    assert.equal(isoShowsBadge("slat", "beginner"), false);
-    assert.equal(isoShowsBadge("cleat", "novice"), false);
-    assert.equal(isoShowsBadge("slat", "craftsman"), false);
-    assert.equal(isoShowsBadge("other", "master"), false);
+    assert.equal(isoShowsBadge("slat", "beginner"), true);
+    assert.equal(isoShowsBadge("cleat", "novice"), true);
+    assert.equal(isoShowsBadge("slat", "craftsman"), true);
+    assert.equal(isoShowsBadge("other", "master"), true);
   });
 
   it("pushes overlapping letter badges apart", () => {
@@ -240,8 +240,8 @@ describe("shop drawing wiring", () => {
     assert.match(src, /assemblyStepsOpen/);
     assert.match(src, /<details/);
     assert.match(src, /explodeOffset/);
+    assert.match(src, /explodeLetteredBlanks/);
     assert.match(src, /separateBadges/);
-    assert.match(src, /isoShowsBadge/);
   });
 
   it("Sheet 1 elevations overlay photo outlines; explode does not", () => {
@@ -255,10 +255,12 @@ describe("shop drawing wiring", () => {
     );
     assert.doesNotMatch(sheet4, /outlineFor/);
     const iso = src.slice(src.indexOf("function IsoScene"));
-    assert.doesNotMatch(iso.slice(0, 800), /outlineFor/);
+    assert.doesNotMatch(iso, /outlineFor/);
+    assert.doesNotMatch(iso, /svgPath/);
+    assert.doesNotMatch(iso, /story === "outline"/);
   });
 
-  it("Sheet 1 draws one story per elevation — outline XOR blanks; explode stays boxes", () => {
+  it("Sheet 1 draws one story per elevation — outline XOR blanks; explode stays lettered blanks", () => {
     const src = drawingsSource();
     const projected = src.slice(src.indexOf("function ProjectedView"));
     assert.match(projected, /story === "outline"|story === "blanks"/);
@@ -269,5 +271,9 @@ describe("shop drawing wiring", () => {
       src.indexOf('title="Part tickets"'),
     );
     assert.doesNotMatch(sheet4, /outlineFor/);
+    const iso = src.slice(src.indexOf("function IsoScene"));
+    assert.doesNotMatch(iso, /quiet && !isMajorShopPart/);
+    assert.doesNotMatch(iso, /\.filter\(\(b\) => isoShowsBadge/);
+    assert.match(iso, /badge\.letter/);
   });
 });
