@@ -198,3 +198,29 @@ describe("curved seat must not hydrate as a flat square slab", () => {
     assert.equal(packet.doNotCut, true);
   });
 });
+
+describe("material translation — metal folding stool", () => {
+  it("metal-folding-stool: wood blanks, chair template, no steel gauge, no hinge on the cut list", () => {
+    const fixture = load("metal-folding-stool.json");
+    const { project, packet } = assertShopTruth(fixture);
+
+    assert.equal(project.category, "chair");
+    assert.equal(project.id, "side-chair-read");
+    assert.notEqual(project.speciesId, "steel");
+    assert.ok(project.parts.every((p) => p.stock !== "steel" && p.stock !== "sheet"));
+    assert.match(project.interpretation, /translated to wood build/i);
+    assert.ok(project.uncertainties.some((u) => /translated to wood build/i.test(u)));
+    assert.ok(!packet.cuts.some((c) => /hinge/i.test(c.name)));
+    assert.ok(packet.cuts.some((c) => /x-brace/i.test(c.name)));
+
+    const spec = inferDrawing(project);
+    assert.equal(spec.family, "chair");
+    assert.equal(spec.backStyle, "none");
+    assert.equal(spec.seatShape, "round");
+
+    const seat = packet.cuts.find((c) => c.name === "Seat")!;
+    assert.equal(seat.measured?.thickness.source, "unknown");
+    assert.equal(seat.measured?.thickness.value, null);
+    assert.notEqual(seat.measured?.thickness.value, 0.062);
+  });
+});

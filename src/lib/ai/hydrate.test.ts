@@ -339,8 +339,8 @@ describe("material translation", () => {
   it("translates a metal folding stool into wood blanks and does not keep sheet-metal gauge", () => {
     const metal = twoBoards({
       name: "Folding camp stool",
-      category: "chair",
-      templateId: "side-chair",
+      category: "other",
+      templateId: null,
       interpretation: "Tubular steel folding stool, round seat, X-brace. Factory is metal.",
       speciesGuess: "steel",
       visibleDetails: ["chrome tube legs", "fabric-over-metal seat ring"],
@@ -370,16 +370,26 @@ describe("material translation", () => {
           thickness: { value: 0.065, source: "measured", confidence: 0.7, note: "tube wall" },
           role: "leg",
         },
+        {
+          name: "Pivot hinge",
+          qty: 4,
+          stock: "steel",
+          length: { value: 2, source: "inferred", confidence: 0.3 },
+          width: { value: 1, source: "inferred", confidence: 0.3 },
+          thickness: { value: 0.125, source: "measured", confidence: 0.6 },
+          role: "other",
+        },
       ],
     });
     const project = hydrateVision(metal, input, []);
     assert.equal(project.category, "chair");
-    assert.ok(project.id.endsWith("-read"));
+    assert.equal(project.id, "side-chair-read");
     assert.equal(project.partsFromPhotos, true);
     assert.ok(["maple", "walnut", "white-oak", "red-oak", "pine", "cedar", "poplar", "plywood-oak"].includes(project.speciesId));
     assert.notEqual(project.speciesId, "steel");
     assert.ok(project.parts.every((p) => p.stock === "solid" || p.stock === "plywood" || p.stock === "hardwood-ply" || p.stock === "dowel"));
     assert.ok(project.parts.every((p) => p.stock !== "sheet"));
+    assert.ok(!project.parts.some((p) => /hinge/i.test(p.name)));
     const seat = project.parts.find((p) => p.role === "seat")!;
     assert.equal(seat.measured?.thickness.source, "unknown");
     assert.equal(seat.measured?.thickness.value, null);
@@ -387,9 +397,11 @@ describe("material translation", () => {
     assert.notEqual(seat.measured?.thickness.source, "measured");
     assert.match(project.interpretation, /translated to wood build/i);
     assert.ok(project.uncertainties.some((u) => /translated to wood build/i.test(u)));
+    assert.ok(project.uncertainties.some((u) => /buy hardware/i.test(u)));
     const packet = compilePacket(project, "75013");
     const seatCut = packet.cuts.find((c) => c.role === "seat")!;
     assert.equal(formatCutAxis(seatCut, "thickness"), "?");
+    assert.ok(!packet.cuts.some((c) => /hinge/i.test(c.name)));
   });
 });
 

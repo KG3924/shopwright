@@ -265,6 +265,43 @@ function materialBlob(ai: AiJson): string {
     .join(" ");
 }
 
+const BUY_HARDWARE_NAME =
+  /\b(hinges?|rivets?|clevis(?:\s+pins?)?|cotter(?:\s+pins?)?|bolts?|machine screws?|tube connectors?|folding stays?|gas stays?|pivot pins?|hairpins?)\b/i;
+
+function isBuyHardwarePart(part: { name: string; role?: string }): boolean {
+  return BUY_HARDWARE_NAME.test(part.name);
+}
+
+function looksLikeChairOrStool(ai: AiJson): boolean {
+  const blob = materialBlob(ai);
+  if (/\b(chair|stool|fold(?:ing|able)?)\b/i.test(blob)) return true;
+  const family =
+    ai.drawing && typeof ai.drawing === "object" && "family" in ai.drawing
+      ? String((ai.drawing as { family?: string }).family ?? "")
+      : "";
+  if (family === "chair") return true;
+  const roles = (ai.parts ?? []).map((p) => (p.role ?? "").toLowerCase());
+  return (
+    roles.includes("seat") &&
+    roles.some((r) => r === "leg" || r === "brace" || r === "stretcher")
+  );
+}
+
+/**
+ * Material does not change the furniture family. A metal folding stool is
+ * still chair / side-chair even if the model dumped category "other".
+ */
+function withShopFamily(ai: AiJson): AiJson {
+  if (!sourceLooksNonWood(materialBlob(ai))) return ai;
+  if (!looksLikeChairOrStool(ai)) return ai;
+  const category = !ai.category || ai.category === "other" ? "chair" : ai.category;
+  const templateId =
+    ai.templateId === "adirondack" || ai.templateId === "side-chair"
+      ? ai.templateId
+      : "side-chair";
+  return { ...ai, category, templateId };
+}
+
 function woodStockOf(raw: string | undefined, nonWood: boolean): string {
   if (raw && (WOOD_STOCK as readonly string[]).includes(raw)) return raw;
   if (!nonWood && raw === "sheet") return "sheet";
@@ -636,10 +673,11 @@ export function hydrateVision(
   input: InterpretInput,
   photos: string[],
 ): Project {
-  const template = pickTemplate(ai);
+  const reading = withShopFamily(ai);
+  const template = pickTemplate(reading);
   const joinery =
     template ??
-    (ai.category === "chair" || /chair|stool/i.test(ai.name ?? "")
+    (reading.category === "chair" || /chair|stool/i.test(reading.name ?? "")
       ? getTemplate("side-chair")
       : matchTemplate("bench", "bench")) ??
     getTemplate("bench");
@@ -650,9 +688,13 @@ export function hydrateVision(
     );
   }
 
-  const nonWood = sourceLooksNonWood(materialBlob(ai));
-  const candidates = (ai.parts ?? [])
+  const nonWood = sourceLooksNonWood(materialBlob(reading));
+  const droppedHardware = (reading.parts ?? []).some(
+    (p) => p && isBuyHardwarePart(p),
+  );
+  const candidates = (reading.parts ?? [])
     .filter((p) => p && typeof p.name === "string" && p.name.trim())
+    .filter((p) => !(nonWood && isBuyHardwarePart(p)))
     .map((part) => ({
       part: { ...part, stock: woodStockOf(part.stock, nonWood) },
       measured: stripSheetMetalThickness(measuredOf(part), nonWood),
@@ -666,7 +708,7 @@ export function hydrateVision(
     );
   }
 
-  const overall = deriveOverall(ai, visionSourced);
+  const overall = deriveOverall(reading, visionSourced);
   if (!overall) {
     throw new InterpretError(
       "missing_overall",
@@ -677,7 +719,7 @@ export function hydrateVision(
   // Safe infer-fill after the vision gate. Cannot invent a 2-board
   // packet; may fill twins and leftover unknown axes, then re-admit
   // those boards. Fills from this pass do not release Don't-cut.
-  const drawingIn = drawingFromAi(ai);
+  const drawingIn = drawingFromAi(reading);
   const inferred = runInferFill(
     candidates.map(({ part, measured }) => ({
       name: part.name.trim(),
@@ -688,11 +730,11 @@ export function hydrateVision(
     })),
     {
       overall,
-      overallSource: ai.overallSource,
-      scaleConfidence: ai.scaleConfidence,
-      name: ai.name,
-      category: ai.category,
-      interpretation: ai.interpretation,
+      overallSource: reading.overallSource,
+      scaleConfidence: reading.scaleConfidence,
+      name: reading.name,
+      category: reading.category,
+      interpretation: reading.interpretation,
       drawing: drawingIn,
     },
   );
@@ -707,9 +749,9 @@ export function hydrateVision(
     .filter((c) => hasSourcedDims(c.measured));
 
   const rawOverall = {
-    w: ai.overall?.w ?? overall.w,
-    d: ai.overall?.d ?? overall.d,
-    h: ai.overall?.h ?? overall.h,
+    w: reading.overall?.w ?? overall.w,
+    d: reading.overall?.d ?? overall.d,
+    h: reading.overall?.h ?? overall.h,
   };
   const parts = toGraphParts(sourced, overall, rawOverall);
   if (parts.length < 2) {
@@ -719,17 +761,17 @@ export function hydrateVision(
     );
   }
 
-  const scale = resolveScale(ai, sourced, overall);
+  const scale = resolveScale(reading, sourced, overall);
   const speciesId =
-    ai.speciesGuess && (WOOD_SPECIES as readonly string[]).includes(ai.speciesGuess)
-      ? ai.speciesGuess
+    reading.speciesGuess && (WOOD_SPECIES as readonly string[]).includes(reading.speciesGuess)
+      ? reading.speciesGuess
       : (joinery.defaultSpecies ?? "maple");
 
   const drawing = inferDrawing({
     id: `${joinery.id}-read`,
-    category: ai.category ?? joinery.category,
-    name: ai.name ?? joinery.name,
-    interpretation: ai.interpretation ?? joinery.interpretation,
+    category: reading.category ?? joinery.category,
+    name: reading.name ?? joinery.name,
+    interpretation: reading.interpretation ?? joinery.interpretation,
     parts,
     overall,
     drawing: drawingIn,
@@ -753,34 +795,39 @@ export function hydrateVision(
     }
   }
 
-  const honesty = formHonestyNote(ai, drawing);
+  const honesty = formHonestyNote(reading, drawing);
   const interpretation = withWoodTranslationNote(
-    ai.interpretation ?? joinery.interpretation,
+    reading.interpretation ?? joinery.interpretation,
     nonWood,
   );
+  const hardwareNote =
+    nonWood && droppedHardware
+      ? "Hinges, pivot pins, and folding stays are buy hardware — not cut-list stock."
+      : undefined;
   const uncertainties = [
-    ...(ai.uncertainties && ai.uncertainties.length
-      ? ai.uncertainties
+    ...(reading.uncertainties && reading.uncertainties.length
+      ? reading.uncertainties
       : joinery.uncertainties),
     ...(honesty ? [honesty] : []),
     ...(nonWood &&
-    !(ai.uncertainties ?? []).some((u) => /translated to (a )?wood/i.test(u))
+    !(reading.uncertainties ?? []).some((u) => /translated to (a )?wood/i.test(u))
       ? [WOOD_TRANSLATION_NOTE]
       : []),
+    ...(hardwareNote ? [hardwareNote] : []),
   ];
 
   return instantiate(
     {
       ...joinery,
       id: `${joinery.id}-read`,
-      name: ai.name ?? joinery.name,
-      category: ai.category ?? joinery.category,
+      name: reading.name ?? joinery.name,
+      category: reading.category ?? joinery.category,
       blurb: "Interpreted from photos.",
       overall,
       parts,
       drawing,
       interpretation,
-      confidence: ai.formConfidence ?? ai.confidence ?? joinery.confidence,
+      confidence: reading.formConfidence ?? reading.confidence ?? joinery.confidence,
       uncertainties,
       buyBoards: undefined,
       stack: undefined,
@@ -794,14 +841,14 @@ export function hydrateVision(
       speciesId,
       photos,
       routeId:
-        ai.suggestedRouteId && joinery.routes.some((r) => r.id === ai.suggestedRouteId)
-          ? ai.suggestedRouteId
+        reading.suggestedRouteId && joinery.routes.some((r) => r.id === reading.suggestedRouteId)
+          ? reading.suggestedRouteId
           : joinery.defaultRoute,
-      overallSource: ai.overallSource ?? "estimated",
+      overallSource: reading.overallSource ?? "estimated",
       sourceKind: input.kind,
       sourceLabel: input.url,
       interpretation,
-      confidence: clampInch(ai.confidence ?? joinery.confidence, 0, 1),
+      confidence: clampInch(reading.confidence ?? joinery.confidence, 0, 1),
       uncertainties,
       partsFromPhotos: true,
       scaleConfidence: scale.scaleConfidence,

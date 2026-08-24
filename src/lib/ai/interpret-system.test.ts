@@ -17,5 +17,6 @@ describe("INTERPRET_SYSTEM", () => {
     assert.match(INTERPRET_SYSTEM, /translated to wood build/);
     assert.match(INTERPRET_SYSTEM, /never steel/i);
     assert.match(INTERPRET_SYSTEM, /Do not refuse a metal or plastic piece/);
+    assert.match(INTERPRET_SYSTEM, /category chair, templateId side-chair/);
   });
 });

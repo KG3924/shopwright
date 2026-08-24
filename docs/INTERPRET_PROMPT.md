@@ -90,5 +90,16 @@ Required honesty copy:
 Source piece appears metal/plastic; translated to wood build.
 ```
 
-Hydrate enforces this even if the model emits `stock: "steel"` or a 1/16" “measured” tube wall: stock becomes solid/ply, that thickness becomes `?`, species stays a wood.
+Hydrate enforces this even if the model emits `stock: "steel"` or a 1/16" “measured” tube wall: stock becomes solid/ply, that thickness becomes `?`, species stays a wood. Category `"other"` on a folding stool is coerced back to chair / side-chair so joinery still attaches. Hinges and pivot pins are dropped from the cut list (buy hardware).
+
+## Manual verify — metal folding stool
+
+Upload a photo of a tubular / folding camp stool (chrome, steel, or plastic). Keep the Leola curved-seat check too — this is additive.
+
+1. Packet compiles. Do not get “can’t build, it’s metal.”
+2. Cut list is **solid / ply / dowel**, never steel. Species is a wood (often poplar from the chair template).
+3. Interpretation and uncertainties include: `Source piece appears metal/plastic; translated to wood build.`
+4. Seat/leg thickness is `?` unless you pick stock — 16-gauge / tube wall must not become a measured wood thickness.
+5. Category is chair; Sheet 1 is a stool/chair drawing, not a bench.
+6. Hinges / pivot pins are not blanks on the cut list. X-braces and legs are wood parts.
 

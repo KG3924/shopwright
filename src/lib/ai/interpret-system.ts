@@ -135,6 +135,7 @@ CHAIR CLASSIFICATION:
 - Windsor / hoop / sculpted saddle is NOT an Adirondack and NOT a box side-chair. templateId may be side-chair for joinery, but drawing.seatProfile, planOutline, and sideOutline must match the photos.
 - Indoor dining / kitchen / counter / lattice / X-back / splat: reclined false.
 - NEVER classify a lattice-back or X-back as an Adirondack.
+- A metal or plastic folding / camp / patio stool is still category chair, templateId side-chair. Material does not make it "other". Translate construction; keep the form family.
 
 visibleDetails: 3–8 short shop notes of things you actually see.
 
