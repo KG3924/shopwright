@@ -82,7 +82,22 @@
       "legStyle": "straight",
       "backProfile": "upright",
       "seatHeightRatio": 0.95,
-      "reclined": false
+      "reclined": false,
+      "frontOutline": [
+        [0.08, 0],
+        [0.16, 0.08],
+        [0.62, 0.58],
+        [0.12, 0.04],
+        [0.22, 0.92],
+        [0.78, 0.92],
+        [0.88, 0]
+      ],
+      "planOutline": [
+        [0.05, 0.08],
+        [0.55, 0.62],
+        [0.92, 0.12],
+        [0.1, 0.9]
+      ]
     }
   }
 }

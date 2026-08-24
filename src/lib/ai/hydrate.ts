@@ -251,6 +251,18 @@ export function sourceLooksNonWood(blob: string): boolean {
   return NON_WOOD_RE.test(blob);
 }
 
+const CAD_RE =
+  /\b(cad|hidden lines?|line drawing|wireframe|orthographic|product diagram|technical drawing|vector drawing)\b/i;
+
+export function sourceLooksCad(blob: string): boolean {
+  return CAD_RE.test(blob);
+}
+
+function preferConstructedOutlines(ai: AiJson): boolean {
+  const blob = materialBlob(ai);
+  return sourceLooksNonWood(blob) || sourceLooksCad(blob);
+}
+
 function materialBlob(ai: AiJson): string {
   return [
     ai.name,
@@ -577,9 +589,10 @@ function drawingFromAi(ai: AiJson): DrawingSpec | undefined {
         ? ai.constructionConfidence
         : (d?.constructionConfidence ?? undefined),
     visibleDetails: details.length ? details : undefined,
-    sideOutline: sanitizeOutline(d?.sideOutline),
-    frontOutline: sanitizeOutline(d?.frontOutline),
-    planOutline: sanitizeOutline(d?.planOutline),
+    preferConstructedOutline: preferConstructedOutlines(ai) || undefined,
+    sideOutline: preferConstructedOutlines(ai) ? undefined : sanitizeOutline(d?.sideOutline),
+    frontOutline: preferConstructedOutlines(ai) ? undefined : sanitizeOutline(d?.frontOutline),
+    planOutline: preferConstructedOutlines(ai) ? undefined : sanitizeOutline(d?.planOutline),
   } as DrawingSpec;
 }
 

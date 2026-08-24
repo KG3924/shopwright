@@ -19,4 +19,11 @@ describe("INTERPRET_SYSTEM", () => {
     assert.match(INTERPRET_SYSTEM, /Do not refuse a metal or plastic piece/);
     assert.match(INTERPRET_SYSTEM, /category chair, templateId side-chair/);
   });
+
+  it("does not trace factory CAD, hidden lines, or odd diagonals from metal product drawings", () => {
+    assert.match(INTERPRET_SYSTEM, /hidden line|CAD|line drawing/i);
+    assert.match(INTERPRET_SYSTEM, /constructed shop elevation|from the wood parts|from parts/i);
+    assert.match(INTERPRET_SYSTEM, /diagonal slash|odd diagonal/i);
+    assert.match(INTERPRET_SYSTEM, /translated to wood build/);
+  });
 });

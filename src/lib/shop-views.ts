@@ -109,7 +109,10 @@ export function labelElevationParts(rects: ElevationRect[]): ElevationLabel[] {
   }
   return kept.map((r) => ({
     ...r,
-    beside: Math.min(r.w, r.h) < 4,
+    // Only thin-tall blanks (legs, stiles) sit beside the part. A thin
+    // seat or stretcher must keep its letter ON the board — otherwise
+    // every seat-band letter piles up in the same spot.
+    beside: r.h >= r.w && Math.min(r.w, r.h) < 4,
   }));
 }
 

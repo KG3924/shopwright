@@ -250,6 +250,8 @@ export type DrawingSpec = {
   /** Joinery confidence, separate from visible-form confidence on the project. */
   constructionConfidence?: number;
   visibleDetails?: string[];
+  /** Metal / CAD photos: draw constructed shop elevations, not camera polylines. */
+  preferConstructedOutline?: boolean;
   /** side: x=depth 0 front→1 back, y=height 0 floor→1 top */
   sideOutline?: PolyPt[];
   /** front: x=width 0 left→1 right, y=height 0 floor→1 top */

@@ -3,7 +3,7 @@ import { Printer } from "lucide-react";
 import { LatticeJoinery } from "@/components/chair-drawings";
 import { drawingCaption, inferDrawing } from "@/lib/drawing";
 import { layoutBoxes, type WorldBox } from "@/lib/layout";
-import { hasShapedForm, outlineFor, svgPath } from "@/lib/silhouette";
+import { outlineFor, shapeNotRead, svgPath } from "@/lib/silhouette";
 import {
   formatCutAxis,
   formatCutAxisSource,
@@ -122,9 +122,13 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         ) : null}
         <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
           {drawingCaption(spec)}
-          {hasShapedForm(spec)
-            ? " · heavy line is the photo outline; boxes are blanks before shaping"
-            : ""}
+          {["front", "side", "plan"].some((m) =>
+            outlineFor(m as "front" | "side" | "plan", spec),
+          )
+            ? " · heavy line is the piece outline"
+            : shapeNotRead(spec)
+              ? " · shape not read"
+              : ""}
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           <ProjectedView label="Front" mode="front" boxes={boxes} overall={overall} spec={spec} />
@@ -542,7 +546,9 @@ function ProjectedView({
   const worldH = mode === "plan" ? overall.d : overall.h;
   const { xName, yName } = elevationViewAxes(mode);
   const outline = outlineFor(mode, spec);
-  const ghost = !!outline;
+  const invertY = mode !== "plan";
+  const story = outline ? "outline" : "blanks";
+  const unread = story === "blanks" && shapeNotRead(spec);
   const rects = boxes
     .map((b) => {
       if (mode === "front") {
@@ -589,10 +595,51 @@ function ProjectedView({
   const labels = labelElevationParts(rects);
 
   return (
-    <Frame label={label} worldW={worldW} worldH={worldH} xName={xName} yName={yName}>
-      {(s, ox, oy) => (
+    <Frame
+      label={unread ? `${label} · shape not read` : label}
+      worldW={worldW}
+      worldH={worldH}
+      xName={xName}
+      yName={yName}
+    >
+      {(s, ox, oy) => {
+        const anchors = labels.map((r, i) => {
+          const rw = Math.max(r.w * s, 1.15);
+          const rh = Math.max(r.h * s, 1.15);
+          const cx = ox + r.x * s + rw / 2;
+          const cy = oy + r.y * s + rh / 2 + 1.5;
+          const thinTall = r.beside && r.w <= r.h;
+          return {
+            id: `${r.letter}-${i}`,
+            letter: r.letter,
+            x: thinTall ? ox + r.x * s + rw + 3.4 : cx,
+            y: r.beside && !thinTall ? oy + r.y * s - 1.8 : cy,
+          };
+        });
+        const badges = separateBadges(anchors, 7.2);
+        return (
         <g>
-          {rects.map((r, i) => {
+          {story === "outline" && outline ? (
+            <path
+              d={svgPath(
+                outline,
+                ox,
+                oy,
+                worldW * s,
+                worldH * s,
+                invertY,
+                true,
+              )}
+              fill={WOOD}
+              fillOpacity="0.2"
+              stroke={INK}
+              strokeWidth="1.15"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          ) : null}
+          {story === "blanks"
+            ? rects.map((r, i) => {
             const unknown = r.unknownW || r.unknownH;
             const rw = Math.max(r.w * s, 1.15);
             const rh = Math.max(r.h * s, 1.15);
@@ -604,56 +651,31 @@ function ProjectedView({
                   width={rw}
                   height={rh}
                   fill={unknown ? "none" : fillFor(r.role)}
-                  fillOpacity={ghost && !unknown ? 0.35 : 1}
+                  fillOpacity={1}
                   stroke={INK}
-                  strokeWidth={ghost ? 0.4 : 0.6}
+                  strokeWidth={0.6}
                   strokeDasharray={unknown ? "2 1.4" : undefined}
                 />
               </g>
             );
-          })}
-          {labels.map((r, i) => {
-            const rw = Math.max(r.w * s, 1.15);
-            const rh = Math.max(r.h * s, 1.15);
-            const cx = ox + r.x * s + rw / 2;
-            const cy = oy + r.y * s + rh / 2 + 1.5;
-            const thinTall = r.beside && r.w <= r.h;
-            const lx = thinTall ? ox + r.x * s + rw + 3.4 : cx;
-            const ly = r.beside && !thinTall ? oy + r.y * s - 1.8 : cy;
-            return (
+          })
+            : null}
+          {badges.map((r) => (
               <text
-                key={`lbl-${r.letter}-${i}`}
-                x={lx}
-                y={ly}
-                textAnchor={thinTall ? "start" : "middle"}
+                key={`lbl-${r.id}`}
+                x={r.x}
+                y={r.y}
+                textAnchor="middle"
                 fontSize="4.6"
                 fill={INK}
                 fontFamily="IBM Plex Mono, monospace"
               >
                 {r.letter}
               </text>
-            );
-          })}
-          {outline ? (
-            <path
-              d={svgPath(
-                outline,
-                ox,
-                oy,
-                worldW * s,
-                worldH * s,
-                mode !== "plan",
-                true,
-              )}
-              fill="none"
-              stroke={INK}
-              strokeWidth="1.15"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-          ) : null}
+          ))}
         </g>
-      )}
+        );
+      }}
     </Frame>
   );
 }

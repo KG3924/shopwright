@@ -10,7 +10,7 @@ import {
 } from "../measure";
 import { getTemplate } from "../catalog";
 import { drawingCaption } from "../drawing";
-import { isRectilinearOutline } from "../silhouette";
+import { isRectilinearOutline, outlineFor, shapeNotRead } from "../silhouette";
 import {
   hydrateVision,
   InterpretError,
@@ -402,6 +402,49 @@ describe("material translation", () => {
     const seatCut = packet.cuts.find((c) => c.role === "seat")!;
     assert.equal(formatCutAxis(seatCut, "thickness"), "?");
     assert.ok(!packet.cuts.some((c) => /hinge/i.test(c.name)));
+  });
+
+  it("drops a CAD slash polyline on a metal folding stool instead of overlaying it", () => {
+    const metal = twoBoards({
+      name: "Folding camp stool",
+      interpretation: "Tubular steel folding stool. Factory is metal. Product line drawing.",
+      speciesGuess: "steel",
+      visibleDetails: ["chrome tube legs", "CAD hidden lines"],
+      drawing: {
+        family: "chair",
+        backStyle: "none",
+        seatShape: "round",
+        seatProfile: "flat",
+        reclined: false,
+        frontOutline: [
+          [0.08, 0],
+          [0.16, 0.08],
+          [0.62, 0.58],
+          [0.12, 0.04],
+        ],
+      },
+    });
+    const project = hydrateVision(metal, input, []);
+    assert.match(project.interpretation, /translated to wood build/i);
+    const front = project.drawing?.frontOutline;
+    const slash = (pts: { x: number; y: number }[] | undefined) => {
+      if (!pts || pts.length < 2) return false;
+      const closed = [...pts, pts[0]!];
+      for (let i = 0; i < closed.length - 1; i++) {
+        const a = closed[i]!;
+        const b = closed[i + 1]!;
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2;
+        if (len > 0.4 && Math.abs(b.x - a.x) > 0.2 && Math.abs(b.y - a.y) > 0.2 && mx < 0.5 && my < 0.55) {
+          return true;
+        }
+      }
+      return false;
+    };
+    assert.equal(slash(front), false);
+    assert.equal(shapeNotRead(project.drawing!), true);
+    assert.equal(outlineFor("front", project.drawing!), undefined);
   });
 });
 
