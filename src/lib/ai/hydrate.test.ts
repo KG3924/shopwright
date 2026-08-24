@@ -216,7 +216,14 @@ describe("hydrateVision", () => {
     assert.equal(project.scaleConfidence, "low");
     const packet = compilePacket(project, "75013");
     assert.equal(packet.doNotCut, true);
-    assert.ok(packet.warnings.some((w) => /do not cut/i.test(w)));
+    const hold = formatDoNotCut({
+      doNotCut: packet.doNotCut,
+      routeRunnable: packet.routeRunnable,
+      scaleConfidence: project.scaleConfidence,
+    });
+    assert.ok(hold);
+    assert.equal(hold.notes.length, 1);
+    assert.ok(!packet.warnings.some((w) => /do not cut/i.test(w)));
     assert.ok(packet.cuts.every((c) => c.id.startsWith("p")));
   });
 

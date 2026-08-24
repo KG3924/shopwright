@@ -17,7 +17,6 @@ import {
   hasSourcedDims,
   isDimSource,
   isTapeMeasured,
-  sourcedAxisCount,
   unknownDim,
   weakScale,
 } from "../measure";
@@ -482,15 +481,6 @@ function resolveScale(
   if (ai.overall && extentsDisagree(overall, parts)) {
     scaleConfidence = "conflict";
     notes.push("Labeled overall size and the boards we placed do not agree.");
-  }
-
-  const thin = parts.filter((p) => sourcedAxisCount(p.measured) < 3).length;
-  if (thin > 0) {
-    notes.push(
-      thin === 1
-        ? "One board is missing a sourced axis — tickets will print ? until you measure it."
-        : `${thin} boards are missing a sourced axis — tickets will print ? until you measure them.`,
-    );
   }
 
   return {

@@ -5,17 +5,17 @@ import { drawingCaption, inferDrawing } from "@/lib/drawing";
 import { layoutBoxes, type WorldBox } from "@/lib/layout";
 import { outlineFor, shapeNotRead, svgPath } from "@/lib/silhouette";
 import {
+  cutHoldFromPacket,
   formatCutAxis,
   formatCutAxisSource,
   formatCutSources,
   formatCutTriplet,
-  formatDoNotCut,
   ticketIdentity,
   ticketViewLabels,
   type CutAxis,
   type CutHold,
 } from "@/lib/measure";
-import { RANK_META } from "@/lib/ranks";
+import { PACKET_COPY } from "@/lib/plain-copy";
 import {
   assemblyStepsOpen,
   elevationCallout,
@@ -24,7 +24,6 @@ import {
   formatElevationCallout,
   isoShowsBadge,
   isMajorShopPart,
-  isQuietRank,
   labelElevationParts,
   separateBadges,
 } from "@/lib/shop-views";
@@ -38,14 +37,14 @@ const WOOD = "var(--color-paper-2)";
 const WOOD_DK = "#cfc3ab";
 
 export function DoNotCutCallout({ hold }: { hold: CutHold }) {
+  const body = hold.notes[0] ?? hold.text;
   return (
-    <aside className="rounded-sm border border-ink/40 bg-paper px-3 py-3">
-      <p className="font-display text-lg text-ink">{hold.headline}</p>
-      <ul className="mt-2 space-y-1 text-sm text-ink-soft">
-        {hold.notes.map((n) => (
-          <li key={n}>{n}</li>
-        ))}
-      </ul>
+    <aside
+      data-hold-banner="true"
+      className="rounded-[2rem] border border-warn/30 bg-warn/10 px-5 py-3 text-warn"
+    >
+      <p className="font-medium text-warn">{hold.headline}</p>
+      <p className="mt-0.5 text-sm leading-snug text-warn">{body}</p>
     </aside>
   );
 }
@@ -60,17 +59,12 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
     project.sourceKind === "url" ||
     project.sourceKind === "blueprint" ||
     project.partsFromPhotos;
-  const cutHold = formatDoNotCut({
-    doNotCut: packet.doNotCut,
-    routeRunnable: packet.routeRunnable,
-    scaleConfidence: project.scaleConfidence,
-    scaleNotes: project.scaleNotes,
-  });
+  const cutHold = cutHoldFromPacket(packet);
   const boxes = layoutBoxes(overall, cuts, {
     seatHeightRatio: spec.seatHeightRatio,
   });
   const exploded = layoutBoxes(overall, cuts, {
-    explode: explodeOffset(overall, project.rank),
+    explode: explodeOffset(overall),
     seatHeightRatio: spec.seatHeightRatio,
   });
   const lattice = cuts.some((c) => /lattice|half-?lap|diamond/i.test(`${c.id} ${c.name}`));
@@ -80,14 +74,14 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
     <div className="shop-drawings space-y-8">
       {cutHold ? (
         <div className="shop-print-hold mb-4">
-          <DoNotCutCallout hold={cutHold} />
+          <div className="hidden print:block">
+            <DoNotCutCallout hold={cutHold} />
+          </div>
         </div>
       ) : null}
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <p className="max-w-xl text-sm text-ink-soft">
-          {fromPhotos
-            ? "Compiled from the boards we read in the photos — the same inches as the cut list. Not a stock silhouette. Do not scale the pictures; cut to the tickets."
-            : "Compiled from this piece’s parts. Do not scale the pictures — cut to the numbers. Unlocked parts follow overall W / D / H."}
+          {fromPhotos ? PACKET_COPY.drawingsFromPhotos : PACKET_COPY.drawingsCatalog}
         </p>
         <Button
           type="button"
@@ -104,7 +98,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
       <Sheet
         title={project.name}
         sheet="1"
-        meta={`${formatElevationCallout("W", overall.w)} × ${formatElevationCallout("D", overall.d)} × ${formatElevationCallout("H", overall.h)}  ·  ${species.name}  ·  ${route.name}  ·  ${RANK_META[project.rank].label}`}
+        meta={`${formatElevationCallout("W", overall.w)} × ${formatElevationCallout("D", overall.d)} × ${formatElevationCallout("H", overall.h)}  ·  ${species.name}  ·  ${route.name}`}
       >
         <PhotoStrip photos={photos} fromPhotos={!!fromPhotos} />
         <p className="mb-4 max-w-2xl text-sm text-ink-soft">
@@ -138,7 +132,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         {project.uncertainties.length ? (
           <div className="mt-5 rounded-sm border border-ink/10 bg-paper p-3">
             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
-              What is inferred
+              {PACKET_COPY.inferred}
             </p>
             <ul className="mt-2 space-y-1 text-sm text-ink-soft">
               {project.uncertainties.map((u) => (
@@ -148,8 +142,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
           </div>
         ) : null}
         <p className="mt-4 font-mono text-xs text-ink-soft">
-          Scale: not to scale. Every elevation is this cut list projected in
-          space. Confirm plywood thickness before cutting dados.
+          {PACKET_COPY.scaleCaption}
         </p>
       </Sheet>
 
@@ -175,13 +168,9 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         sheet="4"
         meta={`${cuts.length} parts  ·  ${route.joinery}`}
       >
-        <p className="mb-3 text-sm text-ink-soft">
-          {isQuietRank(project.rank)
-            ? "Letters on the explode match the legend. Assembly stays folded until you want the sequence — the iso is the drawing."
-            : "Letters on the explode match the legend. Assembly sequence is under the drawing."}
-        </p>
+        <p className="mb-3 text-sm text-ink-soft">{PACKET_COPY.explode}</p>
         <div className="grid gap-4 lg:grid-cols-[1fr_14rem]">
-          <IsoScene boxes={exploded} rank={project.rank} />
+          <IsoScene boxes={exploded} />
           <Legend cuts={cuts} />
         </div>
         <AssemblyStepList key={project.rank} rank={project.rank} steps={packet.steps} />
@@ -192,11 +181,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
         sheet="5"
         meta={`${cuts.length} boards  ·  face, edge, and end  ·  ${packet.boardFeet.toFixed(1)} bd ft`}
       >
-        <p className="mb-4 text-sm text-ink-soft">
-          {project.rank === "beginner" || project.rank === "novice"
-            ? "One ticket per board. Read the cut list and elevations first — then use these to check each board. Letter and size lead so seats, legs, and stretchers do not look the same."
-            : "One ticket per board. Letter and size lead. The three views are that part at the size on the cut list. Lock a length and this ticket updates."}
-        </p>
+        <p className="mb-4 text-sm text-ink-soft">{PACKET_COPY.tickets}</p>
         <div className="grid gap-4 sm:grid-cols-2">
           {cuts.map((cut) => (
             <PartTicket key={cut.id} cut={cut} />
@@ -303,10 +288,7 @@ function LumberSheet({ packet }: { packet: ShopPacket }) {
   const work = packet.boards.filter((b) => !b.spare);
   return (
     <div className="space-y-4">
-      <p className="text-sm text-ink-soft">
-        Cut the working boards first. Spare stays on the rack until you blow a
-        cut. Net in the parts is {packet.boardFeet.toFixed(1)} bd ft.
-      </p>
+      <p className="text-sm text-ink-soft">{PACKET_COPY.lumberFirst}</p>
       <ul className="grid gap-3 sm:grid-cols-2">
         {work.map((b) => (
           <li key={b.id} className="rounded-sm border border-ink/15 p-3">
@@ -684,10 +666,10 @@ function isoRaw(x: number, y: number, z: number) {
   return { px: (x - y) * 0.866, py: -z * 0.9 + (x + y) * 0.5 };
 }
 
-function IsoScene({ boxes, rank }: { boxes: WorldBox[]; rank?: Rank }) {
+function IsoScene({ boxes }: { boxes: WorldBox[] }) {
   const VW = 240;
   const VH = 176;
-  const quiet = isQuietRank(rank);
+  const quiet = true;
   if (!boxes.length) {
     return (
       <svg viewBox={`0 0 ${VW} ${VH}`} className="h-auto w-full" aria-hidden>
@@ -723,7 +705,7 @@ function IsoScene({ boxes, rank }: { boxes: WorldBox[]; rank?: Rank }) {
   };
   const sorted = [...boxes].sort((a, b) => a.x + a.y - (b.x + b.y) || a.z - b.z);
   const anchors = sorted
-    .filter((b) => isoShowsBadge(b.role, rank))
+    .filter((b) => isoShowsBadge(b.role))
     .map((b) => {
       const [cx, cy] = P(b.x + b.w / 2, b.y + b.d / 2, b.z + b.h)
         .split(",")
@@ -805,8 +787,7 @@ function AssemblyStepList({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary className="cursor-pointer font-mono text-xs text-ink-soft">
-        Assembly steps · {steps.length}
-        {assemblyStepsOpen(rank) ? "" : " — open when you are ready to build"}
+        Assembly steps · {steps.length} — open when you are ready to build
       </summary>
       <ol className="mt-3 grid gap-3 sm:grid-cols-2">
         {steps.map((step, i) => (

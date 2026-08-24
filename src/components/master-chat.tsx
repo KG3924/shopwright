@@ -1,6 +1,7 @@
 import { LoaderCircle, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { askMaster } from "@/lib/ai/master";
+import { PACKET_COPY } from "@/lib/plain-copy";
 import { useStudio } from "@/lib/store";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
@@ -71,7 +72,7 @@ export function MasterChat({
           <div>
             <p className="font-display text-lg">Master Woodworker</p>
             <p className="text-xs text-muted">
-              Asks about this packet. Calibrated to your rank.
+              {PACKET_COPY.masterHint}
             </p>
           </div>
           <button

@@ -7,13 +7,14 @@ import { compilePacket } from "../compile";
 import { drawingCaption, inferDrawing } from "../drawing";
 import { layoutBoxes } from "../layout";
 import {
+  cutHoldFromPacket,
   editorAxisValue,
   formatCutAxisSource,
   formatCutTriplet,
-  formatDoNotCut,
   ticketUnknownAxes,
   ticketViewLabels,
 } from "../measure";
+import { holdWarningCount } from "../plain-copy";
 import { isRectilinearOutline, outlineFor, shapeNotRead } from "../silhouette";
 import {
   hydrateVision,
@@ -103,15 +104,18 @@ function assertShopTruth(fixture: Fixture) {
     }
   }
 
-  const hold = formatDoNotCut({
-    doNotCut: packet.doNotCut,
-    routeRunnable: packet.routeRunnable,
-    scaleConfidence: project.scaleConfidence,
-    scaleNotes: project.scaleNotes,
-  });
+  const hold = cutHoldFromPacket(packet);
   if (expect.cutHold === null) {
     assert.equal(hold, null);
   }
+  if (hold) {
+    assert.equal(hold.notes.length, 1, "Don't-cut must be one BLUF, not a stack");
+  }
+  assert.equal(
+    holdWarningCount(packet.warnings),
+    0,
+    `hold lectures must not stack in warnings: ${JSON.stringify(packet.warnings)}`,
+  );
   for (const needle of expect.cutHoldIncludes ?? []) {
     assert.ok(hold, "expected don't-cut copy");
     assert.match(hold.text, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));

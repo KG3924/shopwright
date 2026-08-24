@@ -223,14 +223,16 @@ describe("measure helpers", () => {
     assert.ok(hold);
     assert.equal(hold.headline, DONT_CUT_YET);
     assert.match(hold.text, /Don't cut yet/);
-    assert.match(hold.text, /No construction route compiled/);
+    assert.match(hold.text, /tools on the bench/);
+    assert.equal(hold.notes.length, 1);
     assert.doesNotMatch(hold.text, /mortise|pocket/i);
   });
 
-  it("prints don't-cut from doNotCut plus scale notes", () => {
+  it("prints one BLUF don't-cut; scale notes stay off the hold", () => {
     const hold = formatDoNotCut({
       doNotCut: true,
       scaleConfidence: "low",
+      unknownAxes: 1,
       scaleNotes: [
         "No tape or labeled dimension in frame.",
         "Underside not visible — seat thickness unknown.",
@@ -238,8 +240,11 @@ describe("measure helpers", () => {
     });
     assert.ok(hold);
     assert.equal(hold.headline, DONT_CUT_YET);
+    assert.equal(hold.notes.length, 1);
     assert.match(hold.text, /Don't cut yet/);
-    assert.match(hold.text, /No tape/);
-    assert.match(hold.text, /Underside not visible/);
+    assert.match(hold.text, /photo, not a tape/);
+    assert.match(hold.text, /\?/);
+    assert.doesNotMatch(hold.text, /No tape/);
+    assert.doesNotMatch(hold.text, /Underside not visible/);
   });
 });

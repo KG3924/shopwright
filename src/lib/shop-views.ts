@@ -116,23 +116,23 @@ export function labelElevationParts(rects: ElevationRect[]): ElevationLabel[] {
   }));
 }
 
-/** Extra air on a beginner explode; craftsman stays closer to the assembled piece. */
+/** Quiet explode is the one default — rank does not change the drawing. */
 export function explodeOffset(
   overall: { w: number; d: number; h: number },
-  rank?: Rank,
+  _rank?: Rank,
 ): number {
   const max = Math.max(overall.w, overall.d, overall.h);
-  const factor = isQuietRank(rank) ? 0.3 : 0.22;
-  return max * factor;
+  return max * 0.3;
 }
 
-export function assemblyStepsOpen(rank?: Rank): boolean {
-  return !isQuietRank(rank);
+/** Assembly stays folded until the builder opens it. Rank does not change this. */
+export function assemblyStepsOpen(_rank?: Rank): boolean {
+  return false;
 }
 
-export function isoShowsBadge(role: PartRole, rank?: Rank): boolean {
-  if (isQuietRank(rank)) return isMajorShopPart(role);
-  return true;
+/** Major-part badges only — slat stampede stays off. Rank does not change this. */
+export function isoShowsBadge(role: PartRole, _rank?: Rank): boolean {
+  return isMajorShopPart(role);
 }
 
 /** Nudge overlapping letter badges apart so they stay readable. */
