@@ -175,31 +175,29 @@ describe("elevation part labels", () => {
 describe("exploded assembly quiet defaults", () => {
   const overall = { w: 18, d: 16, h: 36 };
 
-  it("gives beginner/novice more explode air than a craftsman", () => {
+  it("uses the quiet explode for every rank", () => {
     const quiet = explodeOffset(overall, "beginner");
-    const novice = explodeOffset(overall, "novice");
-    const dense = explodeOffset(overall, "craftsman");
-    assert.ok(quiet > dense);
-    assert.equal(quiet, novice);
-    assert.ok(quiet > Math.max(overall.w, overall.d, overall.h) * 0.2);
-    assert.ok(dense >= Math.max(overall.w, overall.d, overall.h) * 0.2);
+    assert.equal(explodeOffset(overall, "novice"), quiet);
+    assert.equal(explodeOffset(overall, "craftsman"), quiet);
+    assert.equal(explodeOffset(overall, "master"), quiet);
+    assert.equal(quiet, Math.max(overall.w, overall.d, overall.h) * 0.3);
   });
 
-  it("collapses assembly steps for a novice; advanced stays open", () => {
+  it("keeps assembly steps folded by default, regardless of rank", () => {
     assert.equal(assemblyStepsOpen("beginner"), false);
     assert.equal(assemblyStepsOpen("novice"), false);
-    assert.equal(assemblyStepsOpen("apprentice"), true);
-    assert.equal(assemblyStepsOpen("craftsman"), true);
-    assert.equal(assemblyStepsOpen("master"), true);
+    assert.equal(assemblyStepsOpen("apprentice"), false);
+    assert.equal(assemblyStepsOpen("craftsman"), false);
+    assert.equal(assemblyStepsOpen("master"), false);
   });
 
-  it("hides slat badges on a beginner explode; keeps seat/leg identity", () => {
+  it("keeps explode badges on major parts only, regardless of rank", () => {
     assert.equal(isoShowsBadge("seat", "beginner"), true);
     assert.equal(isoShowsBadge("leg", "novice"), true);
     assert.equal(isoShowsBadge("slat", "beginner"), false);
     assert.equal(isoShowsBadge("cleat", "novice"), false);
-    assert.equal(isoShowsBadge("slat", "craftsman"), true);
-    assert.equal(isoShowsBadge("other", "master"), true);
+    assert.equal(isoShowsBadge("slat", "craftsman"), false);
+    assert.equal(isoShowsBadge("other", "master"), false);
   });
 
   it("pushes overlapping letter badges apart", () => {

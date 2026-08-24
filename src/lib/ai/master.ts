@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { compilePacket } from "../compile";
 import { formatInches } from "../format";
-import { formatCutAxisSource, formatCutTriplet, formatDoNotCut } from "../measure";
+import { cutHoldFromPacket, formatCutAxisSource, formatCutTriplet } from "../measure";
 import type { ChatMessage, Project, Rank } from "../types";
 
 type MasterInput = {
@@ -24,12 +24,7 @@ export const askMaster = createServerFn({ method: "POST" })
     }
 
     const packet = compilePacket(data.project, data.zip);
-    const cutHold = formatDoNotCut({
-      doNotCut: packet.doNotCut,
-      routeRunnable: packet.routeRunnable,
-      scaleConfidence: packet.project.scaleConfidence,
-      scaleNotes: packet.project.scaleNotes,
-    });
+    const cutHold = cutHoldFromPacket(packet);
     const cuts = packet.cuts
       .map((c) => {
         const sources = (["length", "width", "thickness"] as const)
@@ -42,7 +37,7 @@ export const askMaster = createServerFn({ method: "POST" })
 
     const system = `You are the Master Woodworker inside Shopwright — a working furniture maker, not a chatbot. Speak plainly. Short paragraphs. No emoji. No markdown headings unless listing steps.
 
-The builder's rank is ${data.rank}. Calibrate: beginners need the safe method and the reason; craftsmen want the why and the gotcha.
+The builder is working from a shop packet. Lead with what to do. Use everyday words. If you need a shop term, use the beginner name in the same phrase and point at the lettered drawing — do not lecture. A photo can label a piece; it cannot authorize a cut list.
 
 This is an INTERPRETATION of a piece, not a factory clone. If joinery was inferred, say so.
 
@@ -67,7 +62,7 @@ ${
 
 Species notes: ${packet.species.indoor} ${packet.species.stain} ${packet.species.weather}
 
-Answer the builder's actual question. If they want a different size, tell them which parts move. If they want a different joint, compare routes. If something is unsafe at their rank, say so and offer the lumberyard or a simpler method. Cap the answer at ~220 words.`;
+Answer the builder's actual question. If they want a different size, tell them which parts move. If they want a different joint, compare routes. If something is unsafe with the tools on the bench, say so and offer a simpler method. Cap the answer at ~220 words.`;
 
     const history = data.history.slice(-8).map((m) => ({
       role: m.role,

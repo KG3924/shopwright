@@ -1,6 +1,7 @@
 import { LoaderCircle, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { askMaster } from "@/lib/ai/master";
+import { PACKET_COPY } from "@/lib/plain-copy";
 import { useStudio } from "@/lib/store";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
@@ -71,7 +72,7 @@ export function MasterChat({
           <div>
             <p className="font-display text-lg">Master Woodworker</p>
             <p className="text-xs text-muted">
-              Asks about this packet. Calibrated to your rank.
+              {PACKET_COPY.masterHint}
             </p>
           </div>
           <button
@@ -86,8 +87,7 @@ export function MasterChat({
         <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
           {chat.length === 0 ? (
             <p className="text-sm text-muted">
-              Ask how to cut the dados without a table saw, whether walnut is
-              worth it at this size, or what changes if the alcove is 62 inches.
+              {PACKET_COPY.masterEmpty}
             </p>
           ) : null}
           {chat.map((m, i) => (

@@ -1,15 +1,16 @@
 import { formatInches } from "./format";
+import { DONT_CUT_YET, formatHoldBody } from "./plain-copy";
 import type {
   CutRow,
   DimSource,
   MeasuredDim,
   PartMeasured,
   ScaleConfidence,
+  ShopPacket,
 } from "./types";
 import { DIM_SOURCES, SCALE_CONFIDENCES } from "./types";
 
-/** Shop hold headline when scale is weak or no route compiled. */
-export const DONT_CUT_YET = "Don't cut yet";
+export { DONT_CUT_YET, isHoldWarning, holdWarningCount } from "./plain-copy";
 
 export const VISION_SOURCE_KINDS = ["photo", "url", "blueprint"] as const;
 export type VisionSourceKind = (typeof VISION_SOURCE_KINDS)[number];
@@ -175,38 +176,43 @@ export type CutHold = {
 };
 
 /**
- * Don't-cut copy from existing doNotCut + scaleNotes / scaleConfidence.
+ * One Don't-cut BLUF. Scale notes and missing-axis essays are not listed —
+ * those details live on tickets (`?`) and the cut list.
  * Returns null when it is safe to cut (catalog, or a high-scale pass).
  */
 export function formatDoNotCut(flags: {
   doNotCut?: boolean;
   routeRunnable?: boolean;
   scaleConfidence?: ScaleConfidence;
+  /** Kept for callers; ignored so we never dump a warning stack. */
   scaleNotes?: string[];
+  unknownAxes?: number;
 }): CutHold | null {
   const routeHold = flags.routeRunnable === false;
   if (!flags.doNotCut && !routeHold) return null;
-  const notes = [
-    ...new Set((flags.scaleNotes ?? []).map((n) => n.trim()).filter(Boolean)),
-  ];
-  if (routeHold) {
-    notes.push("No construction route compiled — do not cut.");
-  }
-  const headline = DONT_CUT_YET;
-  const fallback =
-    routeHold
-      ? "No construction route compiled — do not cut."
-      : flags.scaleConfidence === "conflict"
-        ? "Scale conflict — confirm with a tape."
-        : flags.scaleConfidence === "low"
-          ? "Scale is weak — confirm with a tape."
-          : "Confirm scale and any '?' dimensions.";
-  const body = notes.length ? notes : [fallback];
+  const body = formatHoldBody({
+    doNotCut: flags.doNotCut,
+    routeRunnable: flags.routeRunnable,
+    scaleConfidence: flags.scaleConfidence,
+    unknownAxes: flags.unknownAxes,
+  });
   return {
-    headline,
-    notes: body,
-    text: `${headline}. ${body.join(" ")}`,
+    headline: DONT_CUT_YET,
+    notes: [body],
+    text: `${DONT_CUT_YET}. ${body}`,
   };
+}
+
+/** Packet-bound Don't-cut. Tickets already print `?`; the hold stays silent about them. */
+export function cutHoldFromPacket(
+  packet: Pick<ShopPacket, "doNotCut" | "routeRunnable" | "cuts" | "project">,
+): CutHold | null {
+  return formatDoNotCut({
+    doNotCut: packet.doNotCut,
+    routeRunnable: packet.routeRunnable,
+    scaleConfidence: packet.project.scaleConfidence,
+    unknownAxes: ticketUnknownAxes(packet.cuts),
+  });
 }
 
 export function isCutAxisUnknown(

@@ -23,18 +23,19 @@ import { Input } from "@/components/ui/input";
 import { interpretPiece } from "@/lib/ai/interpret";
 import { mapInterpretHandlerError } from "@/lib/ai/url-source";
 import { fileToDataUrl } from "@/lib/image";
-import { formatInches, rankIndex } from "@/lib/format";
+import { formatInches } from "@/lib/format";
 import {
-  DONT_CUT_YET,
+  cutHoldFromPacket,
   editorAxisValue,
   formatCutAxis,
   formatCutAxisSource,
-  formatDoNotCut,
+  isHoldWarning,
   offersStockThicknessPick,
   STOCK_THICKNESS_INCHES,
 } from "@/lib/measure";
+import { PACKET_COPY } from "@/lib/plain-copy";
 import { RANK_META } from "@/lib/ranks";
-import { NO_ROUTE_NAME, normalizeTools, SHOP_TOOL_META, statusForRoute } from "@/lib/routes";
+import { normalizeTools, SHOP_TOOL_META, statusForRoute } from "@/lib/routes";
 import { SPECIES } from "@/lib/species";
 import { useStudio } from "@/lib/store";
 import { MAX_PHOTOS, projectPhotos, RANKS, SHOP_TOOLS } from "@/lib/types";
@@ -90,9 +91,9 @@ export function StudioView() {
   if (!project || !packet) {
     return (
       <main className="mx-auto max-w-lg px-4 py-24 text-center">
-        <h1 className="font-display text-3xl">No piece on the bench</h1>
+        <h1 className="font-display text-3xl">{PACKET_COPY.studioEmptyTitle}</h1>
         <p className="mt-3 text-muted">
-          Start with photos, a link, or a studio piece.
+          {PACKET_COPY.studioEmptyBody}
         </p>
         <Button className="mt-6" asChild>
           <Link to="/">Back to the shop</Link>
@@ -103,12 +104,8 @@ export function StudioView() {
 
   const photos = projectPhotos(project);
   const confidencePct = Math.round(project.confidence * 100);
-  const cutHold = formatDoNotCut({
-    doNotCut: packet.doNotCut,
-    routeRunnable: packet.routeRunnable,
-    scaleConfidence: project.scaleConfidence,
-    scaleNotes: project.scaleNotes,
-  });
+  const cutHold = cutHoldFromPacket(packet);
+  const extraWarnings = packet.warnings.filter((w) => !isHoldWarning(w));
 
   async function onAddPhotos(files: FileList | null) {
     if (!files?.length || !project || busy) return;
@@ -187,9 +184,6 @@ export function StudioView() {
             >
               {packet.route.name}
             </Badge>
-            {!packet.routeRunnable ? (
-              <Badge tone="warn">{DONT_CUT_YET}</Badge>
-            ) : null}
           </div>
         </div>
         <div className="flex gap-2">
@@ -228,14 +222,6 @@ export function StudioView() {
                 >
                   {Math.round(project.drawing.constructionConfidence * 100)}% joinery
                 </Badge>
-              ) : null}
-              {packet.doNotCut ? (
-                <Badge tone="warn">{DONT_CUT_YET}</Badge>
-              ) : null}
-              {project.scaleConfidence === "high" ? (
-                <Badge tone="good">Scale high</Badge>
-              ) : project.scaleConfidence ? (
-                <Badge tone="warn">Scale {project.scaleConfidence}</Badge>
               ) : null}
               <Badge>{project.category}</Badge>
               {photos.length > 1 ? (
@@ -307,7 +293,9 @@ export function StudioView() {
             {project.uncertainties.length > 0 ? (
               <div className="mt-4">
                 <p className="text-xs uppercase tracking-wider text-muted">
-                  Not visible — inferred
+                  {project.sourceKind === "catalog"
+                    ? PACKET_COPY.inferredCatalog
+                    : PACKET_COPY.inferred}
                 </p>
                 <ul className="mt-2 space-y-1.5 text-sm text-muted">
                   {project.uncertainties.map((u) => (
@@ -327,8 +315,7 @@ export function StudioView() {
               Fit the overall piece
             </p>
             <p className="mt-1 text-sm text-muted">
-              Overall W / D / H. Unlocked parts follow. Size each board on the
-              cut list if one piece needs to be different.
+              {PACKET_COPY.studioFit}
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               {(
@@ -363,30 +350,9 @@ export function StudioView() {
 
           <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
             <p className="text-xs uppercase tracking-wider text-muted">
-              Rank and tools on the bench
+              {PACKET_COPY.toolsTitle}
             </p>
-            <p className="mt-1 text-sm text-muted">
-              Pick these before a route. Rank alone with an empty bench never
-              invents joinery.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-              {RANKS.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRank(r)}
-                  className={cn(
-                    "h-11 rounded-md border text-sm transition-colors",
-                    project.rank === r
-                      ? "border-accent bg-accent text-accent-fg"
-                      : "border-border text-muted hover:text-fg",
-                  )}
-                >
-                  {RANK_META[r].label}
-                </button>
-              ))}
-            </div>
-            <p className="mt-3 text-sm text-muted">{RANK_META[project.rank].shop}</p>
+            <p className="mt-1 text-sm text-muted">{PACKET_COPY.toolsBlurb}</p>
             <p className="mt-4 text-xs uppercase tracking-wider text-muted">
               Tools available
             </p>
@@ -412,11 +378,34 @@ export function StudioView() {
                 );
               })}
             </div>
+            <details className="mt-4" data-rank-advanced>
+              <summary className="cursor-pointer text-sm text-muted">
+                {PACKET_COPY.rankAdvanced}
+              </summary>
+              <p className="mt-2 text-sm text-muted">{PACKET_COPY.rankHint}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {RANKS.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRank(r)}
+                    className={cn(
+                      "h-11 rounded-md border text-sm transition-colors",
+                      project.rank === r
+                        ? "border-accent bg-accent text-accent-fg"
+                        : "border-border text-muted hover:text-fg",
+                    )}
+                  >
+                    {RANK_META[r].label}
+                  </button>
+                ))}
+              </div>
+            </details>
           </div>
 
           <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
             <p className="text-xs uppercase tracking-wider text-muted">
-              How the underside goes together
+              {PACKET_COPY.routesTitle}
             </p>
             <div className="mt-3 grid gap-2">
               {project.routes.map((route) => {
@@ -452,17 +441,6 @@ export function StudioView() {
                   >
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{route.name}</span>
-                      <Badge
-                        tone={
-                          compiled &&
-                          rankIndex(project.rank) >=
-                            rankIndex(route.recommendedRank)
-                            ? "good"
-                            : "warn"
-                        }
-                      >
-                        {RANK_META[route.recommendedRank].label}
-                      </Badge>
                     </span>
                     <span className="mt-1 block text-sm text-muted">
                       {route.summary}
@@ -470,9 +448,6 @@ export function StudioView() {
                     {!status.runnable ? (
                       <span className="mt-2 block text-sm text-warn">
                         {status.reasons.join(" · ")}
-                        {pickerSelected && !packet.routeRunnable
-                          ? ` · ${NO_ROUTE_NAME} — ${DONT_CUT_YET}`
-                          : ""}
                       </span>
                     ) : compiled ? (
                       <span className="mt-2 block text-sm text-fg/80">
@@ -491,9 +466,7 @@ export function StudioView() {
       <section className="mt-4 grid gap-4 lg:grid-cols-12">
         <div className="rounded-lg border border-border bg-surface p-4 sm:p-5 lg:col-span-8">
           <p className="text-sm text-muted">
-            Routes above only compile when this rank and these tools can actually
-            run them. Switching a live route rewrites fasteners, steps, and cut
-            notes — not just the prose.
+            {PACKET_COPY.routesBlurb}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4 sm:p-5 lg:col-span-4">
@@ -516,12 +489,17 @@ export function StudioView() {
         </div>
       </section>
 
-      {packet.warnings.length ? (
+      {cutHold ? (
+        <div className="mt-4 print:hidden">
+          <DoNotCutCallout hold={cutHold} />
+        </div>
+      ) : null}
+      {extraWarnings.length ? (
         <ul className="mt-4 space-y-2">
-          {packet.warnings.map((w) => (
+          {extraWarnings.map((w) => (
             <li
               key={w}
-              className="rounded-md border border-warn/30 bg-warn/10 px-4 py-3 text-sm text-warn"
+              className="rounded-[2rem] border border-warn/30 bg-warn/10 px-5 py-3 text-sm text-warn"
             >
               {w}
             </li>
@@ -537,11 +515,6 @@ export function StudioView() {
             {packet.species.name}
           </p>
         </div>
-        {cutHold && tab !== "Drawings" ? (
-          <div className="border-b border-ink/10 px-4 py-3 print:hidden sm:px-6">
-            <DoNotCutCallout hold={cutHold} />
-          </div>
-        ) : null}
         <div className="flex gap-1 overflow-x-auto px-2 pt-2 print:hidden sm:px-4">
           {TABS.map((t) => {
             const Icon = TAB_ICON[t];
@@ -575,9 +548,7 @@ export function StudioView() {
           {tab === "Cut list" ? (
             <div className="space-y-4">
               <p className="text-sm text-ink-soft">
-                Letter, thickness, width, length, and which board it comes from.
-                Edit any size to lock it. Unlock to track overall W / D / H
-                again.
+                {PACKET_COPY.cutList}
               </p>
               <div className="overflow-x-auto print:hidden">
                 <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
@@ -804,19 +775,6 @@ export function StudioView() {
 
           {tab === "Build" ? (
             <ol className="space-y-6">
-              {!packet.routeRunnable ? (
-                <li>
-                  <DoNotCutCallout
-                    hold={
-                      cutHold ?? {
-                        headline: DONT_CUT_YET,
-                        notes: ["No construction route compiled — do not cut."],
-                        text: `${DONT_CUT_YET}. No construction route compiled — do not cut.`,
-                      }
-                    }
-                  />
-                </li>
-              ) : null}
               {packet.steps.map((step, i) => (
                 <li key={step.id}>
                   <p className="font-mono text-xs text-ink-soft">

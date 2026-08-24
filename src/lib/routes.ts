@@ -1,6 +1,4 @@
-import { rankIndex } from "./format";
 import { inferRole } from "./layout";
-import { RANK_META } from "./ranks";
 import type {
   ConstructionRoute,
   Part,
@@ -48,10 +46,10 @@ export const ROUTE_GATES: Record<string, RouteGate> = {
 };
 
 export const POCKET_CUT_NOTE =
-  "Pocket / butt — cut the listed length. Do not invent tenon length.";
+  "Pocket / butt — cut the listed length. Do not invent extra length.";
 
 export const MORTISE_CUT_NOTE =
-  "Mortise / tenon shoulders — cut the listed length. Do not invent extra stock (no silent ¾″ horns).";
+  "Tongue and the pocket it fits into — cut the listed length. Do not invent extra stock.";
 
 const JOINERY_NOTE_ROLES = new Set<PartRole>([
   "leg",
@@ -88,14 +86,12 @@ export function gateFor(route: ConstructionRoute): RouteGate {
 
 export function statusForRoute(
   route: ConstructionRoute,
-  rank: Rank,
+  _rank: Rank,
   tools: readonly ShopTool[],
 ): RouteStatus {
   const gate = gateFor(route);
   const reasons: string[] = [];
-  if (rankIndex(rank) < rankIndex(gate.minRank)) {
-    reasons.push(`Needs ${RANK_META[gate.minRank].label} rank`);
-  }
+  // Rank is shelved — tools on the bench gate the route.
   for (const tool of gate.tools ?? []) {
     if (!tools.includes(tool)) {
       reasons.push(`Needs ${SHOP_TOOL_META[tool]}`);
@@ -133,8 +129,8 @@ export const NO_ROUTE: ConstructionRoute = {
   id: NO_ROUTE_ID,
   name: NO_ROUTE_NAME,
   recommendedRank: "beginner",
-  summary: "Rank and tools cannot compile a construction route.",
-  joinery: "none — do not cut",
+  summary: "The tools on the bench cannot compile a build method.",
+  joinery: "none — don't cut yet",
   tools: [],
   tradeoffs: "",
   hiddenWork: "",
@@ -176,7 +172,7 @@ export function resolveConstructionRoute(project: Project): ResolvedRoute {
   const fallback = project.routes.find(
     (r) => statuses.find((s) => s.id === r.id)?.runnable,
   );
-  const why = requestedStatus?.reasons.join("; ") || "rank or tools";
+  const why = requestedStatus?.reasons.join("; ") || "these tools";
 
   if (fallback) {
     return {
@@ -185,7 +181,7 @@ export function resolveConstructionRoute(project: Project): ResolvedRoute {
       steered: true,
       statuses,
       warnings: [
-        `${requested.name} cannot run (${why}). Compiling ${fallback.name} instead.`,
+        `${requested.name} can't run with these tools (${why}). Using ${fallback.name} instead.`,
       ],
     };
   }
@@ -195,9 +191,7 @@ export function resolveConstructionRoute(project: Project): ResolvedRoute {
     runnable: false,
     steered: false,
     statuses,
-    warnings: [
-      `${requested.name} cannot run (${why}). No other route can run with this rank and tools — the packet will not invent joinery.`,
-    ],
+    warnings: [],
   };
 }
 

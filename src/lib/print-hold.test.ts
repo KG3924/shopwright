@@ -38,8 +38,7 @@ describe("print hold", () => {
     const drawings = read("src/components/shop-drawings.tsx");
     const studio = read("src/components/studio-view.tsx");
     assert.match(studio, /packet\.route\.name/);
-    assert.match(studio, /DONT_CUT_YET/);
-    assert.match(studio, /NO_ROUTE_NAME/);
+    assert.match(studio, /DoNotCutCallout/);
     assert.match(studio, /data-compile-route=\{packet\.route\.id\}/);
     assert.match(studio, /data-picker-selected=\{pickerSelected/);
     assert.match(studio, /data-compiled=\{compiled/);

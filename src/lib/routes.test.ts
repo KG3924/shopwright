@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { compilePacket } from "./compile";
-import { DONT_CUT_YET, formatDoNotCut } from "./measure";
+import { DONT_CUT_YET, cutHoldFromPacket } from "./measure";
 import { NO_ROUTE_ID, NO_ROUTE_NAME, offeredAndHidden } from "./routes";
 import {
   hydrateVision,
@@ -151,12 +151,7 @@ function assertRefusedCompile(packet: ShopPacket) {
   assert.doesNotMatch(packet.route.name, /mortise|pocket/i);
   assert.doesNotMatch(packet.route.joinery, /mortise|m&t|tenon|pocket/i);
   assert.equal(packet.doNotCut, true);
-  const hold = formatDoNotCut({
-    doNotCut: packet.doNotCut,
-    routeRunnable: packet.routeRunnable,
-    scaleConfidence: packet.project.scaleConfidence,
-    scaleNotes: packet.project.scaleNotes,
-  });
+  const hold = cutHoldFromPacket(packet);
   assert.ok(hold);
   assert.equal(hold.headline, DONT_CUT_YET);
   assert.match(hold.text, /Don't cut yet/);

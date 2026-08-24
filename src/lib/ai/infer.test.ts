@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { compilePacket } from "../compile";
-import { formatCutAxis, formatCutAxisSource, formatDimSource } from "../measure";
+import { formatCutAxis, formatCutAxisSource, formatDimSource, formatDoNotCut } from "../measure";
 import type { Overall, PartMeasured } from "../types";
 import { inferFill, type InferCandidate, type InferContext } from "./infer";
 import { hydrateVision, type AiJson, type InterpretInput } from "./hydrate";
@@ -347,7 +347,15 @@ describe("infer fill through hydrate", () => {
 
     assert.equal(packet.doNotCut, true);
     assert.equal(project.doNotCut, false);
-    assert.ok(packet.warnings.some((w) => /do not cut/i.test(w)));
+    const hold = formatDoNotCut({
+      doNotCut: packet.doNotCut,
+      routeRunnable: packet.routeRunnable,
+      scaleConfidence: project.scaleConfidence,
+      unknownAxes: 1,
+    });
+    assert.ok(hold);
+    assert.equal(hold.notes.length, 1);
+    assert.ok(!packet.warnings.some((w) => /do not cut/i.test(w)));
   });
 
   it("keeps Don't-cut on when infer fills the last unknown axes at high scale", () => {

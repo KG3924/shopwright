@@ -19,6 +19,7 @@ import { interpretPiece } from "@/lib/ai/interpret";
 import { mapInterpretHandlerError } from "@/lib/ai/url-source";
 import { CATALOG } from "@/lib/catalog";
 import { fileToDataUrl } from "@/lib/image";
+import { PACKET_COPY } from "@/lib/plain-copy";
 import { useStudio } from "@/lib/store";
 import { MAX_PHOTOS } from "@/lib/types";
 import { ChiselMark, SawMark } from "./shop-marks";
@@ -140,24 +141,21 @@ export function HomeView() {
     <main className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:pt-14">
       <p className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted">
         <SawMark className="size-3.5" />
-        Photo in. Shop packet out.
+        {PACKET_COPY.homeKicker}
       </p>
       <h1 className="mt-3 max-w-2xl font-display text-4xl leading-none text-fg sm:text-5xl">
-        Build the piece you saw — not a clone, a shop-buildable reading of it.
+        {PACKET_COPY.homeTitle}
       </h1>
       <p className="mt-5 max-w-xl text-muted">
-        Drop several angles — front, side, underside, a tape in frame. Shopwright
-        reads the boards off the photos, then compiles cut list, measured
-        drawings of <em className="not-italic text-fg">that</em> piece, and a
-        tutorial. Size every board, not just the overall box.
+        {PACKET_COPY.homeLead}
       </p>
 
       <ol className="mt-8 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
-          { icon: ImageUp, label: "Photos", body: "Up to six angles" },
-          { icon: Ruler, label: "Reading", body: "What it actually is" },
-          { icon: Hammer, label: "Drawings", body: "Of this piece" },
-          { icon: ListChecks, label: "Cut list", body: "Board by board" },
+          { icon: ImageUp, label: "Photos", body: PACKET_COPY.homeStepPhotos },
+          { icon: Ruler, label: "Reading", body: PACKET_COPY.homeStepReading },
+          { icon: Hammer, label: "Drawings", body: PACKET_COPY.homeStepDrawings },
+          { icon: ListChecks, label: "Cut list", body: PACKET_COPY.homeStepCutList },
         ].map((step) => (
           <li
             key={step.label}
@@ -191,10 +189,9 @@ export function HomeView() {
               <ImageUp className="size-5" />
             </span>
             <div>
-              <p className="font-medium">Add photos — more angles, better reading</p>
+              <p className="font-medium">{PACKET_COPY.homePhotosTitle}</p>
               <p className="mt-1 max-w-md text-sm text-muted">
-                Front, side, back, underside, a detail, a tape. Up to six. Then
-                interpret once.
+                {PACKET_COPY.homePhotosBody}
               </p>
             </div>
           </div>
@@ -244,13 +241,13 @@ export function HomeView() {
 
         <label className="mt-6 block">
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
-            What to look for (optional)
+            {PACKET_COPY.homeNoteLabel}
           </span>
           <Textarea
             className="mt-2 min-h-20"
             value={note}
             onChange={(e) => setNote(e.target.value.slice(0, 400))}
-            placeholder="Saddle seat, waterfall front, horseshoe plan, tapered splay legs, hoop back — name the curves so the reading doesn’t flatten them."
+            placeholder={PACKET_COPY.homeNotePlaceholder}
             readOnly={busy !== null}
           />
         </label>
@@ -308,8 +305,7 @@ export function HomeView() {
               Studio pieces
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Start from a known form. Same packet — drawings, per-part sizes,
-              species, construction.
+              {PACKET_COPY.homeCatalogBlurb}
             </p>
           </div>
         </div>

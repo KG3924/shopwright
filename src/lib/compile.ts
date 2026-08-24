@@ -14,8 +14,8 @@ import { techniquesFor } from "./techniques";
 import { compileYield, inferFromStock, nextLetter } from "./yield";
 import {
   cutHasUnconfirmedAxis,
-  formatCutAxis,
   isCutAxisUnknown,
+  isHoldWarning,
   weakScale,
 } from "./measure";
 import type {
@@ -172,45 +172,12 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
   const techniques = techniquesFor(techIds, project.rank);
   const yieldPack = compileYield(project, cuts);
 
-  const warnings: string[] = [...resolved.warnings];
+  // Hold copy is one BLUF via formatDoNotCut — do not restack scale / photo /
+  // template / don't-cut lectures into packet.warnings.
+  const warnings: string[] = resolved.warnings.filter((w) => !isHoldWarning(w));
   if (!project.indoor && !species.outdoorOk) {
     warnings.push(
       `${species.name} is not a weather wood. Switch to cedar or white oak, or keep this piece indoors.`,
-    );
-  }
-  if (project.overallSource !== "labeled" && project.sourceKind !== "catalog") {
-    warnings.push(
-      "Overall size is interpreted, not measured. Lock width, depth, and height to the space before you cut.",
-    );
-  }
-  if (project.sourceKind !== "catalog") {
-    warnings.push(
-      project.partsFromPhotos
-        ? "Parts and drawings were read from the photos, not a stock template. Confirm every ticket against a tape before you cut."
-        : "Part drawings are compiled from this packet. Confirm every ticket against a tape before you cut.",
-    );
-  }
-  if (project.scaleConfidence === "conflict") {
-    warnings.push(
-      "Scale conflict: labeled sizes and the boards we read do not agree. Confirm with a tape before you cut.",
-    );
-  } else if (project.scaleConfidence === "low") {
-    warnings.push(
-      "Scale confidence is low — no reliable tape or labeled dimension. Confirm overall W / D / H before you cut.",
-    );
-  }
-  for (const note of project.scaleNotes ?? []) {
-    if (note && !warnings.includes(note)) warnings.push(note);
-  }
-  const unknownTickets = cuts.filter(
-    (c) =>
-      formatCutAxis(c, "length") === "?" ||
-      formatCutAxis(c, "width") === "?" ||
-      formatCutAxis(c, "thickness") === "?",
-  );
-  if (unknownTickets.length) {
-    warnings.push(
-      `${unknownTickets.length} ticket${unknownTickets.length === 1 ? "" : "s"} print '?' where a size was not sourced. Measure that axis before you cut.`,
     );
   }
   const unconfirmedTickets = cuts.filter((c) => cutHasUnconfirmedAxis(c));
@@ -219,32 +186,18 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
   // clears that axis (`locked — your tape`).
   const scaleHold =
     weakScale(project.scaleConfidence) || unconfirmedTickets.length > 0;
-  if (scaleHold && project.sourceKind !== "catalog") {
-    warnings.push("Do not cut yet. Confirm scale and any '?' dimensions on the tickets.");
-  }
-  if (!resolved.runnable) {
-    warnings.push("Do not cut yet. No construction route compiled.");
-  }
   const doNotCut = !resolved.runnable || (project.sourceKind !== "catalog" && scaleHold);
   const lockedCount = cuts.filter(
     (c) => c.locked.length || c.locked.width || c.locked.thickness,
   ).length;
   if (lockedCount) {
     warnings.push(
-      `${lockedCount} part${lockedCount === 1 ? "" : "s"} locked to a custom size and will not follow overall W/D/H. Reset a part to make it track again.`,
+      `${lockedCount} part${lockedCount === 1 ? "" : "s"} locked to a custom size and will not follow overall width, depth, and height. Reset a part to make it track again.`,
     );
   }
   if (species.id === "walnut" && boardFeet > 12) {
     warnings.push(
       "That's a serious walnut bill. Price 4/4 at a hardwood dealer before you commit the cut list.",
-    );
-  }
-  if (
-    resolved.runnable &&
-    rankIndex(project.rank) < rankIndex(route.recommendedRank)
-  ) {
-    warnings.push(
-      `This route is aimed at ${route.recommendedRank}s. The pocket-hole route is the safer first build.`,
     );
   }
   if (project.overall.w > 36 && project.category === "bookcase") {
