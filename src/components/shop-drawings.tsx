@@ -174,12 +174,7 @@ export function ShopDrawings({ packet }: { packet: ShopPacket }) {
           <IsoScene boxes={exploded} />
           <Legend cuts={cuts} />
         </div>
-        <AssemblyStepList
-          key={project.rank}
-          rank={project.rank}
-          steps={packet.steps}
-          cuts={cuts}
-        />
+        <AssemblyStepList key={project.rank} rank={project.rank} steps={packet.steps} cuts={cuts} />
       </Sheet>
 
       <Sheet

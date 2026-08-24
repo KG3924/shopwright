@@ -64,10 +64,10 @@ function PocketFigure({ host, guest }: { host?: string; guest?: string }) {
       <path d="M42 36.5 L30 36.5" stroke={INK} strokeWidth="0.8" />
       <path d="M72 34 L84 34" stroke={INK} strokeWidth="0.9" />
       <path d="M80 30 L84 34 L80 38" fill="none" stroke={INK} strokeWidth="0.9" />
-      <Mark x="25" y="66">
+      <Mark x={25} y={66}>
         {host}
       </Mark>
-      <Mark x="56" y="66">
+      <Mark x={56} y={66}>
         {guest}
       </Mark>
     </>
@@ -83,10 +83,10 @@ function MortiseFigure({ host, guest }: { host?: string; guest?: string }) {
       <rect x="40" y="31.5" width="8" height="7" fill={WOOD} stroke={INK} strokeWidth="0.8" />
       <path d="M40 35 L30 35" stroke={INK} strokeWidth="0.9" />
       <path d="M34 31 L30 35 L34 39" fill="none" stroke={INK} strokeWidth="0.9" />
-      <Mark x="24" y="66">
+      <Mark x={24} y={66}>
         {host}
       </Mark>
-      <Mark x="66" y="66">
+      <Mark x={66} y={66}>
         {guest}
       </Mark>
     </>
@@ -101,10 +101,10 @@ function DadoFigure({ host, guest }: { host?: string; guest?: string }) {
       <rect x="44" y="30" width="40" height="8" fill={WOOD} stroke={INK} strokeWidth="0.9" />
       <path d="M44 34 L34 34" stroke={INK} strokeWidth="0.9" />
       <path d="M38 30 L34 34 L38 38" fill="none" stroke={INK} strokeWidth="0.9" />
-      <Mark x="25" y="68">
+      <Mark x={25} y={68}>
         {host}
       </Mark>
-      <Mark x="64" y="68">
+      <Mark x={64} y={68}>
         {guest}
       </Mark>
     </>
@@ -130,13 +130,13 @@ function HalfLapFigure({
         <path d="M28 19 L72 47" />
         <path d="M72 19 L28 47" />
       </g>
-      <Mark x="23" y="68">
+      <Mark x={23} y={68}>
         {host}
       </Mark>
-      <Mark x="50" y="68">
+      <Mark x={50} y={68}>
         {guest}
       </Mark>
-      <Mark x="77" y="68">
+      <Mark x={77} y={68}>
         {extra}
       </Mark>
     </>
@@ -150,7 +150,7 @@ function SquareCutFigure({ host }: { host?: string }) {
       <path d="M62 22 L62 50" stroke={INK} strokeWidth="0.9" strokeDasharray="1.6 1.4" />
       <path d="M18 28 L18 18 L32 18" fill="none" stroke={INK} strokeWidth="0.9" />
       <path d="M68 24 L76 32 M76 24 L68 32" stroke={INK} strokeWidth="0.9" />
-      <Mark x="50" y="62">
+      <Mark x={50} y={62}>
         {host}
       </Mark>
     </>
@@ -164,7 +164,7 @@ function GlueUpFigure({ host }: { host?: string }) {
       <rect x="50" y="22" width="36" height="22" fill={WOOD_DK} stroke={INK} strokeWidth="0.9" />
       <path d="M50 22 L50 44" stroke={INK} strokeWidth="1.1" />
       <path d="M22 16 L22 22 M78 16 L78 22 M22 44 L22 50 M78 44 L78 50" stroke={INK} strokeWidth="1.1" />
-      <Mark x="50" y="64">
+      <Mark x={50} y={64}>
         {host}
       </Mark>
     </>
@@ -179,10 +179,10 @@ function ClampUpFigure({ host, guest }: { host?: string; guest?: string }) {
       <rect x="66" y="14" width="10" height="40" fill={WOOD_DK} stroke={INK} strokeWidth="0.9" />
       <rect x="24" y="28" width="52" height="10" fill={WOOD} stroke={INK} strokeWidth="0.9" />
       <path d="M30 18 L70 50 M70 18 L30 50" stroke={INK} strokeWidth="0.6" strokeDasharray="2 2" />
-      <Mark x="29" y="64">
+      <Mark x={29} y={64}>
         {host}
       </Mark>
-      <Mark x="50" y="64">
+      <Mark x={50} y={64}>
         {guest}
       </Mark>
     </>
@@ -196,10 +196,10 @@ function DovetailFigure({ host, guest }: { host?: string; guest?: string }) {
       <path d="M48 22 L58 18 L58 28 L48 32 Z" fill={WOOD} stroke={INK} strokeWidth="0.8" />
       <path d="M48 38 L58 34 L58 44 L48 48 Z" fill={WOOD} stroke={INK} strokeWidth="0.8" />
       <rect x="58" y="18" width="24" height="34" fill={WOOD} stroke={INK} strokeWidth="0.9" />
-      <Mark x="33" y="64">
+      <Mark x={33} y={64}>
         {host}
       </Mark>
-      <Mark x="70" y="64">
+      <Mark x={70} y={64}>
         {guest}
       </Mark>
     </>
@@ -212,7 +212,7 @@ function TaperFigure({ host }: { host?: string }) {
       <path d="M40 10 L56 10 L56 28 L50 62 L40 62 Z" fill={WOOD} stroke={INK} strokeWidth="0.9" />
       <path d="M40 10 L40 62" stroke={INK} strokeWidth="0.7" strokeDasharray="2 1.6" />
       <path d="M38 28 L58 28" stroke={INK} strokeWidth="0.6" strokeDasharray="1.4 1.4" />
-      <Mark x="48" y="68">
+      <Mark x={48} y={68}>
         {host}
       </Mark>
     </>
@@ -225,10 +225,10 @@ function DrawerSlideFigure({ host, guest }: { host?: string; guest?: string }) {
       <rect x="16" y="12" width="12" height="48" fill={WOOD_DK} stroke={INK} strokeWidth="0.9" />
       <rect x="34" y="20" width="50" height="28" fill={WOOD} stroke={INK} strokeWidth="0.9" />
       <path d="M28 26 L34 26 M28 40 L34 40" stroke={INK} strokeWidth="1.1" />
-      <Mark x="22" y="68">
+      <Mark x={22} y={68}>
         {host}
       </Mark>
-      <Mark x="59" y="68">
+      <Mark x={59} y={68}>
         {guest}
       </Mark>
     </>
@@ -241,7 +241,7 @@ function FinishOilFigure({ host }: { host?: string }) {
       <rect x="18" y="24" width="52" height="22" fill={WOOD} stroke={INK} strokeWidth="0.9" />
       <ellipse cx="78" cy="30" rx="8" ry="12" fill={WOOD_DK} stroke={INK} strokeWidth="0.8" />
       <path d="M70 36 Q74 44 80 46" fill="none" stroke={INK} strokeWidth="0.8" />
-      <Mark x="44" y="62">
+      <Mark x={44} y={62}>
         {host}
       </Mark>
     </>
@@ -256,7 +256,7 @@ function ResawFigure({ host }: { host?: string }) {
       <path d="M63 12 L63 56" stroke={INK} strokeWidth="0.8" strokeDasharray="1.4 1.4" />
       <path d="M46 36 L56 36" stroke={INK} strokeWidth="0.9" />
       <path d="M52 32 L56 36 L52 40" fill="none" stroke={INK} strokeWidth="0.9" />
-      <Mark x="30" y="60">
+      <Mark x={30} y={60}>
         {host}
       </Mark>
     </>
@@ -269,10 +269,10 @@ function HipCleatFigure({ host, extra }: { host?: string; extra?: string }) {
       <path d="M18 18 L42 36 L42 62 L18 48 Z" fill={WOOD} stroke={INK} strokeWidth="0.9" />
       <path d="M82 18 L58 36 L58 62 L82 48 Z" fill={WOOD} stroke={INK} strokeWidth="0.9" />
       <rect x="42" y="32" width="16" height="26" fill={WOOD_DK} stroke={INK} strokeWidth="0.9" />
-      <Mark x="30" y="68">
+      <Mark x={30} y={68}>
         {host}
       </Mark>
-      <Mark x="50" y="68">
+      <Mark x={50} y={68}>
         {extra}
       </Mark>
     </>
@@ -285,7 +285,7 @@ function FinishPaintFigure({ host }: { host?: string }) {
       <rect x="20" y="16" width="44" height="36" fill={WOOD} stroke={INK} strokeWidth="0.9" />
       <rect x="68" y="20" width="12" height="20" fill={WOOD_DK} stroke={INK} strokeWidth="0.8" />
       <path d="M74 40 L74 52 L70 56" fill="none" stroke={INK} strokeWidth="0.9" />
-      <Mark x="42" y="64">
+      <Mark x={42} y={64}>
         {host}
       </Mark>
     </>
@@ -300,7 +300,7 @@ function OutdoorFinishFigure({ host }: { host?: string }) {
       <rect x="18" y="42" width="64" height="8" fill={WOOD} stroke={INK} strokeWidth="0.8" />
       <rect x="22" y="52" width="8" height="6" fill={WOOD_DK} stroke={INK} strokeWidth="0.7" />
       <rect x="70" y="52" width="8" height="6" fill={WOOD_DK} stroke={INK} strokeWidth="0.7" />
-      <Mark x="50" y="66">
+      <Mark x={50} y={66}>
         {host}
       </Mark>
     </>
@@ -314,10 +314,10 @@ function WoodMovementFigure({ host, guest }: { host?: string; guest?: string }) 
       <rect x="22" y="34" width="56" height="10" fill={WOOD_DK} stroke={INK} strokeWidth="0.9" />
       <circle cx="30" cy="28" r="2" fill="none" stroke={INK} strokeWidth="0.8" />
       <rect x="66" y="26" width="8" height="4" fill="none" stroke={INK} strokeWidth="0.8" />
-      <Mark x="50" y="56">
+      <Mark x={50} y={56}>
         {host}
       </Mark>
-      <Mark x="50" y="66">
+      <Mark x={50} y={66}>
         {guest}
       </Mark>
     </>
@@ -330,7 +330,7 @@ function EdgeBandFigure({ host }: { host?: string }) {
       <rect x="22" y="18" width="52" height="32" fill={WOOD} stroke={INK} strokeWidth="0.9" />
       <rect x="22" y="18" width="4" height="32" fill={WOOD_DK} stroke={INK} strokeWidth="0.8" />
       <path d="M18 16 L26 16 L26 54 L18 54" fill="none" stroke={INK} strokeWidth="0.7" strokeDasharray="1.5 1.2" />
-      <Mark x="48" y="64">
+      <Mark x={48} y={64}>
         {host}
       </Mark>
     </>
