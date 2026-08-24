@@ -114,6 +114,39 @@
   }
 }
 
+@keyframes interpret-busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes interpret-busy-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+.interpret-busy-spin {
+  display: inline-block;
+  animation: interpret-busy-spin 0.8s linear infinite;
+}
+
+.interpret-busy-bar {
+  height: 3px;
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-accent),
+    transparent
+  );
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: interpret-busy-shimmer 1.15s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -121,6 +154,14 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Keep interpret busy motion looping — a one-shot 0.01ms spin looks frozen. */
+  .interpret-busy-live,
+  .interpret-busy-live::before,
+  .interpret-busy-live::after {
+    animation-duration: 1.15s !important;
+    animation-iteration-count: infinite !important;
   }
 }
 

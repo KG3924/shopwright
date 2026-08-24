@@ -7,7 +7,6 @@ import {
   ImageUp,
   Link2,
   ListChecks,
-  LoaderCircle,
   Ruler,
   Table2,
   TreePine,
@@ -15,7 +14,9 @@ import {
 } from "lucide-react";
 import { useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toast } from "sonner";
+import { InterpretBusyStatus } from "@/components/interpret-busy";
 import { interpretPiece } from "@/lib/ai/interpret";
+import { mapInterpretHandlerError } from "@/lib/ai/url-source";
 import { CATALOG } from "@/lib/catalog";
 import { fileToDataUrl } from "@/lib/image";
 import { useStudio } from "@/lib/store";
@@ -44,7 +45,7 @@ export function HomeView() {
   }
 
   async function stageFiles(files: FileList | null) {
-    if (!files?.length) return;
+    if (!files?.length || busy) return;
     const images = [...files].filter((f) => f.type.startsWith("image/"));
     if (!images.length) {
       toast.error("Drop photos or scans of a plan.");
@@ -72,11 +73,12 @@ export function HomeView() {
   function onDrop(e: DragEvent) {
     e.preventDefault();
     setDrag(false);
+    if (busy) return;
     void stageFiles(e.dataTransfer.files);
   }
 
   async function interpretStaged() {
-    if (!staged.length) return;
+    if (!staged.length || busy) return;
     setBusy("photo");
     try {
       const kind = "photo";
@@ -96,7 +98,7 @@ export function HomeView() {
       loadProject({ ...result.project, photos: staged, photoDataUrl: staged[0] });
       void navigate({ to: "/studio" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not read those photos.");
+      toast.error(mapInterpretHandlerError(err, "Could not read those photos.").error);
     } finally {
       setBusy(null);
     }
@@ -105,7 +107,7 @@ export function HomeView() {
   async function onUrl(e: FormEvent) {
     e.preventDefault();
     const trimmed = url.trim();
-    if (!trimmed) return;
+    if (!trimmed || busy) return;
     setBusy("url");
     try {
       const result = await interpretPiece({
@@ -128,7 +130,7 @@ export function HomeView() {
       });
       void navigate({ to: "/studio" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not read that link.");
+      toast.error(mapInterpretHandlerError(err, "Could not read that link.").error);
     } finally {
       setBusy(null);
     }
@@ -229,8 +231,9 @@ export function HomeView() {
                 <button
                   type="button"
                   aria-label={`Remove photo ${i + 1}`}
+                  disabled={busy !== null}
                   onClick={() => setStaged((prev) => prev.filter((_, j) => j !== i))}
-                  className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-sm bg-ink/80 text-paper"
+                  className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-sm bg-ink/80 text-paper disabled:opacity-40"
                 >
                   <X className="size-4" />
                 </button>
@@ -248,8 +251,11 @@ export function HomeView() {
             value={note}
             onChange={(e) => setNote(e.target.value.slice(0, 400))}
             placeholder="Saddle seat, waterfall front, horseshoe plan, tapered splay legs, hoop back — name the curves so the reading doesn’t flatten them."
+            readOnly={busy !== null}
           />
         </label>
+
+        {busy ? <InterpretBusyStatus kind={busy} className="mt-6" /> : null}
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button
@@ -257,19 +263,15 @@ export function HomeView() {
             disabled={busy !== null || staged.length === 0}
             onClick={() => void interpretStaged()}
           >
-            {busy === "photo" ? (
-              <LoaderCircle className="size-4 animate-spin" />
-            ) : null}
-            {busy === "photo"
-              ? "Reading the photos"
-              : staged.length
-                ? `Interpret ${staged.length} photo${staged.length === 1 ? "" : "s"}`
-                : "Interpret photos"}
+            {staged.length
+              ? `Interpret ${staged.length} photo${staged.length === 1 ? "" : "s"}`
+              : "Interpret photos"}
           </Button>
           {staged.length ? (
             <button
               type="button"
-              className="h-11 text-sm text-muted hover:text-fg"
+              disabled={busy !== null}
+              className="h-11 text-sm text-muted hover:text-fg disabled:opacity-40"
               onClick={() => setStaged([])}
             >
               Clear photos
@@ -289,12 +291,10 @@ export function HomeView() {
               placeholder="Or paste a product link"
               className="pl-9"
               inputMode="url"
+              readOnly={busy !== null}
             />
           </div>
           <Button type="submit" variant="ghost" disabled={busy !== null || !url.trim()}>
-            {busy === "url" ? (
-              <LoaderCircle className="size-4 animate-spin" />
-            ) : null}
             Interpret link
           </Button>
         </form>
