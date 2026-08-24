@@ -34,6 +34,8 @@ import {
   STOCK_THICKNESS_INCHES,
 } from "@/lib/measure";
 import { PACKET_COPY } from "@/lib/plain-copy";
+import { TechniqueFigures } from "@/components/technique-drawings";
+import { techniquePlainName } from "@/lib/technique-drawings";
 import { RANK_META } from "@/lib/ranks";
 import { normalizeTools, SHOP_TOOL_META, statusForRoute } from "@/lib/routes";
 import { SPECIES } from "@/lib/species";
@@ -774,38 +776,42 @@ export function StudioView() {
           ) : null}
 
           {tab === "Build" ? (
-            <ol className="space-y-6">
-              {packet.steps.map((step, i) => (
-                <li key={step.id}>
-                  <p className="font-mono text-xs text-ink-soft">
-                    {String(i + 1).padStart(2, "0")}
-                  </p>
-                  <h3 className="mt-1 font-display text-xl">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed">{step.body}</p>
-                  {packet.techniques.filter((t) =>
-                    step.techniques.includes(t.id),
-                  ).length ? (
-                    <div className="mt-3 space-y-2 rounded-md bg-ink/5 p-3">
-                      {packet.techniques
-                        .filter((t) => step.techniques.includes(t.id))
-                        .map((t) => (
-                          <details key={t.id}>
-                            <summary className="cursor-pointer text-sm font-medium">
-                              Technique: {t.name}
-                            </summary>
-                            <p className="mt-2 text-sm text-ink-soft">{t.body}</p>
-                            {t.safety ? (
-                              <p className="mt-2 text-sm text-ink">
-                                Safety — {t.safety}
-                              </p>
-                            ) : null}
-                          </details>
-                        ))}
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
+            <div data-build-steps="true">
+              <p className="mb-6 text-sm text-ink-soft">{PACKET_COPY.buildLead}</p>
+              <ol className="space-y-8">
+                {packet.steps.map((step, i) => (
+                  <li key={step.id}>
+                    <p className="font-mono text-xs text-ink-soft">
+                      {String(i + 1).padStart(2, "0")}
+                    </p>
+                    <h3 className="mt-1 font-display text-xl">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed">{step.body}</p>
+                    <TechniqueFigures ids={step.techniques} cuts={packet.cuts} />
+                    {packet.techniques.filter((t) =>
+                      step.techniques.includes(t.id),
+                    ).length ? (
+                      <div className="mt-3 space-y-2 rounded-md bg-ink/5 p-3">
+                        {packet.techniques
+                          .filter((t) => step.techniques.includes(t.id))
+                          .map((t) => (
+                            <details key={t.id}>
+                              <summary className="cursor-pointer text-sm font-medium">
+                                More — {techniquePlainName(t.id)}
+                              </summary>
+                              <p className="mt-2 text-sm text-ink-soft">{t.body}</p>
+                              {t.safety ? (
+                                <p className="mt-2 text-sm text-ink">
+                                  Safety — {t.safety}
+                                </p>
+                              ) : null}
+                            </details>
+                          ))}
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            </div>
           ) : null}
 
           {tab === "Wood" ? (
