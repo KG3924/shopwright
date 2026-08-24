@@ -390,7 +390,7 @@ describe("material translation", () => {
     });
     const project = hydrateVision(metal, input, []);
     assert.equal(project.category, "chair");
-    assert.equal(project.id, "side-chair-read");
+    assert.equal(project.id, "chair-read");
     assert.equal(project.partsFromPhotos, true);
     assert.ok(["maple", "walnut", "white-oak", "red-oak", "pine", "cedar", "poplar", "plywood-oak"].includes(project.speciesId));
     assert.notEqual(project.speciesId, "steel");

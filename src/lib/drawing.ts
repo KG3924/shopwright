@@ -143,12 +143,12 @@ export function inferDrawing(
       recovered.seatShape ??
       (/round|circular/.test(blob) ? "round" : "square");
     return finishDrawing({
+      ...fromPhoto,
+      family: "chair",
       backStyle: fromPhoto?.backStyle ?? (hasBack ? backFromBlob(blob) : "none"),
       hasArms: fromPhoto?.hasArms ?? hasArmPart,
       hasFootring: fromPhoto?.hasFootring ?? hasFootringPart,
       reclined: fromPhoto?.reclined ?? false,
-      ...fromPhoto,
-      family: "chair",
       seatShape,
       seatProfile: fromPhoto?.seatProfile ?? recovered.seatProfile,
       seatFront: fromPhoto?.seatFront ?? recovered.seatFront,

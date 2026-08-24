@@ -11,6 +11,7 @@ import {
 import { getSpecies } from "./species";
 import { sourcesForZip } from "./sourcing";
 import { techniquesFor } from "./techniques";
+import { stripCatalogPlates } from "./ai/photo-joinery";
 import { compileYield, inferFromStock, nextLetter } from "./yield";
 import {
   cutHasUnconfirmedAxis,
@@ -84,6 +85,18 @@ export function instantiate(
 }
 
 export function compilePacket(project: Project, zip: string): ShopPacket {
+  const plates =
+    project.sourceKind === "catalog"
+      ? { hardware: project.hardware, steps: project.steps }
+      : stripCatalogPlates(project, {
+          name: project.name,
+          category: project.category,
+          interpretation: project.interpretation,
+          visibleDetails: project.drawing?.visibleDetails,
+          uncertainties: project.uncertainties,
+          drawing: project.drawing,
+          parts: project.parts,
+        });
   const resolved = resolveConstructionRoute(project);
   const route = resolved.route;
   const species = getSpecies(project.speciesId);
@@ -144,12 +157,12 @@ export function compilePacket(project: Project, zip: string): ShopPacket {
   const volumeFt3 = boardFeet / 12;
   const weightLb = Math.round(volumeFt3 * species.density);
 
-  const hardware = project.hardware.filter((h) => {
+  const hardware = plates.hardware.filter((h) => {
     if (!resolved.runnable) return !h.forRoutes;
     return !h.forRoutes || h.forRoutes.includes(route.id);
   });
 
-  const steps = project.steps.filter((step) => {
+  const steps = plates.steps.filter((step) => {
     if (!resolved.runnable) return !step.forRoutes;
     if (step.forRoutes && !step.forRoutes.includes(route.id)) return false;
     if (step.minRank && rankIndex(project.rank) < rankIndex(step.minRank)) {

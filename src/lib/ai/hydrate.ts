@@ -1,7 +1,6 @@
 import { z } from "zod";
-import { getTemplate, matchTemplate } from "../catalog";
 import { instantiate } from "../compile";
-import { inferDrawing, isAdirondackReading, isUprightChair } from "../drawing";
+import { inferDrawing } from "../drawing";
 import { inferRole, isPartRole } from "../layout";
 import {
   asBackProfile,
@@ -22,6 +21,12 @@ import {
 } from "../measure";
 import { inferDim } from "../parametric";
 import { runInferFill } from "./infer";
+import {
+  applyUpholsteredSeat,
+  compilePhotoJoinery,
+  photoProjectId,
+  photoSpeciesId,
+} from "./photo-joinery";
 import { normalizeTools } from "../routes";
 import type {
   Axis3,
@@ -233,17 +238,6 @@ export const WOOD_TRANSLATION_NOTE =
 const NON_WOOD_RE =
   /\b(metal|steel|stainless|aluminum|aluminium|chrome|iron|alloy|tubular|sheet[\s-]?metal|plastic|pvc|resin|polypropylene|acrylic|polycarbonate|fiberglass)\b/i;
 
-const WOOD_SPECIES = [
-  "maple",
-  "walnut",
-  "white-oak",
-  "red-oak",
-  "pine",
-  "cedar",
-  "poplar",
-  "plywood-oak",
-] as const;
-
 const WOOD_STOCK = ["solid", "plywood", "hardwood-ply", "dowel"] as const;
 
 export function sourceLooksNonWood(blob: string): boolean {
@@ -306,11 +300,7 @@ function withShopFamily(ai: AiJson): AiJson {
   if (!sourceLooksNonWood(materialBlob(ai))) return ai;
   if (!looksLikeChairOrStool(ai)) return ai;
   const category = !ai.category || ai.category === "other" ? "chair" : ai.category;
-  const templateId =
-    ai.templateId === "adirondack" || ai.templateId === "side-chair"
-      ? ai.templateId
-      : "side-chair";
-  return { ...ai, category, templateId };
+  return { ...ai, category };
 }
 
 function woodStockOf(raw: string | undefined, nonWood: boolean): string {
@@ -341,14 +331,6 @@ function withWoodTranslationNote(text: string | undefined, nonWood: boolean): st
   const body = text?.trim() ?? "";
   if (/translated to (a )?wood/i.test(body)) return body || WOOD_TRANSLATION_NOTE;
   return body ? `${body} ${WOOD_TRANSLATION_NOTE}` : WOOD_TRANSLATION_NOTE;
-}
-
-function pickTemplate(ai: AiJson) {
-  const drawing = drawingFromAi(ai);
-  const reading = { ...ai, templateId: ai.templateId ?? undefined, drawing };
-  if (isUprightChair(reading)) return getTemplate("side-chair");
-  if (isAdirondackReading(reading)) return getTemplate("adirondack");
-  return matchTemplate(ai.templateId ?? ai.category ?? undefined, ai.name);
 }
 
 function asAxis3(value: string | undefined): Axis3 | undefined {
@@ -668,8 +650,10 @@ export function parseVisionJson(text: string): AiJson {
 }
 
 /**
- * Photo / URL / blueprint hydrate. Template supplies joinery routes,
- * hardware, and steps only. Cut-list parts always come from vision.
+ * Photo / URL / blueprint hydrate. Cut list, drawing, finish, and joinery
+ * compile from this interpret only. Catalog templates are not an input —
+ * templateId is ignored. Lattice / paint plates attach only when interpret
+ * tagged them.
  */
 export function hydrateVision(
   ai: AiJson,
@@ -677,20 +661,6 @@ export function hydrateVision(
   photos: string[],
 ): Project {
   const reading = withShopFamily(ai);
-  const template = pickTemplate(reading);
-  const joinery =
-    template ??
-    (reading.category === "chair" || /chair|stool/i.test(reading.name ?? "")
-      ? getTemplate("side-chair")
-      : matchTemplate("bench", "bench")) ??
-    getTemplate("bench");
-  if (!joinery) {
-    throw new InterpretError(
-      "unsafe_packet",
-      "No joinery route is available for this reading.",
-    );
-  }
-
   const nonWood = sourceLooksNonWood(materialBlob(reading));
   const droppedHardware = (reading.parts ?? []).some(
     (p) => p && isBuyHardwarePart(p),
@@ -756,7 +726,7 @@ export function hydrateVision(
     d: reading.overall?.d ?? overall.d,
     h: reading.overall?.h ?? overall.h,
   };
-  const parts = toGraphParts(sourced, overall, rawOverall);
+  let parts = toGraphParts(sourced, overall, rawOverall);
   if (parts.length < 2) {
     throw new InterpretError(
       "incomplete_parts",
@@ -765,20 +735,33 @@ export function hydrateVision(
   }
 
   const scale = resolveScale(reading, sourced, overall);
-  const speciesId =
-    reading.speciesGuess && (WOOD_SPECIES as readonly string[]).includes(reading.speciesGuess)
-      ? reading.speciesGuess
-      : (joinery.defaultSpecies ?? "maple");
-
+  const category = reading.category ?? "chair";
+  const name = reading.name ?? "Interpreted piece";
   const drawing = inferDrawing({
-    id: `${joinery.id}-read`,
-    category: reading.category ?? joinery.category,
-    name: reading.name ?? joinery.name,
-    interpretation: reading.interpretation ?? joinery.interpretation,
+    id: photoProjectId(category, drawingIn?.family),
+    category,
+    name,
+    interpretation: reading.interpretation ?? name,
     parts,
     overall,
     drawing: drawingIn,
   });
+
+  parts = applyUpholsteredSeat(
+    parts,
+    {
+      name,
+      category,
+      interpretation: reading.interpretation,
+      visibleDetails: [
+        ...(reading.visibleDetails ?? []),
+        ...(drawing.visibleDetails ?? []),
+      ],
+      drawing,
+      parts,
+    },
+    nonWood,
+  );
 
   if (drawing.seatProfile && drawing.seatProfile !== "flat") {
     for (const p of parts) {
@@ -798,40 +781,68 @@ export function hydrateVision(
     }
   }
 
-  const honesty = formHonestyNote(reading, drawing);
-  const interpretation = withWoodTranslationNote(
-    reading.interpretation ?? joinery.interpretation,
+  const photoReading = {
+    name,
+    category,
+    interpretation: reading.interpretation,
+    visibleDetails: [
+      ...(reading.visibleDetails ?? []),
+      ...(drawing.visibleDetails ?? []),
+    ],
+    uncertainties: reading.uncertainties,
+    speciesGuess: reading.speciesGuess,
+    drawing,
+    parts,
+  };
+  const joinery = compilePhotoJoinery(photoReading, parts, {
     nonWood,
-  );
+    suggestedRouteId: reading.suggestedRouteId,
+  });
+
+  const honesty = formHonestyNote(reading, drawing);
+  const interpretation = withWoodTranslationNote(reading.interpretation, nonWood);
   const hardwareNote =
     nonWood && droppedHardware
       ? "Hinges, pivot pins, and folding stays are buy hardware — not cut-list stock."
       : undefined;
+  const upholsteryNote =
+    parts.some((p) => p.role === "seat" && p.stock === "plywood") &&
+    !(reading.uncertainties ?? []).some((u) => /upholster|webbing|fabric/i.test(u))
+      ? "Upholstered seat — plywood blank, webbing, foam, and fabric. Not a solid glue-up."
+      : undefined;
   const uncertainties = [
-    ...(reading.uncertainties && reading.uncertainties.length
-      ? reading.uncertainties
-      : joinery.uncertainties),
+    ...(reading.uncertainties ?? []),
     ...(honesty ? [honesty] : []),
     ...(nonWood &&
     !(reading.uncertainties ?? []).some((u) => /translated to (a )?wood/i.test(u))
       ? [WOOD_TRANSLATION_NOTE]
       : []),
     ...(hardwareNote ? [hardwareNote] : []),
+    ...(upholsteryNote ? [upholsteryNote] : []),
   ];
+  const speciesId = photoSpeciesId(nonWood ? undefined : reading.speciesGuess);
+  const id = photoProjectId(category, drawing.family);
 
   return instantiate(
     {
-      ...joinery,
-      id: `${joinery.id}-read`,
-      name: reading.name ?? joinery.name,
-      category: reading.category ?? joinery.category,
+      id,
+      name,
+      category,
       blurb: "Interpreted from photos.",
+      image: "",
       overall,
-      parts,
-      drawing,
-      interpretation,
-      confidence: reading.formConfidence ?? reading.confidence ?? joinery.confidence,
+      thickness: 0.75,
+      defaultSpecies: speciesId,
+      defaultRoute: joinery.defaultRoute,
+      indoor: joinery.indoor,
+      interpretation: interpretation ?? name,
+      confidence: reading.formConfidence ?? reading.confidence ?? 0.6,
       uncertainties,
+      routes: joinery.routes,
+      parts,
+      hardware: joinery.hardware,
+      steps: joinery.steps,
+      drawing,
       buyBoards: undefined,
       stack: undefined,
       stillBuy: undefined,
@@ -850,8 +861,8 @@ export function hydrateVision(
       overallSource: reading.overallSource ?? "estimated",
       sourceKind: input.kind,
       sourceLabel: input.url,
-      interpretation,
-      confidence: clampInch(reading.confidence ?? joinery.confidence, 0, 1),
+      interpretation: interpretation ?? name,
+      confidence: clampInch(reading.confidence ?? 0.6, 0, 1),
       uncertainties,
       partsFromPhotos: true,
       scaleConfidence: scale.scaleConfidence,
