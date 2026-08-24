@@ -383,6 +383,119 @@ function boxesForCut(
   });
 }
 
+function explodeFromCenter(
+  boxes: WorldBox[],
+  overall: Overall,
+  explode: number,
+): WorldBox[] {
+  if (explode <= 0 || !boxes.length) return boxes;
+  const cx = overall.w / 2;
+  const cy = overall.d / 2;
+  const cz = overall.h / 2;
+  return boxes.map((b) => {
+    const bx = b.x + b.w / 2 - cx;
+    const by = b.y + b.d / 2 - cy;
+    const bz = b.z + b.h / 2 - cz;
+    const m = Math.hypot(bx, by, bz) || 1;
+    const f = explode / m;
+    return { ...b, x: b.x + bx * f, y: b.y + by * f, z: b.z + bz * f };
+  });
+}
+
+function blanksOverlap(a: WorldBox, b: WorldBox, pad: number): boolean {
+  return (
+    a.x < b.x + b.w + pad &&
+    a.x + a.w + pad > b.x &&
+    a.y < b.y + b.d + pad &&
+    a.y + a.d + pad > b.y &&
+    a.z < b.z + b.h + pad &&
+    a.z + a.h + pad > b.z
+  );
+}
+
+/** Push lettered blanks apart until they are not a stacked pile. */
+function separateOverlappingBlanks(boxes: WorldBox[], minGap: number): WorldBox[] {
+  const out = boxes.map((b) => ({ ...b }));
+  if (out.length < 2 || minGap <= 0) return out;
+  for (let k = 0; k < 16; k++) {
+    for (let i = 0; i < out.length; i++) {
+      for (let j = i + 1; j < out.length; j++) {
+        const a = out[i]!;
+        const b = out[j]!;
+        if (!blanksOverlap(a, b, minGap)) continue;
+        const ax = a.x + a.w / 2;
+        const ay = a.y + a.d / 2;
+        const az = a.z + a.h / 2;
+        const bx = b.x + b.w / 2;
+        const by = b.y + b.d / 2;
+        const bz = b.z + b.h / 2;
+        let dx = bx - ax;
+        let dy = by - ay;
+        let dz = bz - az;
+        const m = Math.hypot(dx, dy, dz);
+        if (m < 1e-6) {
+          dx = 1;
+          dy = 0.35;
+          dz = 0.2;
+        } else {
+          dx /= m;
+          dy /= m;
+          dz /= m;
+        }
+        const overlapX = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+        const overlapY = Math.min(a.y + a.d, b.y + b.d) - Math.max(a.y, b.y);
+        const overlapZ = Math.min(a.z + a.h, b.z + b.h) - Math.max(a.z, b.z);
+        const depth = Math.min(
+          overlapX > 0 ? overlapX : minGap,
+          overlapY > 0 ? overlapY : minGap,
+          overlapZ > 0 ? overlapZ : minGap,
+        );
+        const push = (Math.max(depth, 0) + minGap) / 2;
+        a.x -= dx * push;
+        a.y -= dy * push;
+        a.z -= dz * push;
+        b.x += dx * push;
+        b.y += dy * push;
+        b.z += dz * push;
+      }
+    }
+  }
+  return out;
+}
+
+/** One board per ticket letter — copies of the same cut do not stack on the explode. */
+export function letteredBlanks(boxes: WorldBox[]): WorldBox[] {
+  const seen = new Set<string>();
+  const out: WorldBox[] = [];
+  for (const b of boxes) {
+    if (seen.has(b.letter)) continue;
+    seen.add(b.letter);
+    out.push({ ...b });
+  }
+  return out;
+}
+
+/**
+ * Exploded iso: the cut-list blanks pulled apart. Curves stay on elevations.
+ * Quiet explode (opts.explode) is the one spacing — rank does not change it.
+ */
+export function explodeLetteredBlanks(
+  overall: Overall,
+  cuts: CutRow[],
+  opts: { explode?: number; seatHeightRatio?: number } = {},
+): WorldBox[] {
+  const assembled = layoutBoxes(overall, cuts, {
+    seatHeightRatio: opts.seatHeightRatio,
+  });
+  const blanks = letteredBlanks(assembled);
+  const explode = opts.explode ?? 0;
+  if (explode <= 0) return blanks;
+  return separateOverlappingBlanks(
+    explodeFromCenter(blanks, overall, explode),
+    Math.max(1, explode * 0.12),
+  );
+}
+
 export function layoutBoxes(
   overall: Overall,
   cuts: CutRow[],
@@ -392,17 +505,7 @@ export function layoutBoxes(
   let boxes = cuts.flatMap((cut) => boxesForCut(cut, overall, ctx));
   const explode = opts.explode ?? 0;
   if (explode > 0 && boxes.length) {
-    const cx = overall.w / 2;
-    const cy = overall.d / 2;
-    const cz = overall.h / 2;
-    boxes = boxes.map((b) => {
-      const bx = b.x + b.w / 2 - cx;
-      const by = b.y + b.d / 2 - cy;
-      const bz = b.z + b.h / 2 - cz;
-      const m = Math.hypot(bx, by, bz) || 1;
-      const f = explode / m;
-      return { ...b, x: b.x + bx * f, y: b.y + by * f, z: b.z + bz * f };
-    });
+    boxes = explodeFromCenter(boxes, overall, explode);
   }
   return boxes;
 }

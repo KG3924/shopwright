@@ -130,9 +130,9 @@ export function assemblyStepsOpen(_rank?: Rank): boolean {
   return false;
 }
 
-/** Major-part badges only — slat stampede stays off. Rank does not change this. */
-export function isoShowsBadge(role: PartRole, _rank?: Rank): boolean {
-  return isMajorShopPart(role);
+/** Explode letters every ticket blank. Copies were already collapsed; rank does not change this. */
+export function isoShowsBadge(_role: PartRole, _rank?: Rank): boolean {
+  return true;
 }
 
 /** Nudge overlapping letter badges apart so they stay readable. */
