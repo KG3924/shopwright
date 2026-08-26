@@ -185,7 +185,12 @@ export type BackStyle =
   | "splat"
   | "slat-fan"
   | "solid"
-  | "none";
+  | "crest"
+  | "none"
+  | "unknown";
+
+export type SeatKind = "solid" | "upholstered" | "unknown";
+export type FinishKind = "paint" | "clear" | "unknown";
 
 export type SeatShape =
   | "square"
@@ -232,6 +237,10 @@ export type PolyPt = { x: number; y: number };
 export type DrawingSpec = {
   family: "table" | "case" | "chair" | "feeder";
   backStyle?: BackStyle;
+  /** Photo-truth: solid wood seat vs fabric pack. */
+  seatKind?: SeatKind;
+  /** Photo-truth: visible finish. Unknown stays unknown — not catalog enamel. */
+  finishKind?: FinishKind;
   hasArms?: boolean;
   hasFootring?: boolean;
   seatShape?: SeatShape;

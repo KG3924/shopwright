@@ -339,7 +339,10 @@ describe("packet-from-photo — Barros must not impersonate the catalog lattice 
     const fixture = load("barros-side-chair.json");
     const ai = parseVisionJson(JSON.stringify(fixture.ai));
     assert.equal(ai.templateId, "side-chair");
-    assert.equal(ai.drawing?.backStyle, "solid");
+    assert.ok(ai.drawing?.backStyle === "solid" || ai.drawing?.backStyle === "crest");
+    assert.notEqual(ai.drawing?.backStyle, "lattice");
+    assert.equal(ai.seat, "upholstered");
+    assert.equal(ai.finish, "clear");
     const project = hydrateVision(ai, { ...pocketInput, ...over }, []);
     const packet = compilePacket(project, "75013");
     return { fixture, project, packet };
@@ -347,13 +350,16 @@ describe("packet-from-photo — Barros must not impersonate the catalog lattice 
 
   it("barros-side-chair: compile from this interpret only — no catalog lattice, paint, or poplar enamel", () => {
     const fixture = load("barros-side-chair.json");
+    const aiBlob = JSON.stringify(fixture.ai);
+    assert.doesNotMatch(aiBlob, LATTICE_LEAK_RE);
+    assert.doesNotMatch(aiBlob, /"routes"|"hardware"|"steps"/);
     const { project, packet } = assertShopTruth(fixture);
 
     assert.equal(project.sourceKind, "photo");
     assert.equal(project.partsFromPhotos, true);
     assert.notEqual(project.id, "side-chair");
     assert.ok(!project.image?.includes("lattice-chair"));
-    assert.equal(project.drawing?.backStyle, "solid");
+    assert.equal(project.drawing?.backStyle === "solid" || project.drawing?.backStyle === "crest", true);
     assert.notEqual(project.drawing?.backStyle, "lattice");
     assert.notEqual(project.speciesId, "poplar");
     assert.equal(project.speciesId, "maple");
@@ -375,7 +381,7 @@ describe("packet-from-photo — Barros must not impersonate the catalog lattice 
     assert.ok(!packet.steps.some((s) => s.techniques.includes("glue-up")));
 
     const spec = inferDrawing(project);
-    assert.equal(spec.backStyle, "solid");
+    assert.ok(spec.backStyle === "solid" || spec.backStyle === "crest");
     const plan = outlineFor("plan", spec);
     assert.ok(plan && plan.length >= 4);
     assert.equal(isRectilinearOutline(plan), true, "seat A plan must stay the ticket rectangle");
@@ -390,11 +396,11 @@ describe("packet-from-photo — Barros must not impersonate the catalog lattice 
 
   it("does not use a parts-name blacklist as the lattice gate", () => {
     const src = readFileSync(join(dir, "photo-joinery.ts"), "utf8");
-    assert.match(src, /backStyle/);
+    assert.match(src, /backStyle === ["']lattice["']/);
     assert.doesNotMatch(
       src,
       /parts\.some\([^)]*lattice/,
-      "lattice gate must be interpret backStyle / explicit tag, not a parts-name check",
+      "lattice gate must be interpret backStyle === lattice, not a parts-name check",
     );
   });
 });

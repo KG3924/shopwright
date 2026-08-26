@@ -673,7 +673,7 @@ function generatePlan(spec: DrawingSpec): PolyPt[] | undefined {
 
 function generateSide(spec: DrawingSpec): PolyPt[] | undefined {
   if (!hasShapedForm(spec) && spec.family !== "chair") return undefined;
-  if (spec.backStyle === "none") return generateBacklessSide(spec);
+  if (spec.backStyle === "none" || spec.backStyle === "unknown") return generateBacklessSide(spec);
   const sh = spec.seatHeightRatio ?? (spec.family === "chair" ? 0.48 : 0.75);
   const namedDish =
     spec.seatDishIn && spec.seatDishIn > 0 ? Math.min(0.09, spec.seatDishIn / 12) : 0;
@@ -776,7 +776,7 @@ function generateBacklessFront(spec: DrawingSpec): PolyPt[] {
 
 function generateFront(spec: DrawingSpec): PolyPt[] | undefined {
   if (spec.family !== "chair" && !hasShapedForm(spec)) return undefined;
-  if (spec.backStyle === "none") return generateBacklessFront(spec);
+  if (spec.backStyle === "none" || spec.backStyle === "unknown") return generateBacklessFront(spec);
   const sh = spec.seatHeightRatio ?? 0.48;
   const splay =
     spec.legStyle === "splayed" || spec.legStyle === "tapered-splay" ? 0.08 : 0.03;
@@ -787,7 +787,7 @@ function generateFront(spec: DrawingSpec): PolyPt[] | undefined {
       : spec.backStyle === "splat"
         ? 0.22
         : 0.16;
-  const topY = spec.backStyle === "solid" ? 0.74 : 0.98;
+  const topY = spec.backStyle === "solid" || spec.backStyle === "crest" ? 0.74 : 0.98;
   const seatY = sh;
   const footIn = taper ? splay + 0.02 : splay;
   const dish =

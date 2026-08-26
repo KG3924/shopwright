@@ -187,7 +187,7 @@ function BackFill({
       </g>
     );
   }
-  if (style === "solid") {
+  if (style === "solid" || style === "crest") {
     return (
       <rect x={x} y={y} width={w} height={h} fill={WOOD} stroke={INK} strokeWidth="0.5" />
     );

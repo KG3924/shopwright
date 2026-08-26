@@ -36,11 +36,12 @@ function blobOf(p: {
 }
 
 function backFromBlob(blob: string): BackStyle {
-  if (LATTICE.test(blob)) return "lattice";
+  // Lattice is a positive interpret tag only. A missing backStyle is not lattice.
+  if (LATTICE.test(blob)) return "unknown";
   if (XBACK.test(blob)) return "x-back";
   if (SPLAT.test(blob)) return "splat";
   if (/\b(slat|fan back|picket)\b/.test(blob)) return "slat-fan";
-  if (/\bsolid back|panel back\b/.test(blob)) return "solid";
+  if (/\b(solid back|panel back|crest)\b/.test(blob)) return "solid";
   // Do not invent a lattice on a sculpted low-back just because the photo has a back.
   return "solid";
 }
@@ -110,7 +111,9 @@ export function inferDrawing(
     !STOOL.test(blob) &&
     fromPhoto?.backStyle !== "lattice" &&
     fromPhoto?.backStyle !== "x-back" &&
-    fromPhoto?.backStyle !== "splat";
+    fromPhoto?.backStyle !== "splat" &&
+    fromPhoto?.backStyle !== "crest" &&
+    fromPhoto?.backStyle !== "unknown";
 
   if (keepAdirondack) {
     return finishDrawing({
@@ -200,8 +203,10 @@ export function drawingCaption(spec: DrawingSpec): string {
           ? "splat back"
           : spec.backStyle === "slat-fan"
             ? "fan slat back"
-            : spec.backStyle === "solid"
+            : spec.backStyle === "solid" || spec.backStyle === "crest"
               ? "solid back"
+              : spec.backStyle === "unknown"
+                ? "back not read"
             : spec.backProfile === "hoop" || spec.backProfile === "windsor"
               ? "hoop / Windsor back"
               : "open back";
