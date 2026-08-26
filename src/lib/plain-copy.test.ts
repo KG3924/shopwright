@@ -43,7 +43,9 @@ describe("plain packet copy", () => {
         `jargon in chrome copy: ${text}`,
       );
     }
-    assert.match(PACKET_COPY.tickets, /drawing next to them/);
+    assert.match(PACKET_COPY.homeCatalogBlurb, /example packet/i);
+    assert.match(PACKET_COPY.homeCatalogBlurb, /not the photo product path/i);
+    assert.match(PACKET_COPY.homeCatalogTitle, /example packet/i);
     assert.match(PACKET_COPY.homeLead, /cannot authorize a cut list/);
     assert.match(PACKET_COPY.buildLead, /match the tickets/);
     assert.doesNotMatch(PACKET_COPY.homeLead, /\?/);
@@ -72,6 +74,7 @@ describe("plain packet copy", () => {
     assert.doesNotMatch(feeder, /⅛" kerf/);
     for (const body of Object.values(HOLD_BODY)) {
       assert.doesNotMatch(body, /\?/);
+      assert.doesNotMatch(body, /lattice|mortise|rank/i);
     }
   });
 

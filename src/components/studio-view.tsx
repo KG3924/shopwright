@@ -211,7 +211,7 @@ export function StudioView() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-muted">
-            {project.sourceKind === "catalog" ? "Studio piece" : "Interpretation"}
+            {project.sourceKind === "catalog" ? "Example packet" : "Interpretation"}
             {` · ${packet.route.name}`}
             {project.overallSource !== "catalog"
               ? ` · ${project.overallSource} size`

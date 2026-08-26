@@ -32,6 +32,7 @@ import type {
   Axis3,
   Dim,
   DrawingSpec,
+  FinishKind,
   MeasuredDim,
   Overall,
   Part,
@@ -40,6 +41,7 @@ import type {
   Project,
   Rank,
   ScaleConfidence,
+  SeatKind,
   ShopTool,
 } from "../types";
 
@@ -113,7 +115,18 @@ const OverallSchema = z.object({
   h: z.number().finite(),
 });
 
-const BACK_STYLES = ["lattice", "x-back", "splat", "slat-fan", "solid", "none"] as const;
+const BACK_STYLES = [
+  "lattice",
+  "x-back",
+  "splat",
+  "slat-fan",
+  "solid",
+  "crest",
+  "none",
+  "unknown",
+] as const;
+const SEAT_KINDS = ["solid", "upholstered", "unknown"] as const;
+const FINISH_KINDS = ["paint", "clear", "unknown"] as const;
 const DRAWING_FAMILIES = ["table", "case", "chair", "feeder"] as const;
 const maybeStr = z.union([z.string(), z.null()]).optional();
 const maybeNum = z.union([z.number().finite(), z.null()]).optional();
@@ -161,6 +174,8 @@ export const AiJsonSchema = z.object({
   uncertainties: z.array(z.string()).optional(),
   suggestedRouteId: z.string().optional(),
   visibleDetails: z.array(z.string()).optional(),
+  seat: z.enum(SEAT_KINDS).optional(),
+  finish: z.enum(FINISH_KINDS).optional(),
   parts: z.array(AiPartSchema).optional(),
   drawing: DrawingSchema,
 });
@@ -523,9 +538,25 @@ function toGraphParts(
   });
 }
 
+function asSeatKind(value: unknown): SeatKind | undefined {
+  if (value === "solid" || value === "upholstered" || value === "unknown") return value;
+  return undefined;
+}
+
+function asFinishKind(value: unknown): FinishKind | undefined {
+  if (value === "paint" || value === "clear" || value === "unknown") return value;
+  return undefined;
+}
+
 function drawingFromAi(ai: AiJson): DrawingSpec | undefined {
   const d = ai.drawing;
-  if (!d && !ai.visibleDetails?.length && ai.constructionConfidence == null) {
+  if (
+    !d &&
+    !ai.visibleDetails?.length &&
+    ai.constructionConfidence == null &&
+    !ai.seat &&
+    !ai.finish
+  ) {
     return undefined;
   }
   const details = [
@@ -537,6 +568,8 @@ function drawingFromAi(ai: AiJson): DrawingSpec | undefined {
     .slice(0, 10);
   const familyRaw = typeof d?.family === "string" ? d.family.toLowerCase() : undefined;
   const backRaw = typeof d?.backStyle === "string" ? d.backStyle.toLowerCase() : undefined;
+  const seatKind = asSeatKind(ai.seat);
+  const finishKind = asFinishKind(ai.finish);
   return {
     family: (DRAWING_FAMILIES as readonly string[]).includes(familyRaw ?? "")
       ? (familyRaw as DrawingSpec["family"])
@@ -544,6 +577,8 @@ function drawingFromAi(ai: AiJson): DrawingSpec | undefined {
     backStyle: (BACK_STYLES as readonly string[]).includes(backRaw ?? "")
       ? (backRaw as DrawingSpec["backStyle"])
       : undefined,
+    seatKind,
+    finishKind,
     hasArms: typeof d?.hasArms === "boolean" ? d.hasArms : undefined,
     hasFootring: typeof d?.hasFootring === "boolean" ? d.hasFootring : undefined,
     reclined: typeof d?.reclined === "boolean" ? d.reclined : undefined,
@@ -757,6 +792,8 @@ export function hydrateVision(
         ...(reading.visibleDetails ?? []),
         ...(drawing.visibleDetails ?? []),
       ],
+      seat: reading.seat,
+      finish: reading.finish,
       drawing,
       parts,
     },
@@ -791,6 +828,8 @@ export function hydrateVision(
     ],
     uncertainties: reading.uncertainties,
     speciesGuess: reading.speciesGuess,
+    seat: reading.seat,
+    finish: reading.finish,
     drawing,
     parts,
   };

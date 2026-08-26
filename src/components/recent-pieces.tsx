@@ -34,7 +34,7 @@ export function RecentPieces({
                   <span className="block size-full bg-surface-2" />
                 )}
                 <span className="absolute left-2 top-2 rounded-sm bg-surface/90 px-2 py-1 text-[10px] uppercase tracking-wider text-ink">
-                  {piece.sourceKind === "catalog" ? "Studio piece" : "Interpretation"}
+                  {piece.sourceKind === "catalog" ? "Example packet" : "Interpretation"}
                 </span>
               </span>
               <span className="flex flex-1 flex-col p-4">

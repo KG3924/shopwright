@@ -2,8 +2,10 @@ import type {
   BuildStep,
   ConstructionRoute,
   DrawingSpec,
+  FinishKind,
   HardwareItem,
   Part,
+  SeatKind,
 } from "../types";
 
 export type PhotoReading = {
@@ -13,11 +15,11 @@ export type PhotoReading = {
   visibleDetails?: string[];
   uncertainties?: string[];
   speciesGuess?: string;
+  seat?: SeatKind;
+  finish?: FinishKind;
   drawing?: Partial<DrawingSpec>;
   parts?: Array<{ name: string; role?: string; notes?: string; stock?: string }>;
 };
-
-const NON_LATTICE_BACK = new Set(["x-back", "splat", "slat-fan", "solid", "none"]);
 
 const WOOD_SPECIES = [
   "maple",
@@ -33,16 +35,18 @@ const WOOD_SPECIES = [
 /**
  * Lattice joinery is a positive interpret tag, never a catalog template
  * and never a parts-name check (Windsor / slat / cane would leak the same way).
+ * Splat / solid / crest / none / unknown / missing → not lattice.
  */
 export function isLatticeTagged(reading: PhotoReading): boolean {
-  const style = reading.drawing?.backStyle;
-  if (style && NON_LATTICE_BACK.has(style)) return false;
-  if (style === "lattice") return true;
-  const details = (reading.visibleDetails ?? []).join(" ");
-  return /\blattice\b/i.test(details);
+  return reading.drawing?.backStyle === "lattice";
 }
 
 export function isPaintTagged(reading: PhotoReading): boolean {
+  if (reading.finish === "paint" || reading.drawing?.finishKind === "paint") return true;
+  if (reading.finish === "clear" || reading.finish === "unknown") return false;
+  if (reading.drawing?.finishKind === "clear" || reading.drawing?.finishKind === "unknown") {
+    return false;
+  }
   const blob = [
     reading.interpretation,
     ...(reading.visibleDetails ?? []),
@@ -63,6 +67,9 @@ export function isUpholsteredSeat(
 ): boolean {
   if (sourceIsNonWood) return false;
   if (seat.role !== "seat" && !/\bseat\b/i.test(seat.name)) return false;
+  const kind = reading.seat ?? reading.drawing?.seatKind;
+  if (kind === "upholstered") return true;
+  if (kind === "solid" || kind === "unknown") return false;
   const seatBlob = `${seat.name} ${seat.notes ?? ""} ${seat.stock ?? ""}`;
   const global = `${reading.interpretation ?? ""} ${(reading.visibleDetails ?? []).join(" ")}`;
   if (/\bupholster/i.test(`${seatBlob} ${global}`)) return true;
@@ -290,10 +297,12 @@ export function compilePhotoJoinery(
   const lattice = isLatticeTagged(reading);
   const paint = isPaintTagged(reading);
   const seat = parts.find((p) => p.role === "seat") ?? parts.find((p) => /\bseat\b/i.test(p.name));
+  const seatKind = reading.seat ?? reading.drawing?.seatKind;
   const upholstered = seat
     ? isUpholsteredSeat(reading, seat, opts.nonWood === true)
     : false;
-  const hasSolidSeat = Boolean(seat) && !upholstered && seat?.stock !== "plywood";
+  const hasSolidSeat =
+    Boolean(seat) && !upholstered && seatKind !== "unknown" && seat?.stock !== "plywood";
   const defaultRoute =
     opts.suggestedRouteId === "mortise" || opts.suggestedRouteId === "pocket"
       ? opts.suggestedRouteId

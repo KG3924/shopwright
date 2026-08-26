@@ -1,6 +1,8 @@
 # Vision brief (for Shopwright Grok bots)
 
-The live API uses [`src/lib/ai/interpret-system.ts`](../src/lib/ai/interpret-system.ts). Paste that system prompt into any Grok vision bot that reads furniture photos.
+The live API uses the **photo-truth** brief at [`src/lib/ai/prompts/photo-truth.md`](../src/lib/ai/prompts/photo-truth.md). The previous brief is kept as the named variant [`src/lib/ai/prompts/shop-form.md`](../src/lib/ai/prompts/shop-form.md). `src/lib/ai/interpret-system.ts` loads photo-truth. Paste photo-truth into any Grok vision bot that reads furniture photos.
+
+Photo-truth reports **only what the picture supports**. Catalog joinery, enamel, primer, lattice strips, and a joinery route must not appear in interpret JSON. `drawing.backStyle`, `seat` (solid|upholstered|unknown), and `finish` (paint|clear|unknown) are required so compile cannot fall back to the catalog lattice chair. Unreadable axes stay `unknown` / null.
 
 ## Why readings were coming back boxy
 

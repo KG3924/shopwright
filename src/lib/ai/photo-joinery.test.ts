@@ -22,19 +22,21 @@ const seat: Part = {
 };
 
 describe("photo joinery lattice gate", () => {
-  it("tags lattice only from backStyle lattice or an explicit visibleDetails tag", () => {
+  it("tags lattice only when drawing.backStyle is lattice", () => {
     assert.equal(isLatticeTagged({ drawing: { family: "chair", backStyle: "lattice" } }), true);
     assert.equal(
       isLatticeTagged({
         drawing: { family: "chair" },
         visibleDetails: ["lattice back, eight strips"],
       }),
-      true,
+      false,
     );
+    assert.equal(isLatticeTagged({ drawing: { family: "chair", backStyle: "unknown" } }), false);
+    assert.equal(isLatticeTagged({ drawing: { family: "chair", backStyle: "crest" } }), false);
   });
 
-  it("splat, solid, crest, and none are not lattice — even with a lattice-named part", () => {
-    for (const backStyle of ["splat", "solid", "none", "x-back", "slat-fan"] as const) {
+  it("splat, solid, crest, none, and unknown are not lattice — even with a lattice-named part", () => {
+    for (const backStyle of ["splat", "solid", "crest", "none", "unknown", "x-back", "slat-fan"] as const) {
       assert.equal(
         isLatticeTagged({
           drawing: { family: "chair", backStyle },
@@ -67,8 +69,29 @@ describe("photo joinery finish and seat", () => {
       }),
       false,
     );
+    assert.equal(isPaintTagged({ finish: "unknown" }), false);
+    assert.equal(isPaintTagged({ finish: "clear" }), false);
+    assert.equal(isPaintTagged({ finish: "paint" }), true);
     assert.equal(photoSpeciesId(undefined), "maple");
     assert.notEqual(photoSpeciesId(undefined), "poplar");
+  });
+
+  it("seat field: upholstered packs, solid may glue, unknown does neither", () => {
+    const upholstered = compilePhotoJoinery(
+      { seat: "upholstered", finish: "unknown", drawing: { family: "chair", backStyle: "crest" } },
+      [seat],
+    );
+    assert.ok(upholstered.hardware.some((h) => h.id === "upholstery-pack"));
+    assert.ok(!upholstered.steps.some((s) => s.techniques.includes("glue-up")));
+    assert.ok(!upholstered.steps.some((s) => s.id === "sc5" || s.id === "sc6"));
+
+    const unknown = compilePhotoJoinery(
+      { seat: "unknown", finish: "unknown", drawing: { family: "chair", backStyle: "unknown" } },
+      [seat],
+    );
+    assert.ok(!unknown.hardware.some((h) => h.id === "upholstery-pack"));
+    assert.ok(!unknown.steps.some((s) => s.techniques.includes("glue-up")));
+    assert.ok(!unknown.hardware.some((h) => h.id === "pins-ch" || h.id === "primer-ch"));
   });
 
   it("upholstered fabric seat is not a solid glue-up", () => {

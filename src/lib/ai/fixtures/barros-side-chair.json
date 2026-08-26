@@ -34,6 +34,8 @@
     "scaleNotes": ["Product label overall on the listing."],
     "speciesGuess": "maple",
     "uncertainties": ["underside webbing layout", "exact foam thickness"],
+    "seat": "upholstered",
+    "finish": "clear",
     "visibleDetails": [
       "solid crest rail",
       "upholstered fabric seat",
@@ -106,7 +108,7 @@
     ],
     "drawing": {
       "family": "chair",
-      "backStyle": "solid",
+      "backStyle": "crest",
       "hasArms": false,
       "hasFootring": false,
       "seatShape": "square",

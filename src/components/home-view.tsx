@@ -352,7 +352,7 @@ export function HomeView() {
           <div>
             <h2 className="flex items-center gap-2 font-display text-2xl">
               <ChiselMark className="size-5 text-accent" />
-              Studio pieces
+              {PACKET_COPY.homeCatalogTitle}
             </h2>
             <p className="mt-1 text-sm text-muted">
               {PACKET_COPY.homeCatalogBlurb}

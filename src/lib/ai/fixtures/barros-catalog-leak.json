@@ -1,0 +1,43 @@
+{
+  "id": "barros-catalog-leak",
+  "note": "What a catalog-joinery interpret looks like. Harness must REJECT this JSON. Not a live Wayfair URL. Do not compile this as a shop-truth pass.",
+  "ai": {
+    "name": "Barros side chair (catalog leak)",
+    "category": "chair",
+    "templateId": "side-chair",
+    "interpretation": "Lattice strips on the back, half-laps and diamonds, 23-ga pins. Primer and enamel. Paint the seat.",
+    "confidence": 0.9,
+    "overall": { "w": 18.5, "d": 20, "h": 38 },
+    "seat": "solid",
+    "finish": "paint",
+    "visibleDetails": ["lattice back", "Paint A", "primer", "enamel"],
+    "parts": [
+      {
+        "name": "Seat",
+        "qty": 1,
+        "role": "seat",
+        "stock": "solid",
+        "notes": "Paint the seat. Tenon horns. Glue-up to enamel.",
+        "length": { "value": 18, "source": "measured", "confidence": 0.9 },
+        "width": { "value": 16.5, "source": "measured", "confidence": 0.9 },
+        "thickness": { "value": 0.75, "source": "measured", "confidence": 0.9 }
+      },
+      {
+        "name": "Lattice strip",
+        "qty": 8,
+        "role": "slat",
+        "stock": "solid",
+        "length": { "value": 12, "source": "inferred", "confidence": 0.4 },
+        "width": { "value": 0.75, "source": "inferred", "confidence": 0.4 },
+        "thickness": { "value": 0.75, "source": "inferred", "confidence": 0.4 }
+      }
+    ],
+    "drawing": {
+      "family": "chair",
+      "backStyle": "lattice"
+    },
+    "routes": [{ "id": "pocket" }],
+    "hardware": [{ "id": "pins-ch", "name": "23-ga pins" }],
+    "steps": [{ "id": "sc6", "title": "Paint A" }]
+  }
+}
